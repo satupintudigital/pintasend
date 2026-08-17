@@ -1,7 +1,7 @@
 import NextAuth, { type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { query } from "@/lib/db";
+import { queryD1One } from "@/lib/d1";
 
 declare module "next-auth" {
   interface User {
@@ -34,7 +34,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = String(credentials?.password ?? "");
         if (!email || !password) return null;
 
-        const rows = await query<{
+        const user = await queryD1One<{
           id: string;
           tenantId: string;
           email: string;
@@ -42,10 +42,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           passwordHash: string;
           role: string;
         }>(
-          'SELECT id, "tenantId", email, name, "passwordHash", role FROM "User" WHERE email = $1',
+          "SELECT id, tenantId, email, name, passwordHash, role FROM User WHERE email = ?",
           [email],
         );
-        const user = rows[0];
         if (!user) return null;
 
         const ok = await bcrypt.compare(password, user.passwordHash);
