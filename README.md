@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Wavio — WhatsApp API Gateway untuk Bisnis
 
-## Getting Started
+Dashboard + API gateway WhatsApp multi-tenant berbasis **OpenWA**. Produk mandiri Satu Pintu Digital (brand: **Wavio**), sekaligus addon integrasi NalaNiaga.
 
-First, run the development server:
+- **Produksi:** https://wavio.satupintudigital.co.id
+- **Workers dev fallback:** https://wavio.xolution.workers.dev
+- **Spec & plan:** `NalaNiaga/docs/superpowers/specs/2026-08-17-wa-gateway-saas-design.md` · `NalaNiaga/docs/superpowers/plans/2026-08-17-wavio-fase-0-1.md`
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Arsitektur (aktual)
+
+```
+Browser ──► Cloudflare Workers (OpenNext Next.js 16)  ──► Neon Postgres (@neondatabase/serverless)
+                │  wavio.satupintudigital.co.id            (raw SQL, WebSocket 443)
+                ▼
+        OpenWA via Cloudflare Tunnel  https://owa.nalaniaga.id  (VPS :2785)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Runtime DB:** raw SQL via `@neondatabase/serverless` (`src/lib/db.ts`). Prisma **tidak** berjalan di Worker (bundle > 3 MiB free tier). Prisma dipakai hanya untuk schema → generate DDL.
+- **ID:** UUID v7 dibangkitkan aplikasi (`src/lib/uuidv7.ts`) — `@default(uuid(7))` Prisma tidak diterapkan oleh raw SQL.
+- **OpenWA:** hanya dicapai via hostname tunnel (`owa.nalaniaga.id`) — Worker memblokir fetch IP mentah (error 1003).
+- **Isolasi tenant:** semua query device di-scope `tenantId`; admin key OpenWA internal-only.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Next.js 16 (App Router) · React 19 · TypeScript 5 · Tailwind CSS 4 · Auth.js v5 (credentials, JWT) · bcryptjs · Vitest · `@opennextjs/cloudflare` + wrangler.
 
-## Learn More
+## Setup lokal
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+cp .env.example .env   # isi DATABASE_URL, AUTH_SECRET, OPENWA_*
+npm run db:seed        # seed demo: owner@wavio.test / admin123
+npm run dev            # http://localhost:3000
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Script
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Script | Fungsi |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm test` | Unit test (vitest) |
+| `npm run lint` | ESLint |
+| `npm run db:seed` | Seed demo ke Neon |
+| `npm run deploy` | Build + deploy ke Cloudflare Workers (OpenNext) |
+| `npm run cf-typegen` | Generate `cloudflare-env.d.ts` |
 
-## Deploy on Vercel
+## Skema DB & migrasi
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`prisma/schema.prisma` = source of truth. DDL diterapkan ke Neon via:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/wavio-schema.sql
+node prisma/apply-schema.mjs   # menerapkan SQL ke DATABASE_URL
+```
+
+## Env & secret
+
+`.env` (lokal) dan `wrangler secret put` (Worker): `DATABASE_URL`, `AUTH_SECRET`, `OPENWA_BASE_URL` (`https://owa.nalaniaga.id`), `OPENWA_ADMIN_KEY`.
