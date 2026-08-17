@@ -1,26 +1,157 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+  Wavio design tokens.
+  Arah: dark tech + premium. Aksen tunggal = emerald (sinyal "go/kirim"),
+  netral zinc (off-black), satu corner-radius system:
+    - kartu / panel  : 16px (rounded-2xl)
+    - tombol          : pill (rounded-full)
+    - code / input    : 12px (rounded-xl)
+*/
+
+@theme {
+  --color-ink: #09090b;
+  --color-surface: #101012;
+  --color-surface-2: #17171a;
+  --color-line: #26262b;
+  --color-line-soft: #1d1d21;
+  --color-fg: #f4f4f5;
+  --color-fg-muted: #9ca3af;
+  --color-fg-faint: #71717a;
+  --color-accent: #10b981;
+  --color-accent-bright: #34d399;
+  --color-accent-ink: #022c22;
+
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  background-color: var(--color-ink);
+  color: var(--color-fg);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  color: #022c22;
+  background: var(--color-accent-bright);
+}
+
+h1, h2, h3, h4 {
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+/* ── Fine grain overlay (fixed, non-scrolling) ── */
+.bk-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+/* ── Scroll reveal (compositor-driven, ditambahkan oleh Reveal.tsx) ── */
+.bk-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.6s var(--ease-out) var(--reveal-delay, 0s),
+    transform 0.6s var(--ease-out) var(--reveal-delay, 0s);
+}
+
+.bk-reveal.bk-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (scripting: none) {
+  .bk-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Hero entrance, staggered via delay (pure CSS) ── */
+@keyframes bkFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bk-enter {
+  animation: bkFadeUp 0.7s var(--ease-out) both;
+  animation-delay: var(--enter-delay, 0s);
+}
+
+/* ── Subtle pulse for live status dot (semantic state only) ── */
+@keyframes bkPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.bk-live-dot {
+  animation: bkPulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  .bk-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .bk-enter {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .bk-live-dot {
+    animation: none !important;
+  }
 }
