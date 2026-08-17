@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 const endpoints = [
-  { method: "POST" as const, path: "/v1/messages", desc: "Kirim pesan teks WhatsApp" },
+  { method: "POST" as const, path: "/v1/messages", desc: "Kirim pesan teks & media WhatsApp" },
   { method: "GET" as const, path: "/api/health", desc: "Status layanan (publik)" },
 ];
 
@@ -93,13 +93,13 @@ export default function DocsApi() {
           <section>
             <Anchor id="kirim-pesan">POST /v1/messages — Kirim pesan</Anchor>
             <p className="mt-2 text-sm leading-relaxed text-fg-muted">
-              Mengirim pesan teks dari device yang tersambung ke satu nomor WhatsApp.
-              Otomatis memakai device dengan status{" "}
-              <code className="font-mono">ready</code>; berikan{" "}
+              Mengirim <strong>teks</strong> atau <strong>media</strong> (gambar, video,
+              audio, dokumen, stiker) dari device yang tersambung. Otomatis memakai
+              device dengan status <code className="font-mono">ready</code>; berikan{" "}
               <code className="font-mono">deviceId</code> untuk memilih device tertentu.
             </p>
 
-            <h3 className="mt-6 text-sm font-semibold text-fg">Body request</h3>
+            <h3 className="mt-6 text-sm font-semibold text-fg">Body request — teks</h3>
             <div className="mt-3">
               <CodeBlock
                 lang="json"
@@ -107,6 +107,43 @@ export default function DocsApi() {
   "to": "6281234567890",
   "text": "Pesanan #1234 sudah dikirim",
   "deviceId": "01j5…"   // opsional
+}`}
+              />
+            </div>
+
+            <h3 className="mt-6 text-sm font-semibold text-fg">Body request — media via URL</h3>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              URL publik akan diambil oleh gateway (SSRF-guarded) lalu dikirim.
+            </p>
+            <div className="mt-3">
+              <CodeBlock
+                lang="json"
+                code={`{
+  "to": "6281234567890",
+  "mediaType": "image",              // image | video | audio | document | sticker
+  "mediaUrl": "https://cdn.example.com/bukti-pembayaran.jpg",
+  "filename": "bukti-pembayaran.jpg", // opsional
+  "text": "Bukti pembayaran pesanan #1234", // opsional → caption media
+  "deviceId": "01j5…"                  // opsional
+}`}
+              />
+            </div>
+
+            <h3 className="mt-6 text-sm font-semibold text-fg">Body request — media via base64</h3>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Gunakan untuk file yang tidak punya URL publik (mis. PDF hasil generate).
+              <code className="font-mono">mimetype</code> wajib pada mode ini.
+            </p>
+            <div className="mt-3">
+              <CodeBlock
+                lang="json"
+                code={`{
+  "to": "6281234567890",
+  "mediaType": "document",
+  "mediaBase64": "JVBERi0xLjQK…",       // data base64 (tanpa prefix "data:")
+  "mimetype": "application/pdf",
+  "filename": "invoice-1234.pdf",
+  "text": "Invoice #1234 terlampir"
 }`}
               />
             </div>
@@ -123,7 +160,15 @@ export default function DocsApi() {
                   </li>
                   <li>
                     <code className="font-mono text-accent-bright">text</code>{" "}
-                    <span className="text-fg-faint">wajib</span>
+                    <span className="text-fg-faint">teks WAJIB · media: caption opsional</span>
+                  </li>
+                  <li>
+                    <code className="font-mono text-accent-bright">mediaType</code>{" "}
+                    <span className="text-fg-faint">image/video/audio/document/sticker</span>
+                  </li>
+                  <li>
+                    <code className="font-mono text-accent-bright">mediaUrl</code>{" "}
+                    <span className="text-fg-faint">atau mediaBase64+mimetype</span>
                   </li>
                   <li>
                     <code className="font-mono text-accent-bright">deviceId</code>{" "}
@@ -136,7 +181,9 @@ export default function DocsApi() {
                   Batasan
                 </p>
                 <ul className="mt-3 space-y-2 text-sm text-fg-muted">
-                  <li>text ≤ 4.096 karakter</li>
+                  <li>text ≤ 4.096 · caption media ≤ 1.024</li>
+                  <li>mediaBase64 ≤ ~15 MB file</li>
+                  <li>filename ≤ 255 karakter</li>
                   <li>to: 62… / 08… / 8…</li>
                   <li>60 request/menit/tenant</li>
                 </ul>
@@ -189,7 +236,7 @@ export default function DocsApi() {
                 <p>
                   Setiap pengiriman sukses maupun gagal dicatat otomatis dan bisa dilihat
                   di <strong>Dashboard → Riwayat Pesan</strong> bersama pesan masuk dari
-                  webhook.
+                  webhook. Pesan media tercatat dengan tipe media dan caption/nama file.
                 </p>
               </Callout>
             </div>

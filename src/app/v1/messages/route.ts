@@ -1,13 +1,21 @@
 import { verifyApiKey } from "@/lib/authStore";
 import { normalizeChatId } from "@/lib/chat";
 import { queryOne } from "@/lib/db";
-import { openwa, OpenwaError } from "@/lib/openwa";
+import { openwa, OpenwaError, type OpenwaSendResult } from "@/lib/openwa";
 import { insertMessageLog } from "@/lib/messageStore";
+import { parseMediaPayload } from "@/lib/media";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 
-// API publik pihak ketiga: kirim pesan WhatsApp.
+// API publik pihak ketiga: kirim pesan WhatsApp (teks ATAU media).
 // Auth: Authorization: Bearer <API key> (dibuat dari dashboard → D1, 0 Neon utk verifikasi).
-// Body: { to: "6281234567890" | "0812...", text: "...", deviceId?: "opsional" }
+//
+// Body:
+//   Teks : { to: "6281234567890" | "0812...", text: "...", deviceId?: "opsional" }
+//   Media: { to, mediaType: "image|video|audio|document|sticker",
+//            mediaUrl: "https://..."  ATAU  mediaBase64: "..." + mimetype: "image/jpeg",
+//            filename?: "...", text?: "caption", deviceId?: "opsional" }
+//   Saat media ada, `text` opsional dan dipakai sebagai caption.
+//
 // Device yang dipakai: deviceId jika diberikan & milik tenant, kalau tidak device ready pertama.
 export async function POST(req: Request) {
   const authz = req.headers.get("authorization") ?? "";
@@ -25,13 +33,45 @@ export async function POST(req: Request) {
     to?: unknown;
     text?: unknown;
     deviceId?: unknown;
+    mediaType?: unknown;
+    mediaUrl?: unknown;
+    mediaBase64?: unknown;
+    mimetype?: unknown;
+    filename?: unknown;
   } | null;
   const to = typeof body?.to === "string" ? body.to.trim() : "";
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   const deviceId = typeof body?.deviceId === "string" ? body.deviceId.trim() : "";
 
-  if (!to || !text) {
-    return Response.json({ error: "Field \"to\" dan \"text\" wajib diisi" }, { status: 400 });
+  if (!to) {
+    return Response.json({ error: "Field \"to\" wajib diisi" }, { status: 400 });
+  }
+
+  // Validasi media (jika ada field mediaType/mediaUrl/mediaBase64) SEBELUM
+  // lookup device — fail fast tanpa query DB yang tidak perlu.
+  const hasMediaInput =
+    body?.mediaType !== undefined ||
+    body?.mediaUrl !== undefined ||
+    body?.mediaBase64 !== undefined;
+  let media = null;
+  if (hasMediaInput) {
+    const parsed = parseMediaPayload({
+      mediaType: body?.mediaType,
+      mediaUrl: body?.mediaUrl,
+      mediaBase64: body?.mediaBase64,
+      mimetype: body?.mimetype,
+      filename: body?.filename,
+      text,
+    });
+    if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
+    media = parsed.media;
+  }
+
+  if (!text && !media) {
+    return Response.json(
+      { error: "Isi \"text\" atau media (mediaType + mediaUrl/mediaBase64)" },
+      { status: 400 },
+    );
   }
   if (text.length > 4096) {
     return Response.json({ error: "Text maksimal 4096 karakter" }, { status: 400 });
@@ -74,8 +114,20 @@ export async function POST(req: Request) {
     );
   }
 
+  // Label untuk riwayat: caption media, filename, atau tipe; teks biasa apa adanya.
+  const logBody = media ? (media.caption ?? media.filename ?? "") : text;
+  const logType = media ? media.mediaType : "text";
+
   try {
-    const result = await openwa.sendText(device.openwaSessionId, chatId, text);
+    const result: OpenwaSendResult = media
+      ? await openwa.sendMedia(device.openwaSessionId, chatId, media.mediaType, {
+          ...(media.url ? { url: media.url } : {}),
+          ...(media.base64 ? { base64: media.base64, mimetype: media.mimetype } : {}),
+          ...(media.filename ? { filename: media.filename } : {}),
+          ...(media.caption ? { caption: media.caption } : {}),
+        })
+      : await openwa.sendText(device.openwaSessionId, chatId, text);
+
     // Catat pesan KELUAR (best-effort; kegagalan log tidak memengaruhi respons).
     const messageId = result?.messageId ?? result?.id ?? null;
     insertMessageLog({
@@ -84,8 +136,8 @@ export async function POST(req: Request) {
       deviceLabel: device.label,
       direction: "outgoing",
       chatId,
-      body: text,
-      type: "text",
+      body: logBody,
+      type: logType,
       status: typeof result?.status === "string" ? result.status : "sent",
       messageId,
     }).catch((e) => console.error("v1/messages: catat pesan keluar gagal:", e));
@@ -94,6 +146,7 @@ export async function POST(req: Request) {
       deviceId: device.id,
       to: chatId,
       messageId,
+      ...(media ? { mediaType: media.mediaType } : {}),
     });
   } catch (e) {
     if (e instanceof OpenwaError) {
@@ -104,8 +157,8 @@ export async function POST(req: Request) {
         deviceLabel: device.label,
         direction: "outgoing",
         chatId,
-        body: text,
-        type: "text",
+        body: logBody,
+        type: logType,
         status: "failed",
         messageId: null,
       }).catch((err) => console.error("v1/messages: catat gagal kirim:", err));

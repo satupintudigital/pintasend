@@ -1,6 +1,8 @@
 // REST client OpenWA — semua panggilan memakai admin key via header X-API-Key.
 // Endpoint diverifikasi dari OpenWA `docs/06-api-specification.md`.
-import { hashApiKey } from "@/lib/apiKeys";
+// Import relatif (bukan @/) agar modul ini ikut ter-test di vitest (tidak
+// me-resolve alias tsconfig); Next.js menangani keduanya dengan baik.
+import { hashApiKey } from "./apiKeys";
 
 export interface OpenwaSession {
   id: string;
@@ -27,6 +29,20 @@ export interface OpenwaSendResult {
   status?: string;
   [key: string]: unknown;
 }
+
+export type OpenwaMediaType = "image" | "video" | "audio" | "document" | "sticker";
+
+// Whitelist tipe media — SATU sumber kebenaran: dipakai juga oleh lib/media.ts
+// (validasi API). Karena mediaType masuk ke PATH URL endpoint OpenWA
+// (send-${mediaType}), whitelist ini dijaga di tempat endpoint-nya didefinisikan
+// (defense-in-depth: pemanggil masa depan tidak bisa melewatinya).
+export const OPENWA_MEDIA_TYPES: readonly OpenwaMediaType[] = [
+  "image",
+  "video",
+  "audio",
+  "document",
+  "sticker",
+];
 
 export interface OpenwaWebhook {
   id: string;
@@ -95,6 +111,23 @@ export const openwa = {
       method: "POST",
       body: JSON.stringify({ chatId, text }),
     }),
+  // Kirim media (gambar/video/audio/dokumen/stiker). DTO flat SendMediaMessageDto:
+  // { chatId, url | base64, mimetype?, filename?, caption? }. Guard whitelist di
+  // sini (mediaType masuk path URL) — bukan hanya di lapisan validasi API.
+  sendMedia: (
+    sessionId: string,
+    chatId: string,
+    mediaType: OpenwaMediaType,
+    body: { url?: string; base64?: string; mimetype?: string; filename?: string; caption?: string },
+  ) => {
+    if (!OPENWA_MEDIA_TYPES.includes(mediaType)) {
+      throw new OpenwaError(400, `mediaType tidak didukung: ${mediaType}`);
+    }
+    return request<OpenwaSendResult>(`/api/sessions/${sessionId}/messages/send-${mediaType}`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, ...body }),
+    });
+  },
   // Webhook per session: OpenWA mem-POST event ke URL yang didaftarkan dan
   // menandatangani raw body dgn HMAC-SHA256 (header `x-openwa-signature`).
   // Secret bersifat write-only — di OpenWA sekalipun tidak bisa dibaca balik,

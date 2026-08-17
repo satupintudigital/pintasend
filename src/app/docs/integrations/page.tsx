@@ -260,7 +260,6 @@ app.post("/webhooks/wavio", express.raw({ type: "application/json" }), (req, res
             </h2>
             <div className="mt-4 overflow-hidden rounded-xl border border-line">
               {[
-                ["Media & dokumen", "Kirim gambar, video, PDF, dan stiker", "Segera"],
                 ["Template pesan", "Template terstruktur untuk notifikasi yang konsisten", "Segera"],
                 ["Filter tanggal", "Filter riwayat pesan berdasarkan rentang tanggal", "Segera"],
               ].map(([title, desc, badge], i) => (
@@ -281,24 +280,51 @@ app.post("/webhooks/wavio", express.raw({ type: "application/json" }), (req, res
               ))}
             </div>
             <div className="mt-3 overflow-hidden rounded-xl border border-emerald-500/25">
-              <div className="flex items-start gap-4 px-4 py-3.5">
-                <span className="mt-1 shrink-0 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-400">
-                  Tersedia
-                </span>
-                <div>
-                  <p className="text-sm font-medium text-fg">Riwayat pesan</p>
-                  <p className="mt-0.5 text-sm text-fg-muted">
-                    Riwayat pesan masuk &amp; keluar sudah tersedia di{" "}
+              {[
+                [
+                  "Riwayat pesan",
+                  <span key="rp">
+                    Riwayat pesan masuk &amp; keluar di{" "}
                     <a
                       href="/dashboard/pesan"
                       className="font-medium text-accent-bright underline decoration-accent/30 underline-offset-2 transition-colors hover:decoration-accent"
                     >
                       Dashboard → Riwayat Pesan
                     </a>{" "}
-                    — dengan pencarian isi pesan &amp; nomor, filter arah, dan pagination.
-                  </p>
+                    — pencarian isi &amp; nomor, filter arah, pagination.
+                  </span>,
+                ],
+                [
+                  "Media & dokumen",
+                  <span key="md">
+                    Kirim gambar, video, audio, PDF &amp; stiker via{" "}
+                    <code className="font-mono">POST /v1/messages</code> — URL publik atau
+                    base64 inline (lihat{" "}
+                    <a
+                      href="/docs/api#kirim-pesan"
+                      className="font-medium text-accent-bright underline decoration-accent/30 underline-offset-2 transition-colors hover:decoration-accent"
+                    >
+                      Referensi API
+                    </a>
+                    ).
+                  </span>,
+                ],
+              ].map(([title, desc], i) => (
+                <div
+                  key={String(title)}
+                  className={`flex items-start gap-4 px-4 py-3.5 ${
+                    i > 0 ? "border-t border-emerald-500/15" : ""
+                  }`}
+                >
+                  <span className="mt-1 shrink-0 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-400">
+                    Tersedia
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-fg">{String(title)}</p>
+                    <p className="mt-0.5 text-sm text-fg-muted">{desc}</p>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
           </Reveal>
         </section>
