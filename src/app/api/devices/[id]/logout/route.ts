@@ -3,6 +3,7 @@ import { query } from "@/lib/db";
 import { openwa, OpenwaError } from "@/lib/openwa";
 import { getDeviceForTenant } from "@/lib/devices";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { deleteCachedDeviceList } from "@/lib/deviceCache";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -33,5 +34,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     "disconnected",
     id,
   ]);
+  await deleteCachedDeviceList(tenantId);
   return Response.json({ ok: true });
 }

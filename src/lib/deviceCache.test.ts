@@ -3,7 +3,11 @@ import {
   getCachedDevice,
   setCachedDevice,
   deleteCachedDevice,
+  getCachedDeviceList,
+  setCachedDeviceList,
+  deleteCachedDeviceList,
   DEVICE_STATUS_TTL_MS,
+  DEVICE_LIST_TTL_MS,
   type DeviceCacheValue,
 } from "./deviceCache";
 
@@ -63,5 +67,31 @@ describe("deviceCache", () => {
     await setCachedDevice(device);
     await deleteCachedDevice("dev-1");
     expect(await getCachedDevice("dev-1")).toBeNull();
+  });
+
+  it("list: set lalu get mengembalikan daftar device yang sama", async () => {
+    const devices: DeviceCacheValue[] = [device, { ...device, id: "dev-2", label: "HP CS" }];
+    await setCachedDeviceList("tenant-1", devices);
+    const hit = await getCachedDeviceList("tenant-1");
+    expect(hit).toEqual(devices);
+  });
+
+  it("list: cache expired (TTL lewat) → null", async () => {
+    vi.useFakeTimers();
+    await setCachedDeviceList("tenant-1", [device]);
+    vi.advanceTimersByTime(DEVICE_LIST_TTL_MS + 100);
+    expect(await getCachedDeviceList("tenant-1")).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it("list: delete menghapus cache", async () => {
+    await setCachedDeviceList("tenant-1", [device]);
+    await deleteCachedDeviceList("tenant-1");
+    expect(await getCachedDeviceList("tenant-1")).toBeNull();
+  });
+
+  it("list: terisolasi per tenant (dev-1 di tenant-2 tidak ketemu)", async () => {
+    await setCachedDevice(device);
+    expect(await getCachedDeviceList("tenant-2")).toBeNull();
   });
 });

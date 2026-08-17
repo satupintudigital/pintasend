@@ -7,6 +7,7 @@ import {
   getCachedDevice,
   setCachedDevice,
   deleteCachedDevice,
+  deleteCachedDeviceList,
 } from "@/lib/deviceCache";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -33,6 +34,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       [owa.status, owa.phone ?? device.phone, id],
     );
     await setCachedDevice({ ...device, status: owa.status, phone: owa.phone ?? device.phone });
+    if (owa.status !== device.status) await deleteCachedDeviceList(tenantId);
     return Response.json({ device: { ...device, status: owa.status, phone: owa.phone } });
   } catch (e) {
     if (e instanceof OpenwaError && e.status === 404) {
@@ -42,6 +44,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         id,
       ]);
       await setCachedDevice({ ...device, status: "disconnected", phone: null });
+      await deleteCachedDeviceList(tenantId);
       return Response.json({ device: { ...device, status: "disconnected", phone: null } });
     }
     if (e instanceof OpenwaError) {
@@ -71,5 +74,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   }
   await query('DELETE FROM "Device" WHERE id = $1', [id]);
   await deleteCachedDevice(id);
+  await deleteCachedDeviceList(tenantId);
   return Response.json({ ok: true });
 }

@@ -4,13 +4,24 @@ import { openwa, OpenwaError } from "@/lib/openwa";
 import { uuidv7 } from "@/lib/uuidv7";
 import { listDevicesForTenant } from "@/lib/devices";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import {
+  getCachedDeviceList,
+  setCachedDeviceList,
+  deleteCachedDeviceList,
+} from "@/lib/deviceCache";
 
 export async function GET() {
   const session = await auth();
   const tenantId = session?.user?.tenantId;
   if (!tenantId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Cache hit → 0 koneksi Neon (halaman device di-reload sering).
+  const cached = await getCachedDeviceList(tenantId);
+  if (cached) return Response.json({ devices: cached });
+
+  // Cache miss → query Neon + refresh cache.
   const devices = await listDevicesForTenant(tenantId);
+  await setCachedDeviceList(tenantId, devices);
   return Response.json({ devices });
 }
 
@@ -38,6 +49,7 @@ export async function POST(req: Request) {
       'INSERT INTO "Device" (id, "tenantId", label, "openwaSessionId", status) VALUES ($1, $2, $3, $4, $5)',
       [deviceId, tenantId, label, owa.id, owa.status],
     );
+    await deleteCachedDeviceList(tenantId);
     return Response.json(
       {
         device: {

@@ -2,15 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Devices, House } from "@phosphor-icons/react";
+import { Devices, House, UsersThree } from "@phosphor-icons/react";
 
 const items = [
   { href: "/dashboard", label: "Beranda", icon: House },
   { href: "/dashboard/devices", label: "Device", icon: Devices },
 ];
 
-export function SidebarNav({ horizontal = false }: { horizontal?: boolean }) {
+export function SidebarNav({
+  horizontal = false,
+  canManageUsers = false,
+}: {
+  horizontal?: boolean;
+  canManageUsers?: boolean;
+}) {
   const pathname = usePathname();
+  const visible = canManageUsers
+    ? [...items, { href: "/dashboard/pengguna", label: "Pengguna", icon: UsersThree }]
+    : items;
 
   const linkClass = (active: boolean) =>
     `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors ${
@@ -26,7 +35,7 @@ export function SidebarNav({ horizontal = false }: { horizontal?: boolean }) {
           Menu
         </p>
       )}
-      {items.map((it) => {
+      {visible.map((it) => {
         const active =
           pathname === it.href ||
           (it.href !== "/dashboard" && pathname.startsWith(it.href));
