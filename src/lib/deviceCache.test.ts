@@ -1,9 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
-  getCachedDeviceStatus,
-  setCachedDeviceStatus,
-  deleteCachedDeviceStatus,
+  getCachedDevice,
+  setCachedDevice,
+  deleteCachedDevice,
   DEVICE_STATUS_TTL_MS,
+  type DeviceCacheValue,
 } from "./deviceCache";
 
 // Fake KV binding.
@@ -26,30 +27,41 @@ vi.mock("@/lib/cf", () => ({
   }),
 }));
 
+const device: DeviceCacheValue = {
+  id: "dev-1",
+  tenantId: "tenant-1",
+  label: "HP Kasir",
+  openwaSessionId: "owa-1",
+  phone: "62812",
+  status: "ready",
+  createdAt: "2026-08-17T00:00:00.000Z",
+  updatedAt: "2026-08-17T00:00:00.000Z",
+};
+
 describe("deviceCache", () => {
   beforeEach(() => {
     fakeKv.store.clear();
     vi.clearAllMocks();
   });
 
-  it("set lalu get mengembalikan status yang sama", async () => {
-    await setCachedDeviceStatus("dev-1", "qr_ready", null);
-    const hit = await getCachedDeviceStatus("dev-1");
-    expect(hit).toEqual({ status: "qr_ready", phone: null });
+  it("set lalu get mengembalikan device yang sama", async () => {
+    await setCachedDevice(device);
+    const hit = await getCachedDevice("dev-1");
+    expect(hit).toEqual(device);
   });
 
   it("cache expired (TTL lewat) → null", async () => {
     vi.useFakeTimers();
-    await setCachedDeviceStatus("dev-1", "ready", "62812");
+    await setCachedDevice(device);
     vi.advanceTimersByTime(DEVICE_STATUS_TTL_MS + 100);
-    const hit = await getCachedDeviceStatus("dev-1");
+    const hit = await getCachedDevice("dev-1");
     expect(hit).toBeNull();
     vi.useRealTimers();
   });
 
   it("delete menghapus cache", async () => {
-    await setCachedDeviceStatus("dev-1", "ready", "62812");
-    await deleteCachedDeviceStatus("dev-1");
-    expect(await getCachedDeviceStatus("dev-1")).toBeNull();
+    await setCachedDevice(device);
+    await deleteCachedDevice("dev-1");
+    expect(await getCachedDevice("dev-1")).toBeNull();
   });
 });

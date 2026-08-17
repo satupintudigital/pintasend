@@ -8,9 +8,21 @@ interface KvLike {
   delete(key: string): Promise<void>;
 }
 
-interface CachedValue {
-  status: string;
+// Device DTO lengkap — sama dengan shape yang dikembalikan GET /api/devices/:id
+// saat cache miss, sehingga kontrak API konsisten untuk klien.
+export interface DeviceCacheValue {
+  id: string;
+  tenantId: string;
+  label: string;
+  openwaSessionId: string;
   phone: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface StoredValue {
+  device: DeviceCacheValue;
   ts: number;
 }
 
@@ -18,34 +30,28 @@ function cacheKey(deviceId: string): string {
   return `device:${deviceId}:status`;
 }
 
-export async function getCachedDeviceStatus(
-  deviceId: string,
-): Promise<{ status: string; phone: string | null } | null> {
+export async function getCachedDevice(deviceId: string): Promise<DeviceCacheValue | null> {
   const kv = await getBinding<KvLike>("WAVIO_CACHE");
   const raw = await kv.get(cacheKey(deviceId));
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as CachedValue;
+    const parsed = JSON.parse(raw) as StoredValue;
     if (Date.now() - parsed.ts > DEVICE_STATUS_TTL_MS) return null;
-    return { status: parsed.status, phone: parsed.phone };
+    return parsed.device;
   } catch {
     return null;
   }
 }
 
-export async function setCachedDeviceStatus(
-  deviceId: string,
-  status: string,
-  phone: string | null,
-): Promise<void> {
+export async function setCachedDevice(device: DeviceCacheValue): Promise<void> {
   const kv = await getBinding<KvLike>("WAVIO_CACHE");
-  const value: CachedValue = { status, phone, ts: Date.now() };
-  await kv.put(cacheKey(deviceId), JSON.stringify(value), {
+  const value: StoredValue = { device, ts: Date.now() };
+  await kv.put(cacheKey(device.id), JSON.stringify(value), {
     expirationTtl: Math.ceil(DEVICE_STATUS_TTL_MS / 1000),
   });
 }
 
-export async function deleteCachedDeviceStatus(deviceId: string): Promise<void> {
+export async function deleteCachedDevice(deviceId: string): Promise<void> {
   const kv = await getBinding<KvLike>("WAVIO_CACHE");
   await kv.delete(cacheKey(deviceId));
 }
