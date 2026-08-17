@@ -1,12 +1,14 @@
-import { query } from "@/lib/db";
+import { queryD1 } from "@/lib/d1";
 
-// Rute diagnostik: memastikan DATABASE_URL tersedia di runtime Worker dan
-// koneksi Neon (serverless driver) berhasil.
+// Rute diagnostik: userCount dihitung dari D1 (wavio-auth) — tidak
+// menyentuh Neon sama sekali, sehingga health check tidak memicu
+// active compute time Neon. Field hasUrl/host tetap dari env sebagai
+// indikator konfigurasi.
 export async function GET() {
   const hasUrl = Boolean(process.env.DATABASE_URL);
   const host = process.env.DATABASE_URL?.split("@")[1]?.split("/")[0] ?? null;
   try {
-    const rows = await query<{ count: number }>('SELECT COUNT(*)::int AS count FROM "User"');
+    const rows = await queryD1<{ count: number }>("SELECT COUNT(*) AS count FROM User");
     return Response.json({ ok: true, hasUrl, host, userCount: rows[0]?.count ?? 0 });
   } catch (e) {
     return Response.json({
