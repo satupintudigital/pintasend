@@ -13,7 +13,7 @@ export function SidebarNav({ horizontal = false }: { horizontal?: boolean }) {
   const pathname = usePathname();
 
   const linkClass = (active: boolean) =>
-    `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+    `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors ${
       active
         ? "bg-surface-2 text-fg"
         : "text-fg-muted hover:bg-surface-2/60 hover:text-fg"

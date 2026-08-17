@@ -8,8 +8,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, CheckCircle, Lock, Warning } from "@phosphor-icons/react";
 import { Tokens, type Token } from "@/components/landing/Code";
 
+// text-base (16px) wajib di mobile: font < 16px memicu auto-zoom iOS saat fokus.
 const fieldClass =
-  "min-h-12 w-full rounded-xl border border-line bg-ink-2 px-4 py-3 text-sm text-fg placeholder:text-fg-faint transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30";
+  "min-h-12 w-full rounded-xl border border-line bg-ink-2 px-4 py-3 text-base text-fg placeholder:text-fg-faint transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30 focus:shadow-[0_0_28px_-8px_rgba(52,211,153,0.4)]";
 
 // Turnstile: sitekey publik (aman di-bundle), secret hanya di worker siteverify.
 const TURNSTILE_SITEKEY =
@@ -59,17 +60,26 @@ const bullets = [
 function BrandPanel() {
   return (
     <div className="hidden lg:block">
-      <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
+      <p
+        className="bk-enter font-mono text-xs uppercase tracking-[0.2em] text-accent-bright"
+        style={{ animationDelay: "0ms" }}
+      >
         WhatsApp API Gateway
       </p>
-      <h2 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight xl:text-5xl">
+      <h2
+        className="bk-enter-blur mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight xl:text-5xl"
+        style={{ animationDelay: "80ms" }}
+      >
         Kelola nomor WhatsApp bisnismu dari satu dashboard.
       </h2>
-      <p className="mt-5 max-w-[48ch] leading-relaxed text-fg-muted">
+      <p
+        className="bk-enter mt-5 max-w-[48ch] leading-relaxed text-fg-muted"
+        style={{ animationDelay: "160ms" }}
+      >
         Kirim notifikasi transaksi, balas pelanggan, dan pantau semua device — tanpa perangkat tambahan.
       </p>
 
-      <ul className="mt-9 space-y-4">
+      <ul className="bk-enter mt-9 space-y-4" style={{ animationDelay: "240ms" }}>
         {bullets.map((b) => (
           <li key={b.title} className="flex items-start gap-3">
             <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent-bright">
@@ -83,7 +93,7 @@ function BrandPanel() {
         ))}
       </ul>
 
-      <div className="mt-10 max-w-md">
+      <div className="bk-enter mt-10 max-w-md" style={{ animationDelay: "320ms" }}>
         <div className="overflow-hidden rounded-2xl border border-line bg-ink-2 shadow-[0_30px_80px_-40px_rgba(16,185,129,0.35)]">
           <div className="flex items-center gap-2 border-b border-line-soft bg-surface/70 px-4 py-2.5">
             <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
@@ -99,7 +109,10 @@ function BrandPanel() {
         </div>
       </div>
 
-      <p className="mt-8 flex items-center gap-2 font-mono text-xs text-fg-muted">
+      <p
+        className="bk-enter mt-8 flex items-center gap-2 font-mono text-xs text-fg-muted"
+        style={{ animationDelay: "400ms" }}
+      >
         <span className="bk-live-dot h-1.5 w-1.5 rounded-full bg-accent-bright" />
         Semua sistem operasional
       </p>
@@ -177,19 +190,24 @@ function LoginForm() {
     <div className="mx-auto w-full max-w-md">
       {/* Brand compact — mobile */}
       <div className="mb-10 text-center lg:hidden">
-        <Link href="/" className="inline-flex items-center gap-2.5 font-display font-semibold tracking-tight text-fg">
+        <Link href="/" className="inline-flex items-center gap-2.5 py-1 font-display font-semibold tracking-tight text-fg">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-ink">
             W
           </span>
           wavio
         </Link>
-        <h1 className="mt-6 font-display text-2xl font-semibold tracking-tight">
+        <h1 className="bk-enter-blur mt-6 font-display text-2xl font-semibold tracking-tight">
           Masuk ke dashboard
         </h1>
-        <p className="mt-2 text-sm text-fg-muted">Kelola device dan kirim pesan lewat API.</p>
+        <p className="bk-enter mt-2 text-sm text-fg-muted" style={{ animationDelay: "80ms" }}>
+          Kelola device dan kirim pesan lewat API.
+        </p>
       </div>
 
-      <div className="rounded-2xl border border-line bg-surface p-6 shadow-[0_40px_100px_-50px_rgba(16,185,129,0.35)] md:p-8">
+      <div
+        className="bk-enter rounded-2xl border border-line bg-surface p-6 shadow-[0_40px_100px_-50px_rgba(16,185,129,0.35)] md:p-8"
+        style={{ animationDelay: "120ms" }}
+      >
         <p className="hidden font-mono text-xs uppercase tracking-[0.2em] text-accent-bright lg:block">
           Selamat datang kembali
         </p>
@@ -236,7 +254,10 @@ function LoginForm() {
           </div>
 
           {error && (
-            <p className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-sm text-red-400">
+            <p
+              key={error}
+              className="bk-shake flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-sm text-red-400"
+            >
               <Warning size={16} className="mt-0.5 shrink-0" weight="fill" />
               {error}
             </p>
@@ -255,7 +276,7 @@ function LoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="group flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink shadow-[0_0_32px_-12px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright hover:shadow-[0_0_44px_-10px_rgba(52,211,153,0.8)] active:scale-[0.98] disabled:opacity-50"
+            className="bk-shimmer group flex w-full items-center justify-center gap-2 rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink shadow-[0_0_32px_-12px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright hover:shadow-[0_0_44px_-10px_rgba(52,211,153,0.8)] active:scale-[0.98] disabled:opacity-50"
           >
             {loading ? (
               "Memverifikasi…"
@@ -269,7 +290,10 @@ function LoginForm() {
         </form>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-line-soft bg-surface-2/60 p-4 text-xs text-fg-faint">
+      <div
+        className="bk-enter mt-5 rounded-2xl border border-line-soft bg-surface-2/60 p-4 text-xs text-fg-faint"
+        style={{ animationDelay: "220ms" }}
+      >
         <p className="flex items-center gap-2 font-medium text-fg">
           <Lock size={13} className="text-accent-bright" />
           Akun demo
@@ -292,7 +316,7 @@ function LoginPageContent() {
       />
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute inset-0 bg-grid bg-grid-fade opacity-70" />
-        <div className="absolute left-1/2 top-[-40%] h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-accent/10 blur-[150px]" />
+        <div className="bk-breath absolute left-1/2 top-[-40%] h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-accent/10 blur-[150px]" />
       </div>
 
       <div className="mx-auto grid min-h-[100dvh] max-w-6xl items-center gap-16 px-5 py-16 lg:grid-cols-[1.05fr_0.95fr]">

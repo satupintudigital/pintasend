@@ -1,10 +1,12 @@
 import { ArrowRight, CheckCircle, Radio } from "@phosphor-icons/react/ssr";
 import { Tokens, type Token } from "@/components/landing/Code";
+import { CountUp } from "@/components/CountUp";
+import { Tilt } from "@/components/Tilt";
 
 const stats = [
-  { value: "99,97%", label: "uptime rata-rata" },
-  { value: "2,4 jt+", label: "pesan terkirim / bulan" },
-  { value: "< 300 ms", label: "latensi pengiriman" },
+  { to: 99.97, decimals: 2, suffix: "%", label: "uptime rata-rata" },
+  { to: 2.4, decimals: 1, suffix: " jt+", label: "pesan terkirim / bulan" },
+  { to: 300, decimals: 0, prefix: "< ", suffix: " ms", label: "latensi pengiriman" },
 ];
 
 const codeTokens: Token[] = [
@@ -59,7 +61,7 @@ function CodeCard() {
             201 Created
           </span>
         </div>
-        <pre className="overflow-x-auto p-5 font-mono text-[13px] leading-relaxed">
+        <pre tabIndex={0} className="overflow-x-auto p-5 font-mono text-[13px] leading-relaxed">
           <code>
             <Tokens tokens={codeTokens} />
           </code>
@@ -99,7 +101,7 @@ export function Hero() {
     <section className="relative overflow-hidden">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute inset-0 bg-grid bg-grid-fade opacity-70" />
-        <div className="absolute left-1/2 top-[-32%] h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-accent/10 blur-[150px]" />
+        <div className="bk-breath absolute left-1/2 top-[-32%] h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-accent/10 blur-[150px]" />
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
       </div>
 
@@ -114,7 +116,7 @@ export function Hero() {
           </p>
 
           <h1
-            className="bk-enter mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl md:text-[4.3rem]"
+            className="bk-enter-blur mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl md:text-[4.3rem]"
             style={{ animationDelay: "80ms" }}
           >
             Kirim pesan WhatsApp, semudah memanggil API.
@@ -134,7 +136,7 @@ export function Hero() {
           >
             <a
               href="#harga"
-              className="group inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-ink shadow-[0_0_32px_-10px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright hover:shadow-[0_0_44px_-8px_rgba(52,211,153,0.8)] active:scale-[0.98]"
+              className="bk-shimmer group inline-flex items-center gap-2 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-ink shadow-[0_0_32px_-10px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright hover:shadow-[0_0_44px_-8px_rgba(52,211,153,0.8)] active:scale-[0.98]"
             >
               Mulai Sekarang
               <ArrowRight
@@ -157,9 +159,13 @@ export function Hero() {
           >
             {stats.map((s) => (
               <div key={s.label} className="flex flex-col">
-                <span className="bk-tabular font-display text-2xl font-semibold tracking-tight text-fg">
-                  {s.value}
-                </span>
+                <CountUp
+                  to={s.to}
+                  decimals={s.decimals}
+                  prefix={s.prefix ?? ""}
+                  suffix={s.suffix}
+                  className="bk-tabular font-display text-2xl font-semibold tracking-tight text-fg"
+                />
                 <span className="mt-0.5 text-xs text-fg-faint">{s.label}</span>
               </div>
             ))}
@@ -167,7 +173,9 @@ export function Hero() {
         </div>
 
         <div className="bk-enter min-w-0" style={{ animationDelay: "200ms" }}>
-          <CodeCard />
+          <Tilt className="relative">
+            <CodeCard />
+          </Tilt>
         </div>
       </div>
     </section>

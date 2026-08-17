@@ -19,7 +19,8 @@
   --color-line-soft: #1d1d22;
   --color-fg: #f4f4f5;
   --color-fg-muted: #9ca3af;
-  --color-fg-faint: #71717a;
+  /* #8b8b94: rasio kontras ~5.6:1 di atas ink — lolos WCAG AA untuk teks kecil */
+  --color-fg-faint: #8b8b94;
   --color-accent: #10b981;
   --color-accent-bright: #34d399;
   --color-accent-ink: #022c22;
@@ -29,6 +30,8 @@
   --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Spring ringan dengan overshoot untuk gerakan fisik (lift/tilt/pill) */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 * {
@@ -186,6 +189,133 @@ button, a {
   animation-delay: var(--enter-delay, 0s);
 }
 
+/* ── Entrance blur (headline & elemen hero): fade + blur → tajam ── */
+@keyframes bkBlurUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.bk-enter-blur {
+  animation: bkBlurUp 0.8s var(--ease-out) both;
+  animation-delay: var(--enter-delay, 0s);
+}
+
+/* ── Shake untuk pesan error (login) — re-play via key pada elemen ── */
+@keyframes bkShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+
+.bk-shake {
+  animation: bkShake 0.45s var(--ease-out);
+}
+
+/* ── Transisi konten kode saat tab API berganti ── */
+@keyframes bkCodeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+.bk-code-in {
+  animation: bkCodeIn 0.35s var(--ease-out);
+}
+
+/* ── Kilau yang menyapu tombol primary saat hover (one-shot) ── */
+.bk-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.bk-shimmer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  transform: translateX(-190%) skewX(-16deg);
+  pointer-events: none;
+}
+
+.bk-shimmer:hover::after {
+  transform: translateX(460%) skewX(-16deg);
+  transition: transform 0.85s var(--ease-out);
+}
+
+.bk-shimmer::after {
+  transition: none;
+}
+
+/* ── Nafas lambat untuk glow ambient (hero & login) ── */
+@keyframes bkBreath {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+.bk-breath {
+  animation: bkBreath 7s ease-in-out infinite;
+}
+
+/* ── Hover lift kartu (spring overshoot) ── */
+.bk-lift {
+  transition:
+    transform 0.4s var(--ease-spring),
+    border-color 0.3s var(--ease-out);
+  will-change: transform;
+}
+
+.bk-lift:hover {
+  transform: translateY(-4px);
+}
+
+@media (hover: none) {
+  .bk-lift:hover {
+    transform: none;
+  }
+}
+
+/* ── Underline nav yang tumbuh saat hover/aktif ── */
+.bk-navlink {
+  position: relative;
+}
+
+.bk-navlink::after {
+  content: "";
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: 2px;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--color-accent), transparent);
+  transform: scaleX(0);
+  transition: transform 0.35s var(--ease-out);
+}
+
+.bk-navlink:hover::after,
+.bk-navlink[aria-current="true"]::after {
+  transform: scaleX(1);
+}
+
 /* ── Subtle pulse for live status dot (semantic state only) ── */
 @keyframes bkPulse {
   0%, 100% { opacity: 1; }
@@ -248,7 +378,7 @@ button, a {
 }
 
 /* ── Syntax highlight tokens (kode di hero/API/features) ── */
-.tok-c { color: #52525b; font-style: italic; }      /* komentar */
+.tok-c { color: var(--color-fg-faint); font-style: italic; }  /* komentar (≥4.5:1 di ink) */
 .tok-k { color: var(--color-accent-bright); }       /* command / key JSON */
 .tok-f { color: #a1a1aa; }                          /* flag CLI */
 .tok-s { color: #fbbf24; }                          /* string */
@@ -280,7 +410,12 @@ button, a {
   .bk-live-dot,
   .bk-marquee-track,
   .bk-toast,
-  .bk-beam {
+  .bk-beam,
+  .bk-breath {
     animation: none !important;
+  }
+
+  .bk-lift:hover {
+    transform: none !important;
   }
 }

@@ -10,7 +10,7 @@ import {
 const fakeKv = {
   store: new Map<string, string>(),
   get: vi.fn(async (k: string) => fakeKv.store.get(k) ?? null),
-  put: vi.fn(async (k: string, v: string, _o?: { expirationTtl?: number }) => {
+  put: vi.fn(async (k: string, v: string) => {
     fakeKv.store.set(k, v);
   }),
   delete: vi.fn(async (k: string) => {

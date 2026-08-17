@@ -28,7 +28,7 @@ export function CtaSection() {
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <a
                 href="#harga"
-                className="group inline-flex items-center gap-2 rounded-full bg-accent px-7 py-3.5 text-sm font-semibold text-accent-ink shadow-[0_0_36px_-10px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright hover:shadow-[0_0_48px_-8px_rgba(52,211,153,0.8)] active:scale-[0.98]"
+                className="bk-shimmer group inline-flex items-center gap-2 rounded-full bg-accent px-7 py-3.5 text-sm font-semibold text-accent-ink shadow-[0_0_36px_-10px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright hover:shadow-[0_0_48px_-8px_rgba(52,211,153,0.8)] active:scale-[0.98]"
               >
                 Mulai Sekarang
                 <ArrowRight

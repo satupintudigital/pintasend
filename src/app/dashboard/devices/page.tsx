@@ -250,7 +250,7 @@ export default function DevicesPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={loadDevices}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm text-fg-muted transition-colors hover:border-accent/40 hover:text-fg active:scale-[0.97]"
+            className="inline-flex h-11 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm text-fg-muted transition-colors hover:border-accent/40 hover:text-fg active:scale-[0.97]"
             aria-label="Muat ulang"
           >
             <ArrowClockwise size={16} />
@@ -261,7 +261,7 @@ export default function DevicesPage() {
               setAddState({ phase: "form" });
               setAddOpen(true);
             }}
-            className="inline-flex h-10 items-center gap-2 rounded-full bg-accent px-5 text-sm font-semibold text-accent-ink shadow-[0_0_28px_-10px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright active:scale-[0.97]"
+            className="inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-semibold text-accent-ink shadow-[0_0_28px_-10px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright active:scale-[0.97]"
           >
             <Plus size={16} weight="bold" />
             Tambah Device
@@ -307,7 +307,7 @@ export default function DevicesPage() {
                   setAddState({ phase: "form" });
                   setAddOpen(true);
                 }}
-                className="mt-7 inline-flex h-10 items-center gap-2 rounded-full bg-accent px-5 text-sm font-semibold text-accent-ink shadow-[0_0_32px_-10px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright active:scale-[0.98]"
+                className="mt-7 inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-semibold text-accent-ink shadow-[0_0_32px_-10px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright active:scale-[0.98]"
               >
                 <Plus size={16} weight="bold" />
                 Tambah Device
@@ -361,7 +361,7 @@ export default function DevicesPage() {
                       {!isReady ? (
                         <button
                           onClick={() => deviceAction(d.id, "start")}
-                          className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-surface-2 text-sm text-fg transition-colors hover:bg-accent/10 hover:text-accent-bright active:scale-[0.98]"
+                          className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-surface-2 text-sm text-fg transition-colors hover:bg-accent/10 hover:text-accent-bright active:scale-[0.98]"
                         >
                           <Power size={14} />
                           Mulai
@@ -369,7 +369,7 @@ export default function DevicesPage() {
                       ) : (
                         <button
                           onClick={() => deviceAction(d.id, "logout")}
-                          className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-surface-2 text-sm text-fg transition-colors hover:bg-red-500/10 hover:text-red-400 active:scale-[0.98]"
+                          className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-surface-2 text-sm text-fg transition-colors hover:bg-red-500/10 hover:text-red-400 active:scale-[0.98]"
                         >
                           <Power size={14} />
                           Logout
@@ -377,7 +377,7 @@ export default function DevicesPage() {
                       )}
                       <button
                         onClick={() => deleteDevice(d.id, d.label)}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-fg-faint transition-colors hover:bg-red-500/10 hover:text-red-400 active:scale-[0.98]"
+                        className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-fg-faint transition-colors hover:bg-red-500/10 hover:text-red-400 active:scale-[0.98]"
                         aria-label={`Hapus ${d.label}`}
                       >
                         <Trash size={15} />
@@ -397,7 +397,7 @@ export default function DevicesPage() {
           onClick={closeAdd}
         >
           <div
-            className="w-full max-w-md overflow-hidden rounded-3xl border border-line bg-surface shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)]"
+            className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-3xl border border-line bg-surface shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div aria-hidden className="h-px w-full bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
@@ -431,7 +431,7 @@ export default function DevicesPage() {
                         maxLength={50}
                         required
                         autoFocus
-                        className="min-h-12 w-full rounded-xl border border-line bg-ink-2 px-4 py-3 text-sm text-fg placeholder:text-fg-faint transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                        className="min-h-12 w-full rounded-xl border border-line bg-ink-2 px-4 py-3 text-base text-fg placeholder:text-fg-faint transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
                       />
                     </div>
                     <button

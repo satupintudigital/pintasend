@@ -82,7 +82,7 @@ export function Features() {
       <div className="mt-14 grid gap-4 md:grid-cols-6">
         {/* Satu akun, banyak device */}
         <Reveal className="md:col-span-4" delay={0}>
-          <Spotlight className="flex h-full flex-col rounded-2xl border border-line bg-surface p-6 transition-colors duration-300 hover:border-accent/30">
+          <Spotlight className="bk-lift flex h-full flex-col rounded-2xl border border-line bg-surface p-6 hover:border-accent/30">
             <CardTitle icon={Devices} title="Satu akun, banyak device" />
             <p className="mt-3 max-w-[52ch] text-sm leading-relaxed text-fg-muted">
               Hubungkan nomor toko, customer service, dan akun promo sekaligus. Kelola semuanya dari satu dashboard.
@@ -115,7 +115,7 @@ export function Features() {
 
         {/* Realtime webhook */}
         <Reveal className="md:col-span-2" delay={80}>
-          <Spotlight className="flex h-full flex-col rounded-2xl border border-line bg-surface p-6 transition-colors duration-300 hover:border-accent/30">
+          <Spotlight className="bk-lift flex h-full flex-col rounded-2xl border border-line bg-surface p-6 hover:border-accent/30">
             <CardTitle icon={WebhooksLogo} title="Realtime webhook" />
             <p className="mt-3 text-sm leading-relaxed text-fg-muted">
               Pesan masuk dan status pengiriman diteruskan ke aplikasimu seketika.
@@ -139,9 +139,9 @@ export function Features() {
 
         {/* Kirim lewat REST API */}
         <Reveal className="md:col-span-3" delay={0}>
-          <Spotlight className="flex h-full flex-col rounded-2xl border border-line bg-surface p-6 transition-colors duration-300 hover:border-accent/30">
+          <Spotlight className="bk-lift flex h-full flex-col rounded-2xl border border-line bg-surface p-6 hover:border-accent/30">
             <CardTitle icon={PaperPlaneTilt} title="Kirim lewat REST API" />
-            <pre className="mt-5 flex-1 overflow-x-auto rounded-xl border border-line-soft bg-ink-2 p-4 font-mono text-xs leading-relaxed">
+            <pre tabIndex={0} className="mt-5 flex-1 overflow-x-auto rounded-xl border border-line-soft bg-ink-2 p-4 font-mono text-xs leading-relaxed">
               <code>
                 <Tokens tokens={apiTokens} />
               </code>
@@ -151,7 +151,7 @@ export function Features() {
 
         {/* Inbox dua arah */}
         <Reveal className="md:col-span-3" delay={80}>
-          <Spotlight className="flex h-full flex-col rounded-2xl border border-line bg-surface p-6 transition-colors duration-300 hover:border-accent/30">
+          <Spotlight className="bk-lift flex h-full flex-col rounded-2xl border border-line bg-surface p-6 hover:border-accent/30">
             <CardTitle icon={ChatsCircle} title="Inbox dua arah" />
             <div className="mt-5 flex-1 space-y-3">
               <div>

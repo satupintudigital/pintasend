@@ -5,7 +5,7 @@ export default function PrivacyPage() {
     <main className="mx-auto max-w-2xl px-5 py-20 md:py-28">
       <Link
         href="/"
-        className="font-mono text-xs uppercase tracking-[0.18em] text-accent-bright transition-colors hover:text-fg"
+        className="inline-block py-2 font-mono text-xs uppercase tracking-[0.18em] text-accent-bright transition-colors hover:text-fg"
       >
         ← Kembali ke beranda
       </Link>
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
           <h2 className="font-display text-lg font-semibold text-fg">Kontak</h2>
           <p className="mt-3">
             Pertanyaan tentang kebijakan ini:{" "}
-            <a href="mailto:halo@wavio.id" className="text-accent-bright hover:underline">
+            <a href="mailto:halo@wavio.id" className="inline-block py-1 text-accent-bright hover:underline">
               halo@wavio.id
             </a>
             .

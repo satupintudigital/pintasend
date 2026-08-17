@@ -91,7 +91,7 @@ export function Pricing() {
             <div className="relative mt-8 inline-flex rounded-full border border-line bg-ink-2 p-1">
               <span
                 aria-hidden
-                className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-surface-2 shadow-sm transition-transform duration-300 ease-out ${
+                className={`absolute inset-y-1 left-1 w-[calc(50%-4px)] rounded-full bg-surface-2 shadow-sm transition-transform duration-300 [transition-timing-function:var(--ease-spring)] ${
                   yearly ? "translate-x-[calc(100%+8px)]" : "translate-x-0"
                 }`}
               />
@@ -99,7 +99,7 @@ export function Pricing() {
                 type="button"
                 onClick={() => setYearly(false)}
                 aria-pressed={!yearly}
-                className={`relative z-10 w-24 rounded-full py-1.5 text-sm transition-colors ${
+                className={`relative z-10 w-24 rounded-full py-2.5 text-sm transition-colors ${
                   !yearly ? "font-semibold text-fg" : "text-fg-muted hover:text-fg"
                 }`}
               >
@@ -109,7 +109,7 @@ export function Pricing() {
                 type="button"
                 onClick={() => setYearly(true)}
                 aria-pressed={yearly}
-                className={`relative z-10 w-24 rounded-full py-1.5 text-sm transition-colors ${
+                className={`relative z-10 w-24 rounded-full py-2.5 text-sm transition-colors ${
                   yearly ? "font-semibold text-fg" : "text-fg-muted hover:text-fg"
                 }`}
               >

@@ -165,7 +165,7 @@ function CopyButton({ text }: { text: string }) {
       type="button"
       onClick={onCopy}
       aria-label="Salin contoh kode"
-      className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-mono text-[11px] transition-colors ${
+      className={`flex min-h-10 items-center gap-1.5 rounded-lg border px-3 py-2 font-mono text-[11px] transition-colors ${
         copied
           ? "border-accent/40 bg-accent/10 text-accent-bright"
           : "border-line-soft text-fg-faint hover:border-line hover:text-fg"
@@ -236,8 +236,8 @@ export function ApiSection() {
               <CopyButton text={active.raw} />
             </div>
 
-            <pre className="overflow-x-auto p-5 font-mono text-[13px] leading-relaxed">
-              <code key={active.id}>
+            <pre tabIndex={0} className="overflow-x-auto p-5 font-mono text-[13px] leading-relaxed">
+              <code key={active.id} className="bk-code-in block">
                 <Tokens tokens={active.tokens} />
               </code>
             </pre>

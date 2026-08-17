@@ -115,7 +115,7 @@ export default async function DashboardHome() {
             </div>
             <Link
               href="/dashboard/devices"
-              className="group inline-flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink shadow-[0_0_28px_-10px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright active:scale-[0.98]"
+              className="group inline-flex h-11 items-center gap-2 rounded-full bg-accent px-5 text-sm font-semibold text-accent-ink shadow-[0_0_28px_-10px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright active:scale-[0.98]"
             >
               Tambah Device
               <ArrowRight size={15} weight="bold" className="transition-transform group-hover:translate-x-0.5" />

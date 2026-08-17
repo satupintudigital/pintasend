@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, List, X } from "@phosphor-icons/react";
 
@@ -15,6 +15,7 @@ export function Nav() {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState("");
   const [scrolled, setScrolled] = useState(false);
+  const barRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onScroll = () => {
@@ -28,10 +29,22 @@ export function Nav() {
         }
       }
       setActive(current);
+
+      // Scroll progress — tulis langsung ke DOM (transform, tanpa re-render).
+      const el = barRef.current;
+      if (el) {
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        const p = max > 0 ? Math.min(window.scrollY / max, 1) : 0;
+        el.style.transform = `scaleX(${p.toFixed(4)})`;
+      }
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
   }, []);
 
   return (
@@ -43,7 +56,7 @@ export function Nav() {
       }`}
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5">
-        <Link href="/" className="group flex items-center gap-2.5 font-display font-semibold tracking-tight text-fg">
+        <Link href="/" className="group flex h-full items-center gap-2.5 font-display font-semibold tracking-tight text-fg">
           <span className="relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg bg-accent text-sm font-bold text-accent-ink transition-shadow group-hover:shadow-[0_0_24px_-4px_rgba(52,211,153,0.7)]">
             W
           </span>
@@ -58,14 +71,11 @@ export function Nav() {
                 key={l.href}
                 href={l.href}
                 aria-current={isActive ? "true" : undefined}
-                className={`relative rounded-full px-4 py-2 text-sm transition-colors ${
+                className={`bk-navlink rounded-full px-4 py-2 text-sm transition-colors ${
                   isActive ? "text-fg" : "text-fg-muted hover:text-fg"
                 }`}
               >
                 {l.label}
-                {isActive && (
-                  <span className="absolute inset-x-4 -bottom-px h-px bg-gradient-to-r from-transparent via-accent to-transparent" />
-                )}
               </a>
             );
           })}
@@ -90,13 +100,20 @@ export function Nav() {
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg text-fg transition-colors hover:bg-surface-2 md:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-fg transition-colors hover:bg-surface-2 md:hidden"
           aria-label={open ? "Tutup menu" : "Buka menu"}
           aria-expanded={open}
         >
           {open ? <X size={20} /> : <List size={20} />}
         </button>
       </nav>
+
+      {/* Scroll progress */}
+      <div
+        ref={barRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-px origin-left scale-x-0 bg-gradient-to-r from-accent/40 via-accent-bright to-accent"
+      />
 
       {/* Mobile menu — smooth grid-rows expand */}
       <div
@@ -112,7 +129,7 @@ export function Nav() {
                   key={l.href}
                   href={l.href}
                   onClick={() => setOpen(false)}
-                  className={`rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                  className={`rounded-lg px-3 py-3 text-sm transition-colors ${
                     active === l.href
                       ? "bg-surface-2 text-fg"
                       : "text-fg-muted hover:bg-surface-2 hover:text-fg"
@@ -124,7 +141,7 @@ export function Nav() {
               <a
                 href="#harga"
                 onClick={() => setOpen(false)}
-                className="mt-2 rounded-full bg-accent px-4 py-2.5 text-center text-sm font-semibold text-accent-ink"
+                className="mt-2 rounded-full bg-accent px-4 py-3 text-center text-sm font-semibold text-accent-ink"
               >
                 Mulai Sekarang
               </a>
