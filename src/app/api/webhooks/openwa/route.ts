@@ -108,6 +108,16 @@ export async function POST(req: Request) {
   //     tetap tercatat walau tenant belum punya URL forwarding.
   if (event === "message.received") {
     const d = (payload.data ?? {}) as Record<string, unknown>;
+    // Pesan media: OpenWA menaruh detail di `data.media` ({ mimetype, filename,
+    // data?, omitted?, sizeBytes? }); caption bisa di `data.caption`/`data.body`.
+    const media = (d.media ?? {}) as Record<string, unknown>;
+    const isMedia =
+      typeof d.type === "string" &&
+      ["image", "video", "audio", "voice", "document", "sticker"].includes(d.type.toLowerCase());
+    const caption = typeof d.caption === "string" ? d.caption : "";
+    const mediaFilename = typeof media.filename === "string" ? media.filename : "";
+    const bodyText =
+      (typeof d.body === "string" && d.body ? d.body : caption) || (isMedia ? mediaFilename : "");
     await insertMessageLog({
       tenantId: device.tenantId,
       deviceId: device.id,
@@ -117,10 +127,15 @@ export async function POST(req: Request) {
         (typeof d.chatId === "string" ? d.chatId : "") ||
         (typeof d.from === "string" ? d.from : "") ||
         "",
-      body: typeof d.body === "string" ? d.body.slice(0, 4096) : "",
+      body: bodyText, // insertMessageLog memotong ke MAX_BODY_LENGTH
       type: typeof d.type === "string" ? d.type : null,
       status: typeof d.status === "string" ? d.status : null,
       messageId: typeof d.id === "string" ? d.id : null,
+      // Tidak ada URL publik dari event — hanya mimetype (+ filename via body).
+      mediaUrl: null,
+      mimetype:
+        (typeof media.mimetype === "string" ? media.mimetype : "") ||
+        (typeof d.mimetype === "string" ? d.mimetype : null),
     }).catch((e) => console.error("webhook ingest: catat pesan masuk gagal:", e));
   }
 

@@ -140,6 +140,8 @@ export async function POST(req: Request) {
       type: logType,
       status: typeof result?.status === "string" ? result.status : "sent",
       messageId,
+      mediaUrl: media?.url ?? null,
+      mimetype: media?.mimetype ?? null,
     }).catch((e) => console.error("v1/messages: catat pesan keluar gagal:", e));
     return Response.json({
       ok: true,
@@ -161,6 +163,8 @@ export async function POST(req: Request) {
         type: logType,
         status: "failed",
         messageId: null,
+        mediaUrl: media?.url ?? null,
+        mimetype: media?.mimetype ?? null,
       }).catch((err) => console.error("v1/messages: catat gagal kirim:", err));
       return Response.json({ error: `OpenWA: ${e.message}` }, { status: 502 });
     }

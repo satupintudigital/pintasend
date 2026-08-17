@@ -7,10 +7,17 @@ import {
   CaretLeft,
   CaretRight,
   ChatCircleText,
+  File,
+  FileText,
+  Image,
   MagnifyingGlass,
+  MusicNote,
+  Smiley,
+  VideoCamera,
   Warning,
   X,
 } from "@phosphor-icons/react";
+import { classifyMedia, MEDIA_KIND_LABEL, type MediaKind } from "@/lib/mediaInfo";
 
 export interface MessageRow {
   id: string;
@@ -22,6 +29,8 @@ export interface MessageRow {
   type: string | null;
   status: string | null;
   messageId: string | null;
+  mediaUrl: string | null;
+  mimetype: string | null;
   createdAt: string;
 }
 
@@ -29,6 +38,71 @@ const PAGE_SIZE = 20;
 const DEBOUNCE_MS = 350;
 
 type DirectionFilter = "" | "incoming" | "outgoing";
+
+const KIND_STYLE: Record<
+  MediaKind,
+  { icon: typeof Image; box: string; dot: string }
+> = {
+  image: {
+    icon: Image,
+    box: "border-emerald-500/25 bg-emerald-500/10 text-emerald-400",
+    dot: "bg-emerald-400",
+  },
+  video: {
+    icon: VideoCamera,
+    box: "border-violet-500/25 bg-violet-500/10 text-violet-400",
+    dot: "bg-violet-400",
+  },
+  audio: {
+    icon: MusicNote,
+    box: "border-amber-500/25 bg-amber-500/10 text-amber-400",
+    dot: "bg-amber-400",
+  },
+  document: {
+    icon: FileText,
+    box: "border-sky-500/25 bg-sky-500/10 text-sky-400",
+    dot: "bg-sky-400",
+  },
+  sticker: {
+    icon: Smiley,
+    box: "border-pink-500/25 bg-pink-500/10 text-pink-400",
+    dot: "bg-pink-400",
+  },
+  other: {
+    icon: File,
+    box: "border-line-soft bg-surface-2 text-fg-muted",
+    dot: "bg-fg-faint",
+  },
+};
+
+/** Thumbnail gambar dari mediaUrl eksternal; fallback ke badge saat gagal. */
+function MediaThumb({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed || !/^https?:\/\//i.test(src)) {
+    const s = KIND_STYLE.image;
+    return (
+      <span
+        className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border ${s.box}`}
+        title={alt}
+      >
+        <s.icon size={20} weight="bold" />
+      </span>
+    );
+  }
+  return (
+    /* eslint-disable-next-line @next/next/no-img-element -- URL dinamis dari CDN
+       client (tidak dikenal build-time); thumbnail kecil + lazy, next/image tidak
+       cocok utk host eksternal arbitrer (remotePatterns tak bisa memprediksi). */
+    <img
+      src={src}
+      alt={alt || "Gambar"}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className="h-14 w-14 shrink-0 rounded-lg border border-line object-cover"
+    />
+  );
+}
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -217,6 +291,10 @@ export function MessageHistoryPanel() {
         <ul className="mt-6 divide-y divide-line-soft">
           {messages.map((m) => {
             const incoming = m.direction === "incoming";
+            const media = classifyMedia(m.type, m.mimetype);
+            const kindStyle = KIND_STYLE[media.kind];
+            const kindLabel = MEDIA_KIND_LABEL[media.kind];
+            const showThumb = media.kind === "image" && !!m.mediaUrl;
             return (
               <li key={m.id} className="py-4 first:pt-0 last:pb-0">
                 <div className="flex items-start gap-3">
@@ -260,9 +338,54 @@ export function MessageHistoryPanel() {
                         {formatTime(m.createdAt)}
                       </span>
                     </div>
-                    <p className="mt-1 break-words text-sm leading-relaxed text-fg">
-                      {m.body || <span className="italic text-fg-faint">(tanpa teks — {m.type ?? "media"})</span>}
-                    </p>
+
+                    {media.isMedia ? (
+                      <div className="mt-2 flex items-start gap-3">
+                        {showThumb ? (
+                          <MediaThumb src={m.mediaUrl!} alt={m.body} />
+                        ) : (
+                          <span
+                            className={`flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border ${kindStyle.box}`}
+                            title={kindLabel}
+                          >
+                            <kindStyle.icon size={20} weight="bold" />
+                          </span>
+                        )}
+                        <div className="min-w-0 flex-1 pt-0.5">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${kindStyle.box}`}
+                            >
+                              <span className={`h-1.5 w-1.5 rounded-full ${kindStyle.dot}`} />
+                              {kindLabel}
+                            </span>
+                            {m.mimetype && (
+                              <span
+                                className="max-w-[16rem] truncate font-mono text-[10px] text-fg-faint"
+                                title={m.mimetype}
+                              >
+                                {m.mimetype}
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 break-words text-sm leading-relaxed text-fg">
+                            {m.body || (
+                              <span className="italic text-fg-faint">
+                                (tanpa teks — {kindLabel.toLowerCase()})
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-1 break-words text-sm leading-relaxed text-fg">
+                        {m.body || (
+                          <span className="italic text-fg-faint">
+                            (tanpa teks — {m.type ?? "media"})
+                          </span>
+                        )}
+                      </p>
+                    )}
                   </div>
                 </div>
               </li>
@@ -308,8 +431,9 @@ export function MessageHistoryPanel() {
 
       <p className="mt-5 rounded-xl border border-line-soft bg-surface-2/60 px-4 py-3 text-xs leading-relaxed text-fg-faint">
         Riwayat disimpan di basis data utama (Neon) untuk setiap pesan masuk via webhook dan keluar
-        via <code className="font-mono">POST /v1/messages</code>. Pencarian memakai <code className="font-mono">ILIKE</code> pada isi
-        pesan &amp; nomor — volume besar mungkin memerlukan filter tanggal (peta jalan).
+        via <code className="font-mono">POST /v1/messages</code>. Pesan media ditandai badge jenisnya;
+        gambar menampilkan thumbnail saat dikirim lewat URL publik. Pencarian memakai{" "}
+        <code className="font-mono">ILIKE</code> pada isi pesan &amp; nomor.
       </p>
     </div>
   );
