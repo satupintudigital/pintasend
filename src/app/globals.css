@@ -344,21 +344,6 @@ button, a {
   animation: bkPop 0.3s var(--ease-out);
 }
 
-/* ── Rail sidebar aktif: tumbuh dari atas saat halaman dimuat ── */
-@keyframes bkRail {
-  from {
-    transform: translateY(-50%) scaleY(0);
-  }
-  to {
-    transform: translateY(-50%) scaleY(1);
-  }
-}
-
-.bk-rail {
-  animation: bkRail 0.45s var(--ease-out) both;
-  transform-origin: top;
-}
-
 /* ── Subtle pulse for live status dot (semantic state only) ── */
 @keyframes bkPulse {
   0%, 100% { opacity: 1; }

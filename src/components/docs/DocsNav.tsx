@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion, useReducedMotion } from "motion/react";
 import { ArrowLeft } from "@phosphor-icons/react";
 
 export const docsSections = [
@@ -21,9 +22,17 @@ export const docsSections = [
 
 const flatPages = docsSections.flatMap((s) => s.links);
 
-/* Sidebar desktop — halaman aktif ditandai rail aksen + aria-current. */
+/* Sidebar desktop — halaman aktif ditandai rail aksen + aria-current.
+   Rail memakai Motion layoutId: saat berpindah halaman, rail "terbang" dari
+   link lama ke link baru dengan spring (bukan muncul-muncul). Rail diposisikan
+   tanpa transform (inset-y) agar tidak bentrok dengan transform layout Motion;
+   entrance scaleY (pengganti bk-rail CSS) dipertahankan via initial/animate.
+   Reduced motion → durasi 0 (langsung pindah, tanpa animasi). */
+const railSpring = { type: "spring", stiffness: 480, damping: 34 } as const;
+
 export function DocsNav() {
   const pathname = usePathname();
+  const reduced = useReducedMotion();
   const isActive = (href: string) => pathname === href;
 
   return (
@@ -49,9 +58,11 @@ export function DocsNav() {
                       }`}
                     >
                       {active && (
-                        <span
+                        <motion.span
                           aria-hidden
-                          className="bk-rail absolute left-0 top-1/2 h-4 w-0.5 rounded-full bg-accent-bright"
+                          layoutId="docs-nav-rail"
+                          transition={reduced ? { duration: 0 } : railSpring}
+                          className="absolute inset-y-[10px] left-0 w-0.5 rounded-full bg-accent-bright"
                         />
                       )}
                       {l.label}
