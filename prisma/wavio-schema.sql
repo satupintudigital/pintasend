@@ -108,6 +108,7 @@ CREATE TABLE "MessageLog" (
     "messageId" TEXT,
     "mediaUrl" TEXT,
     "mimetype" TEXT,
+    "mediaKey" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "MessageLog_pkey" PRIMARY KEY ("id")

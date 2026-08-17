@@ -65,8 +65,9 @@ model MessageLog {
   type        String? // text, image, video, document, …
   status      String? // sent, delivered, failed, …
   messageId   String?
-  mediaUrl    String? // URL media (outgoing URL mode); null utk base64/incoming
+  mediaUrl    String? // URL media (outgoing URL mode); null utk base64/multipart/incoming
   mimetype    String? // application/pdf, image/jpeg, …
+  mediaKey    String? // R2 object key (upload multipart); null utk lainnya
   createdAt   DateTime @default(now())
 
   @@index([tenantId, createdAt(sort: Desc)])

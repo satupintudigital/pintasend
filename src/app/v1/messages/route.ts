@@ -3,32 +3,48 @@ import { normalizeChatId } from "@/lib/chat";
 import { queryOne } from "@/lib/db";
 import { openwa, OpenwaError, type OpenwaSendResult } from "@/lib/openwa";
 import { insertMessageLog } from "@/lib/messageStore";
-import { parseMediaPayload } from "@/lib/media";
+import { parseMediaPayload, type MediaPayload } from "@/lib/media";
+import { MultipartError, parseMultipartForm, sanitizeFilename, type MultipartForm } from "@/lib/multipart";
+import { putMediaObject } from "@/lib/r2";
+import { uuidv7 } from "@/lib/uuidv7";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 // API publik pihak ketiga: kirim pesan WhatsApp (teks ATAU media).
 // Auth: Authorization: Bearer <API key> (dibuat dari dashboard → D1, 0 Neon utk verifikasi).
 //
-// Body:
-//   Teks : { to: "6281234567890" | "0812...", text: "...", deviceId?: "opsional" }
-//   Media: { to, mediaType: "image|video|audio|document|sticker",
-//            mediaUrl: "https://..."  ATAU  mediaBase64: "..." + mimetype: "image/jpeg",
-//            filename?: "...", text?: "caption", deviceId?: "opsional" }
-//   Saat media ada, `text` opsional dan dipakai sebagai caption.
+// Dua format body:
+//   1. application/json (teks / media via mediaUrl ATAU mediaBase64) — lihat docs.
+//   2. multipart/form-data (upload file biner, "multer-style"):
+//        - field : to, mediaType, text (caption), deviceId?, mimetype? (opsional)
+//        - file  : name="file" (biner, maks 25 MB)
+//      File disimpan ke R2 (bucket wavio-media) lalu dikirim ke OpenWA sebagai
+//      base64; key R2 dicatat di riwayat (MessageLog.mediaKey).
 //
 // Device yang dipakai: deviceId jika diberikan & milik tenant, kalau tidak device ready pertama.
-export async function POST(req: Request) {
-  const authz = req.headers.get("authorization") ?? "";
-  const raw = authz.startsWith("Bearer ") ? authz.slice(7).trim() : "";
-  const verified = await verifyApiKey(raw);
-  if (!verified) {
-    return Response.json({ error: "API key tidak valid atau telah dicabut" }, { status: 401 });
-  }
-  const tenantId = verified.tenantId;
 
-  const rl = await checkRateLimit(`v1-messages:${tenantId}:${clientIp(req)}`, 60, 60_000);
-  if (!rl.allowed) return rateLimitResponse(rl.retryAfterSec);
+const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25 MB
+// Batas karakter base64 untuk jalur file: file 25 MB → ~33,3 jt karakter base64.
+const MAX_BASE64_FILE_CHARS = Math.ceil((MAX_FILE_BYTES * 4) / 3) + 8;
 
+interface UploadFile {
+  data: Uint8Array;
+  filename: string;
+  contentType: string;
+}
+
+interface ParsedSend {
+  to: string;
+  text: string;
+  deviceId: string;
+  media: MediaPayload | null;
+  upload: UploadFile | null;
+}
+
+type ParseResult = { ok: true; data: ParsedSend } | { ok: false; error: string; status: number };
+
+const bad = (error: string, status = 400): ParseResult => ({ ok: false, error, status });
+
+async function parseJson(req: Request): Promise<ParseResult> {
   const body = (await req.json().catch(() => null)) as {
     to?: unknown;
     text?: unknown;
@@ -42,18 +58,14 @@ export async function POST(req: Request) {
   const to = typeof body?.to === "string" ? body.to.trim() : "";
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   const deviceId = typeof body?.deviceId === "string" ? body.deviceId.trim() : "";
+  if (!to) return bad('Field "to" wajib diisi');
 
-  if (!to) {
-    return Response.json({ error: "Field \"to\" wajib diisi" }, { status: 400 });
-  }
-
-  // Validasi media (jika ada field mediaType/mediaUrl/mediaBase64) SEBELUM
-  // lookup device — fail fast tanpa query DB yang tidak perlu.
+  // Validasi media (jika ada field mediaType/mediaUrl/mediaBase64) — fail fast.
   const hasMediaInput =
     body?.mediaType !== undefined ||
     body?.mediaUrl !== undefined ||
     body?.mediaBase64 !== undefined;
-  let media = null;
+  let media: MediaPayload | null = null;
   if (hasMediaInput) {
     const parsed = parseMediaPayload({
       mediaType: body?.mediaType,
@@ -63,13 +75,96 @@ export async function POST(req: Request) {
       filename: body?.filename,
       text,
     });
-    if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
+    if (!parsed.ok) return bad(parsed.error);
     media = parsed.media;
   }
 
+  return { ok: true, data: { to, text, deviceId, media, upload: null } };
+}
+
+async function parseMultipart(req: Request): Promise<ParseResult> {
+  const contentType = req.headers.get("content-type") ?? "";
+  const raw = await req.arrayBuffer().catch(() => null);
+  if (!raw) return bad("Body multipart tidak dapat dibaca");
+
+  let form: MultipartForm;
+  try {
+    form = parseMultipartForm(new Uint8Array(raw), contentType, {
+      maxFiles: 1,
+      maxFileBytes: MAX_FILE_BYTES,
+    });
+  } catch (e) {
+    if (e instanceof MultipartError) return bad(e.message);
+    return bad("multipart/form-data tidak valid");
+  }
+
+  const to = (form.fields.to ?? "").trim();
+  const text = (form.fields.text ?? "").trim();
+  const deviceId = (form.fields.deviceId ?? "").trim();
+  const mediaTypeRaw = (form.fields.mediaType ?? "").trim();
+  if (!to) return bad('Field "to" wajib diisi');
+
+  const file = form.files[0];
+  if (!file) return bad('Field file (name="file") wajib ada');
+  if (file.data.byteLength === 0) return bad("File kosong");
+  if (file.data.byteLength > MAX_FILE_BYTES) {
+    return bad(`File terlalu besar (maks ${MAX_FILE_BYTES / 1024 / 1024} MB)`);
+  }
+
+  const mimetype = (form.fields.mimetype ?? "").trim() || file.contentType || "";
+  // Buffer tersedia di runtime Worker (nodejs_compat aktif di wrangler.jsonc).
+  const base64 = Buffer.from(file.data).toString("base64");
+
+  const parsed = parseMediaPayload(
+    {
+      mediaType: mediaTypeRaw,
+      mediaBase64: base64,
+      mimetype,
+      filename: file.filename ?? "",
+      text,
+    },
+    { maxBase64Chars: MAX_BASE64_FILE_CHARS },
+  );
+  if (!parsed.ok) return bad(parsed.error);
+
+  return {
+    ok: true,
+    data: {
+      to,
+      text,
+      deviceId,
+      media: parsed.media,
+      upload: {
+        data: file.data,
+        filename: sanitizeFilename(file.filename ?? ""),
+        contentType: mimetype,
+      },
+    },
+  };
+}
+
+export async function POST(req: Request) {
+  const authz = req.headers.get("authorization") ?? "";
+  const raw = authz.startsWith("Bearer ") ? authz.slice(7).trim() : "";
+  const verified = await verifyApiKey(raw);
+  if (!verified) {
+    return Response.json({ error: "API key tidak valid atau telah dicabut" }, { status: 401 });
+  }
+  const tenantId = verified.tenantId;
+
+  const rl = await checkRateLimit(`v1-messages:${tenantId}:${clientIp(req)}`, 60, 60_000);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterSec);
+
+  const contentType = req.headers.get("content-type") ?? "";
+  const parsed = contentType.includes("multipart/form-data")
+    ? await parseMultipart(req)
+    : await parseJson(req);
+  if (!parsed.ok) return Response.json({ error: parsed.error }, { status: parsed.status });
+  const { to, text, deviceId, media, upload } = parsed.data;
+
   if (!text && !media) {
     return Response.json(
-      { error: "Isi \"text\" atau media (mediaType + mediaUrl/mediaBase64)" },
+      { error: "Isi \"text\" atau media (mediaType + mediaUrl/mediaBase64/file)" },
       { status: 400 },
     );
   }
@@ -114,6 +209,19 @@ export async function POST(req: Request) {
     );
   }
 
+  // Upload file ke R2 — hanya setelah device ready (hindari tulis sia-sia).
+  let mediaKey: string | null = null;
+  if (upload) {
+    const key = `${tenantId}/${uuidv7()}-${upload.filename}`;
+    try {
+      await putMediaObject(key, upload.data, upload.contentType);
+      mediaKey = key;
+    } catch (e) {
+      console.error("v1/messages: simpan media ke R2 gagal:", e);
+      return Response.json({ error: "Gagal menyimpan media (R2). Coba lagi." }, { status: 500 });
+    }
+  }
+
   // Label untuk riwayat: caption media, filename, atau tipe; teks biasa apa adanya.
   const logBody = media ? (media.caption ?? media.filename ?? "") : text;
   const logType = media ? media.mediaType : "text";
@@ -142,6 +250,7 @@ export async function POST(req: Request) {
       messageId,
       mediaUrl: media?.url ?? null,
       mimetype: media?.mimetype ?? null,
+      mediaKey,
     }).catch((e) => console.error("v1/messages: catat pesan keluar gagal:", e));
     return Response.json({
       ok: true,
@@ -149,6 +258,7 @@ export async function POST(req: Request) {
       to: chatId,
       messageId,
       ...(media ? { mediaType: media.mediaType } : {}),
+      ...(mediaKey ? { stored: "r2" } : {}),
     });
   } catch (e) {
     if (e instanceof OpenwaError) {
@@ -165,6 +275,7 @@ export async function POST(req: Request) {
         messageId: null,
         mediaUrl: media?.url ?? null,
         mimetype: media?.mimetype ?? null,
+        mediaKey,
       }).catch((err) => console.error("v1/messages: catat gagal kirim:", err));
       return Response.json({ error: `OpenWA: ${e.message}` }, { status: 502 });
     }

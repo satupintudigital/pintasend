@@ -31,13 +31,14 @@ export interface MessageLogInput {
   messageId?: string | null;
   mediaUrl?: string | null;
   mimetype?: string | null;
+  mediaKey?: string | null;
 }
 
 /** Catat satu pesan (masuk/keluar) — best-effort oleh pemanggil. */
 export async function insertMessageLog(input: MessageLogInput): Promise<void> {
   await query(
-    'INSERT INTO "MessageLog" (id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype) ' +
-      "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+    'INSERT INTO "MessageLog" (id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey") ' +
+      "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
     [
       uuidv7(),
       input.tenantId,
@@ -51,6 +52,7 @@ export async function insertMessageLog(input: MessageLogInput): Promise<void> {
       input.messageId ?? null,
       input.mediaUrl ?? null,
       input.mimetype ?? null,
+      input.mediaKey ?? null,
     ],
   );
 }
@@ -68,6 +70,7 @@ export interface MessageLogRow {
   messageId: string | null;
   mediaUrl: string | null;
   mimetype: string | null;
+  mediaKey: string | null;
   createdAt: string;
 }
 
@@ -79,7 +82,7 @@ export interface ListMessagesParams {
   limit?: number;
 }
 
-const MESSAGE_COLUMNS = `id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "createdAt"`;
+const MESSAGE_COLUMNS = `id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey", "createdAt"`;
 
 /** Daftar riwayat pesan tenant — pencarian (body/chatId) + filter arah + pagination. */
 export async function listMessagesPaginated(

@@ -262,6 +262,7 @@ app.post("/webhooks/wavio", express.raw({ type: "application/json" }), (req, res
               {[
                 ["Template pesan", "Template terstruktur untuk notifikasi yang konsisten", "Segera"],
                 ["Filter tanggal", "Filter riwayat pesan berdasarkan rentang tanggal", "Segera"],
+                ["Akses media tersimpan", "Unduh/hapus file yang tersimpan di R2 dari riwayat pesan", "Segera"],
               ].map(([title, desc, badge], i) => (
                 <div
                   key={title}

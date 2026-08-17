@@ -45,7 +45,15 @@ const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
  * Input: field mentah { mediaType?, mediaUrl?, mediaBase64?, mimetype?, filename?, text? }
  * (`text` dijadikan caption untuk pesan media).
  */
-export function parseMediaPayload(input: Record<string, unknown>): MediaValidation {
+export interface ParseMediaOptions {
+  /** Ganti batas panjang base64 (karakter). Dipakai jalur upload multipart (file biner > 15 MB). */
+  maxBase64Chars?: number;
+}
+
+export function parseMediaPayload(
+  input: Record<string, unknown>,
+  opts?: ParseMediaOptions,
+): MediaValidation {
   const mediaType = typeof input.mediaType === "string" ? input.mediaType.trim().toLowerCase() : "";
   if (!MEDIA_TYPES.includes(mediaType as OpenwaMediaType)) {
     return {
@@ -92,10 +100,11 @@ export function parseMediaPayload(input: Record<string, unknown>): MediaValidati
     if (!mimetype) {
       return { ok: false, error: "mimetype wajib diisi saat memakai mediaBase64" };
     }
-    if (base64.length > MEDIA_LIMITS.base64MaxChars) {
+    const maxChars = opts?.maxBase64Chars ?? MEDIA_LIMITS.base64MaxChars;
+    if (base64.length > maxChars) {
       return {
         ok: false,
-        error: `mediaBase64 terlalu besar (maks ${MEDIA_LIMITS.base64MaxChars} karakter base64, ~15 MB file)`,
+        error: `mediaBase64 terlalu besar (maks ${maxChars} karakter base64)`,
       };
     }
     if (base64.length % 4 !== 0 || !BASE64_RE.test(base64)) {

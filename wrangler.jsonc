@@ -25,6 +25,12 @@
       "id": "f71a138dbeba418390342d9ce4173edf"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "WAVIO_MEDIA",
+      "bucket_name": "wavio-media"
+    }
+  ],
   "observability": {
     "enabled": true
   }

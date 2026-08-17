@@ -148,6 +148,31 @@ export default function DocsApi() {
               />
             </div>
 
+            <h3 className="mt-6 text-sm font-semibold text-fg">Upload file — multipart/form-data</h3>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Untuk file besar (hingga <strong>25 MB</strong>) kirim sebagai{" "}
+              <code className="font-mono">multipart/form-data</code> dengan field{" "}
+              <code className="font-mono">to</code>, <code className="font-mono">mediaType</code>,{" "}
+              <code className="font-mono">text</code> (caption opsional), dan file pada field{" "}
+              <code className="font-mono">file</code>. File disimpan di penyimpanan objek R2
+              dan dicatat di riwayat pesan.
+            </p>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages \\\\
+  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+  -F "to=6281234567890" \\\\
+  -F "mediaType=document" \\\\
+  -F "text=Invoice #1234 terlampir" \\\\
+  -F "file=@invoice-1234.pdf;type=application/pdf"`}
+              />
+            </div>
+            <p className="mt-2 text-sm text-fg-muted">
+              Respons sukses menyertakan{" "}
+              <code className="font-mono">&quot;stored&quot;: &quot;r2&quot;</code> saat file disimpan ke R2.
+            </p>
+
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               <div className="rounded-xl border border-line bg-surface p-4 transition-colors hover:border-accent/25">
                 <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-fg-faint">
@@ -182,7 +207,7 @@ export default function DocsApi() {
                 </p>
                 <ul className="mt-3 space-y-2 text-sm text-fg-muted">
                   <li>text ≤ 4.096 · caption media ≤ 1.024</li>
-                  <li>mediaBase64 ≤ ~15 MB file</li>
+                  <li>mediaBase64 ≤ ~15 MB · multipart ≤ 25 MB</li>
                   <li>filename ≤ 255 karakter</li>
                   <li>to: 62… / 08… / 8…</li>
                   <li>60 request/menit/tenant</li>
