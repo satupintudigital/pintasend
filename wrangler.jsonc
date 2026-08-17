@@ -8,10 +8,21 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "d1_databases": [
+    {
+      "binding": "WAVIO_AUTH_DB",
+      "database_name": "wavio-auth",
+      "database_id": "4cd78c5b-64d3-49e4-9ee2-7b112e7b4124"
+    }
+  ],
   "kv_namespaces": [
     {
       "binding": "WAVIO_RATE_LIMIT",
       "id": "32a48e3a53d846bf82f6d17a1f36fd5b"
+    },
+    {
+      "binding": "WAVIO_CACHE",
+      "id": "f71a138dbeba418390342d9ce4173edf"
     }
   ],
   "observability": {
