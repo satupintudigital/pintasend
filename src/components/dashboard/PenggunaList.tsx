@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  CaretLeft,
+  CaretRight,
   CheckCircle,
   Key,
+  MagnifyingGlass,
   ShieldCheck,
   UsersThree,
   Warning,
+  X,
 } from "@phosphor-icons/react";
 
 export interface AdminUserRow {
@@ -18,8 +22,11 @@ export interface AdminUserRow {
   createdAt: string;
 }
 
+const PAGE_SIZE = 10;
+const DEBOUNCE_MS = 350;
+
 const fieldClass =
-  "min-h-11 w-full rounded-xl border border-line bg-ink-2 px-4 py-2.5 text-sm text-fg placeholder:text-fg-faint transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30";
+  "min-h-11 w-full rounded-xl border border-line bg-ink-2 px-4 py-2.5 text-base text-fg placeholder:text-fg-faint transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30";
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -27,20 +34,85 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function PenggunaList({
-  users,
-  loadError,
-}: {
-  users: AdminUserRow[];
-  /** Set bila daftar user gagal dimuat dari D1 (agar tidak tampak "0 akun"). */
-  loadError?: string;
-}) {
+export function PenggunaList() {
+  const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+
+  // State form reset password (satu baris yang terbuka).
   const [openId, setOpenId] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [doneId, setDoneId] = useState<string | null>(null);
+
+  // Debounce pencarian → reset ke halaman 1. setLoading TIDAK di sini:
+  // (1) hindari setState-sync-dalam-effect (rule React 19); (2) jika fetch
+  // awal selesai < debounce, setLoading(true) di sini akan membuat skeleton
+  // macet tanpa fetch lanjutan (debouncedQuery/page tidak berubah).
+  // loading di-set di onChange (pemicu fetch yang sah).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedQuery(query.trim());
+      setPage(1);
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  // Fetch daftar dari API (baca D1, 0 Neon). AbortController utk race guard.
+  // loading di-set true oleh pemicu (debounce/pagination), bukan di sini,
+  // agar tidak ada setState synchronous dalam effect (rule React 19).
+  const abortRef = useRef<AbortController | null>(null);
+  const fetchUsers = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLoadError("");
+    try {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(PAGE_SIZE),
+      });
+      if (debouncedQuery) params.set("q", debouncedQuery);
+      const res = await fetch(`/api/admin/users?${params}`, { signal: controller.signal });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setLoadError(data.error ?? "Gagal memuat daftar pengguna");
+        setUsers([]);
+        setTotal(0);
+        return;
+      }
+      setUsers(data.users ?? []);
+      setTotal(Number(data.total ?? 0));
+      // Clamp: bila data menyusut (mis. hasil pencarian) dan page melebihi
+      // totalPages, kembali ke halaman terakhir yang valid (satu fetch ulang).
+      const totalPagesNow = Math.max(1, Math.ceil(Number(data.total ?? 0) / PAGE_SIZE));
+      if (page > totalPagesNow) {
+        setPage(totalPagesNow);
+        return;
+      }
+    } catch (e) {
+      if ((e as Error)?.name === "AbortError") return;
+      setLoadError("Terjadi kesalahan jaringan. Coba lagi.");
+    } finally {
+      setLoading(false);
+    }
+  }, [page, debouncedQuery]);
+
+  useEffect(() => {
+    // setTimeout(0): fetchUsers (dan setState di dalamnya) berjalan di macrotask,
+    // bukan synchronous dalam effect — menghindari rule set-state-in-effect React 19.
+    const t = setTimeout(() => fetchUsers(), 0);
+    return () => {
+      clearTimeout(t);
+      abortRef.current?.abort();
+    };
+  }, [fetchUsers]);
 
   async function onReset(id: string) {
     setError("");
@@ -52,7 +124,7 @@ export function PenggunaList({
       setError("Konfirmasi password tidak cocok.");
       return;
     }
-    setLoading(true);
+    setResetLoading(true);
     try {
       const res = await fetch(`/api/admin/users/${id}/password`, {
         method: "PATCH",
@@ -65,8 +137,6 @@ export function PenggunaList({
         return;
       }
       if (data.d1Ok === false) {
-        // Neon ter-update tapi clone D1 gagal → login (baca D1) masih pakai
-        // password lama. Jangan klaim sukses; biarkan form terbuka.
         setError(
           "Password terubah di Neon, tapi sinkron ke D1 gagal. Pengguna mungkin belum bisa login dengan password baru — coba lagi.",
         );
@@ -80,9 +150,11 @@ export function PenggunaList({
     } catch {
       setError("Terjadi kesalahan jaringan. Coba lagi.");
     } finally {
-      setLoading(false);
+      setResetLoading(false);
     }
   }
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="rounded-2xl border border-line bg-surface p-6 md:p-8">
@@ -99,20 +171,62 @@ export function PenggunaList({
           </div>
         </div>
         <span className="rounded-full border border-line-soft bg-surface-2 px-3 py-1 font-mono text-xs text-fg-muted">
-          {users.length} akun
+          {total} akun
         </span>
       </div>
 
+      {/* Pencarian */}
+      <div className="relative mt-6">
+        <MagnifyingGlass
+          size={16}
+          className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-fg-faint"
+        />
+        <input
+          value={query}
+          onChange={(e) => {
+            setLoading(true);
+            setQuery(e.target.value);
+          }}
+          className="min-h-11 w-full rounded-xl border border-line bg-ink-2 pl-11 pr-12 text-base text-fg placeholder:text-fg-faint transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+          placeholder="Cari nama atau email…"
+          aria-label="Cari pengguna"
+        />
+        {query && (
+          <button
+            onClick={() => {
+              setLoading(true);
+              setQuery("");
+            }}
+            aria-label="Bersihkan pencarian"
+            className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-fg-faint transition-colors hover:bg-surface-2 hover:text-fg"
+          >
+            <X size={15} weight="bold" />
+          </button>
+        )}
+      </div>
+
       {loadError && (
-        <p className="mt-6 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-sm text-amber-400">
+        <p className="mt-4 flex items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-2.5 text-sm text-amber-400">
           <Warning size={16} className="mt-0.5 shrink-0" weight="fill" />
-          Gagal memuat daftar pengguna ({loadError}). Muat ulang halaman untuk mencoba lagi.
+          {loadError}
         </p>
       )}
 
-      {users.length === 0 && !loadError ? (
+      {loading ? (
+        <div className="mt-6 space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 animate-pulse">
+              <div className="h-10 w-10 rounded-xl bg-surface-2" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 w-1/3 rounded bg-surface-2" />
+                <div className="h-2.5 w-1/2 rounded bg-surface-2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : users.length === 0 ? (
         <p className="mt-6 rounded-xl border border-line-soft bg-surface-2/60 px-4 py-6 text-center text-sm text-fg-faint">
-          Belum ada pengguna.
+          {debouncedQuery ? `Tidak ada pengguna yang cocok dengan "${debouncedQuery}".` : "Belum ada pengguna."}
         </p>
       ) : (
         <ul className="mt-6 divide-y divide-line-soft">
@@ -154,7 +268,7 @@ export function PenggunaList({
                         setPassword("");
                         setConfirm("");
                       }}
-                      className="flex items-center gap-1.5 rounded-full border border-line bg-ink-2 px-3.5 py-2 text-xs font-medium text-fg transition-colors hover:border-accent/40 hover:text-accent-bright"
+                      className="flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-ink-2 px-3.5 py-2 text-xs font-medium text-fg transition-colors hover:border-accent/40 hover:text-accent-bright"
                     >
                       <Key size={13} weight="bold" />
                       Reset password
@@ -216,17 +330,17 @@ export function PenggunaList({
                     <div className="mt-4 flex justify-end gap-2">
                       <button
                         onClick={() => setOpenId(null)}
-                        className="rounded-full border border-line px-4 py-2 text-xs font-medium text-fg-muted transition-colors hover:text-fg"
+                        className="min-h-11 rounded-full border border-line px-4 py-2 text-xs font-medium text-fg-muted transition-colors hover:text-fg"
                       >
                         Batal
                       </button>
                       <button
                         onClick={() => onReset(u.id)}
-                        disabled={loading}
-                        className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-accent-ink transition-all hover:bg-accent-bright active:scale-[0.98] disabled:opacity-50"
+                        disabled={resetLoading}
+                        className="flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-accent-ink transition-all hover:bg-accent-bright active:scale-[0.98] disabled:opacity-50"
                       >
                         <Key size={13} weight="bold" />
-                        {loading ? "Menyimpan…" : "Simpan password"}
+                        {resetLoading ? "Menyimpan…" : "Simpan password"}
                       </button>
                     </div>
                   </div>
@@ -235,6 +349,40 @@ export function PenggunaList({
             );
           })}
         </ul>
+      )}
+
+      {/* Pagination */}
+      {total > 0 && (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-line-soft pt-5">
+          <p className="text-xs text-fg-faint">
+            Menampilkan {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} dari {total} akun
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setLoading(true);
+                setPage((p) => Math.max(1, p - 1));
+              }}
+              disabled={page <= 1 || loading}
+              className="flex min-h-11 items-center gap-1 rounded-full border border-line bg-ink-2 px-3.5 py-2 text-xs font-medium text-fg transition-colors hover:border-accent/40 hover:text-accent-bright disabled:opacity-40 disabled:hover:border-line disabled:hover:text-fg"
+            >
+              <CaretLeft size={13} weight="bold" /> Sebelumnya
+            </button>
+            <span className="px-2 font-mono text-xs text-fg-muted">
+              {page} / {totalPages}
+            </span>
+            <button
+              onClick={() => {
+                setLoading(true);
+                setPage((p) => Math.min(totalPages, p + 1));
+              }}
+              disabled={page >= totalPages || loading}
+              className="flex min-h-11 items-center gap-1 rounded-full border border-line bg-ink-2 px-3.5 py-2 text-xs font-medium text-fg transition-colors hover:border-accent/40 hover:text-accent-bright disabled:opacity-40 disabled:hover:border-line disabled:hover:text-fg"
+            >
+              Berikutnya <CaretRight size={13} weight="bold" />
+            </button>
+          </div>
+        </div>
       )}
 
       <p className="mt-5 rounded-xl border border-line-soft bg-surface-2/60 px-4 py-3 text-xs leading-relaxed text-fg-faint">

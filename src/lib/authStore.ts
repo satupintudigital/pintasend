@@ -128,10 +128,39 @@ export interface AdminUserRow {
 // Daftar pengguna utk halaman admin — baca replika D1 (0 koneksi Neon).
 // Semua user yang bisa login pasti ada di D1 (login baca D1), jadi daftar ini
 // konsisten dengan jalur auth; D1 clone yang gagal sudah di-log (kasus langka).
-export async function listUsers(): Promise<AdminUserRow[]> {
-  return queryD1<AdminUserRow>(
-    "SELECT id, tenantId, email, name, role, createdAt FROM User ORDER BY createdAt DESC",
-  );
+//
+// Mendukung pencarian (LIKE pada name/email) + pagination. Hanya 2 query D1
+// per halaman (COUNT + SELECT) — tetap tanpa menyentuh Neon.
+export async function listUsersPaginated(params: {
+  query?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ users: AdminUserRow[]; total: number }> {
+  const limit = Math.min(100, Math.max(1, params.limit ?? 10));
+  const page = Math.max(1, params.page ?? 1);
+  const offset = (page - 1) * limit;
+
+  const q = (params.query ?? "").trim();
+  // Escape wildcard LIKE (% _ \\) agar input user dicari literal, bukan
+  // diinterpretasikan sebagai pola SQL (prepared statement aman dr injection,
+  // tapi wildcard tak ter-escape bisa memicu full-scan + hasil tak terduga).
+  const escaped = q.replace(/[%_\\]/g, (m) => `\\${m}`);
+  const where = q ? "WHERE name LIKE ? OR email LIKE ?" : "";
+  const args: unknown[] = q ? [`%${escaped}%`, `%${escaped}%`] : [];
+
+  const [countRows, userRows] = await Promise.all([
+    queryD1<{ count: number }>(`SELECT COUNT(*) AS count FROM User ${where}`, args),
+    queryD1<AdminUserRow>(
+      `SELECT id, tenantId, email, name, role, createdAt FROM User ${where} ` +
+        "ORDER BY createdAt DESC LIMIT ? OFFSET ?",
+      [...args, limit, offset],
+    ),
+  ]);
+
+  return {
+    users: userRows,
+    total: Number(countRows[0]?.count ?? 0),
+  };
 }
 
 export interface UpdatePasswordResult {

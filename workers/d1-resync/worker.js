@@ -20,7 +20,7 @@ import { Client } from "@neondatabase/serverless";
 const USER_COLUMNS =
   'id, "tenantId", email, name, "passwordHash", role, "createdAt"';
 
-export default {
+const worker = {
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil(runResync(env));
   },
@@ -46,6 +46,8 @@ export default {
     }
   },
 };
+
+export default worker;
 
 async function runResync(env) {
   const started = Date.now();

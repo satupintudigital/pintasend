@@ -18,6 +18,7 @@
 /out/
 /.open-next/
 /.wrangler/
+**/.wrangler/  # artefak wrangler di subfolder (mis. workers/*)
 
 # production
 /build

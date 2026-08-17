@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Output build OpenNext + wrangler (generated, bukan source):
     ".open-next/**",
     ".wrangler/**",
+    "**/.wrangler/**", // artefak wrangler di subfolder (mis. workers/d1-resync)
+    "workers/**/node_modules/**",
   ]),
 ]);
 
