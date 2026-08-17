@@ -127,12 +127,13 @@ export default function DevicesPage() {
           const status: string | undefined = data.device?.status;
 
           if (status === "qr_ready" && !qrShown) {
-            qrShown = true;
             const qrRes = await fetch(`/api/devices/${deviceId}/qr`);
-            const qrData = await qrRes.json();
+            const qrData = await qrRes.json().catch(() => ({}));
             if (qrRes.ok && qrData.qrCode) {
+              qrShown = true;
               setAddState((s) => (s.phase === "qr" ? { ...s, qr: qrData.qrCode } : s));
             }
+            // Gagal transient → qrShown tetap false, coba lagi di polling berikutnya.
           } else if (status === "ready") {
             stopPolling();
             setAddState({ phase: "done", device: data.device });
