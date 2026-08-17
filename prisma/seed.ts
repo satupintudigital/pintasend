@@ -1,38 +1,31 @@
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
+import { Client } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient({
-  adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL as string }),
-});
-
 async function main() {
-  const tenant = await prisma.tenant.upsert({
-    where: { id: "00000000-0000-7000-8000-000000000001" },
-    update: {},
-    create: { id: "00000000-0000-7000-8000-000000000001", name: "Wavio Demo" },
-  });
+  const client = new Client(process.env.DATABASE_URL as string);
+  await client.connect();
 
+  const tenantId = "00000000-0000-7000-8000-000000000001";
   const passwordHash = bcrypt.hashSync("admin123", 10);
-  await prisma.user.upsert({
-    where: { email: "owner@wavio.test" },
-    update: {},
-    create: {
-      tenantId: tenant.id,
-      email: "owner@wavio.test",
-      name: "Owner Wavio",
-      passwordHash,
-      role: "owner",
-    },
-  });
 
+  await client.query(
+    'INSERT INTO "Tenant" (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
+    [tenantId, "Wavio Demo"],
+  );
+
+  await client.query(
+    'INSERT INTO "User" (id, "tenantId", email, name, "passwordHash", role) ' +
+      "VALUES ($1, $2, $3, $4, $5, $6) " +
+      'ON CONFLICT (email) DO NOTHING',
+    [crypto.randomUUID(), tenantId, "owner@wavio.test", "Owner Wavio", passwordHash, "owner"],
+  );
+
+  await client.end();
   console.log("Seed selesai: owner@wavio.test / admin123");
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

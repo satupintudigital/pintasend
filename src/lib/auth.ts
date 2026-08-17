@@ -1,7 +1,7 @@
 import NextAuth, { type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { query } from "@/lib/db";
 
 declare module "next-auth" {
   interface User {
@@ -34,7 +34,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const password = String(credentials?.password ?? "");
         if (!email || !password) return null;
 
-        const user = await prisma.user.findUnique({ where: { email } });
+        const rows = await query<{
+          id: string;
+          tenantId: string;
+          email: string;
+          name: string;
+          passwordHash: string;
+          role: string;
+        }>(
+          'SELECT id, "tenantId", email, name, "passwordHash", role FROM "User" WHERE email = $1',
+          [email],
+        );
+        const user = rows[0];
         if (!user) return null;
 
         const ok = await bcrypt.compare(password, user.passwordHash);
