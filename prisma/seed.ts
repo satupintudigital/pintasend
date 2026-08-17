@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { Client } from "@neondatabase/serverless";
 import bcrypt from "bcryptjs";
+import { uuidv7 } from "../src/lib/uuidv7";
 
 async function main() {
   const client = new Client(process.env.DATABASE_URL as string);
@@ -18,7 +19,7 @@ async function main() {
     'INSERT INTO "User" (id, "tenantId", email, name, "passwordHash", role) ' +
       "VALUES ($1, $2, $3, $4, $5, $6) " +
       'ON CONFLICT (email) DO NOTHING',
-    [crypto.randomUUID(), tenantId, "owner@wavio.test", "Owner Wavio", passwordHash, "owner"],
+    [uuidv7(), tenantId, "owner@wavio.test", "Owner Wavio", passwordHash, "owner"],
   );
 
   await client.end();
