@@ -3,6 +3,11 @@ import { query } from "@/lib/db";
 import { openwa, OpenwaError } from "@/lib/openwa";
 import { getDeviceForTenant } from "@/lib/devices";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import {
+  getCachedDeviceStatus,
+  setCachedDeviceStatus,
+  deleteCachedDeviceStatus,
+} from "@/lib/deviceCache";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -10,6 +15,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!tenantId) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
 
+  // 1. Cache hit → 0 koneksi Neon (polling 2,5 dtk kebanyakan di sini).
+  const cached = await getCachedDeviceStatus(id);
+  if (cached) {
+    return Response.json({ device: { id, status: cached.status, phone: cached.phone } });
+  }
+
+  // 2. Cache miss → query Neon + OpenWA, lalu refresh cache.
   const device = await getDeviceForTenant(id, tenantId);
   if (!device) return Response.json({ error: "Device tidak ditemukan" }, { status: 404 });
 
@@ -19,6 +31,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       'UPDATE "Device" SET status = $1, phone = $2, "updatedAt" = now() WHERE id = $3',
       [owa.status, owa.phone ?? device.phone, id],
     );
+    await setCachedDeviceStatus(id, owa.status, owa.phone ?? device.phone);
     return Response.json({ device: { ...device, status: owa.status, phone: owa.phone } });
   } catch (e) {
     if (e instanceof OpenwaError && e.status === 404) {
@@ -27,6 +40,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         "disconnected",
         id,
       ]);
+      await setCachedDeviceStatus(id, "disconnected", null);
       return Response.json({ device: { ...device, status: "disconnected", phone: null } });
     }
     if (e instanceof OpenwaError) {
@@ -55,5 +69,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     // Best effort — baris DB tetap dihapus.
   }
   await query('DELETE FROM "Device" WHERE id = $1', [id]);
+  await deleteCachedDeviceStatus(id);
   return Response.json({ ok: true });
 }
