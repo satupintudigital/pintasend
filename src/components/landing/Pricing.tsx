@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowUpRight, CheckCircle } from "@phosphor-icons/react";
 import { Reveal } from "@/components/Reveal";
+import { AmbientParallax } from "@/components/AmbientParallax";
 
 type Plan = {
   name: string;
@@ -73,7 +74,12 @@ export function Pricing() {
   return (
     <section id="harga" className="relative overflow-hidden border-t border-line-soft bg-surface/40">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-[-30%] h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-accent/5 blur-[140px]" />
+        <AmbientParallax className="h-full">
+          <div
+            data-parallax="0.28"
+            className="absolute left-1/2 top-[-30%] h-[420px] w-[720px] -ml-[360px] rounded-full bg-accent/5 blur-[140px] will-change-transform"
+          />
+        </AmbientParallax>
       </div>
 
       <div className="mx-auto max-w-7xl px-5 py-24 md:py-32">

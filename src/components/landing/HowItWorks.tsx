@@ -1,5 +1,6 @@
 import { Lightning, PaperPlaneTilt, QrCode } from "@phosphor-icons/react/ssr";
 import { Reveal } from "@/components/Reveal";
+import { AmbientParallax } from "@/components/AmbientParallax";
 
 const steps = [
   {
@@ -23,7 +24,12 @@ export function HowItWorks() {
   return (
     <section id="cara-kerja" className="relative overflow-hidden border-y border-line-soft bg-surface/40">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-[-40%] h-[400px] w-[700px] -translate-x-1/2 rounded-full bg-accent/5 blur-[130px]" />
+        <AmbientParallax className="h-full">
+          <div
+            data-parallax="0.28"
+            className="absolute left-1/2 top-[-40%] h-[400px] w-[700px] -ml-[350px] rounded-full bg-accent/5 blur-[130px] will-change-transform"
+          />
+        </AmbientParallax>
       </div>
 
       <div className="mx-auto max-w-7xl px-5 py-24 md:py-32">

@@ -5,7 +5,7 @@ import { DocsProgress } from "@/components/docs/DocsProgress";
 import { DocsPager } from "@/components/docs/DocsPager";
 import { DocsSearch } from "@/components/docs/DocsSearch";
 import { BackToTop } from "@/components/docs/BackToTop";
-import { AmbientParallax } from "@/components/docs/AmbientParallax";
+import { AmbientParallax } from "@/components/AmbientParallax";
 
 export const metadata: Metadata = {
   title: "Dokumentasi — Wavio",

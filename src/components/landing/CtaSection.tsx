@@ -1,15 +1,24 @@
 import { ArrowRight } from "@phosphor-icons/react/ssr";
 import { Reveal } from "@/components/Reveal";
+import { AmbientParallax } from "@/components/AmbientParallax";
 
 export function CtaSection() {
   return (
     <section id="mulai" className="mx-auto max-w-7xl px-5 py-24 md:py-32">
       <Reveal>
         <div className="relative overflow-hidden rounded-3xl border border-accent/25 bg-surface px-6 py-20 text-center md:py-24">
-          {/* Latar: grid + aurora + beam */}
+          {/* Latar: grid + aurora + beam (grid & aurora parallax; beam statis) */}
           <div aria-hidden className="pointer-events-none absolute inset-0">
-            <div className="absolute inset-0 bg-grid bg-grid-fade opacity-40" />
-            <div className="absolute left-1/2 top-1/2 h-[340px] w-[560px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/15 blur-[110px]" />
+            <AmbientParallax className="h-full">
+              <div
+                data-parallax="0.12"
+                className="absolute inset-0 bg-grid bg-grid-fade opacity-40 will-change-transform"
+              />
+              <div
+                data-parallax="0.28"
+                className="absolute left-1/2 top-1/2 h-[340px] w-[560px] -ml-[280px] -mt-[170px] rounded-full bg-accent/15 blur-[110px] will-change-transform"
+              />
+            </AmbientParallax>
             <div className="bk-beam absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-transparent via-accent/10 to-transparent" />
           </div>
 

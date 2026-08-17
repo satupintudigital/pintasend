@@ -9,7 +9,7 @@ import {
 } from "@phosphor-icons/react/ssr";
 import { Callout, CodeBlock } from "@/components/docs/primitives";
 import { Reveal } from "@/components/Reveal";
-import { AmbientParallax } from "@/components/docs/AmbientParallax";
+import { AmbientParallax } from "@/components/AmbientParallax";
 
 export const metadata: Metadata = {
   title: "Ringkasan & Mulai Cepat — Wavio",

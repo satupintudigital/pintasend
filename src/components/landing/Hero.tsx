@@ -1,7 +1,18 @@
+"use client";
+
+import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, CheckCircle, Radio } from "@phosphor-icons/react/ssr";
 import { Tokens, type Token } from "@/components/landing/Code";
 import { CountUp } from "@/components/CountUp";
 import { Tilt } from "@/components/Tilt";
+import { AmbientParallax } from "@/components/AmbientParallax";
+
+/* Spring entrance hero — menggantikan bk-enter/bk-enter-blur (CSS) dengan
+   Motion. Overshoot halus (stiffness/damping), delay sama persis dengan
+   stagger lama (0/80/160/200/240/320 ms). useReducedMotion → langsung tampil.
+   Class bk-motion-reveal: fallback @media (scripting: none) di globals agar
+   konten tetap terlihat tanpa JS. */
+const enterSpring = { type: "spring", stiffness: 280, damping: 26, mass: 0.9 } as const;
 
 const stats = [
   { to: 99.97, decimals: 2, suffix: "%", label: "uptime rata-rata" },
@@ -97,42 +108,63 @@ function CodeCard() {
 }
 
 export function Hero() {
+  const reduced = useReducedMotion();
+
   return (
     <section className="relative overflow-hidden">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute inset-0 bg-grid bg-grid-fade opacity-70" />
-        <div className="bk-breath absolute left-1/2 top-[-32%] h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-accent/10 blur-[150px]" />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
+        {/* Parallax ambient: grid (0.12) + glow hero (0.5) — pola sama dengan
+            halaman docs. Container sengaja lebih tinggi (+160px) agar grid
+            tetap menutupi hero saat bergeser naik mengikuti scroll. */}
+        <AmbientParallax className="h-[calc(100%+160px)]">
+          <div
+            data-parallax="0.12"
+            className="absolute inset-0 bg-grid bg-grid-fade opacity-70 will-change-transform"
+          />
+          <div
+            data-parallax="0.5"
+            className="bk-breath absolute left-1/2 top-[-32%] h-[560px] w-[900px] -ml-[450px] rounded-full bg-accent/10 blur-[150px] will-change-transform"
+          />
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
+        </AmbientParallax>
       </div>
 
       <div className="mx-auto grid max-w-7xl gap-14 px-5 pb-16 pt-14 md:grid-cols-[1.05fr_0.95fr] md:items-center md:pb-24 md:pt-20">
         <div className="min-w-0">
-          <p
-            className="bk-enter inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/5 px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-accent-bright"
-            style={{ animationDelay: "0ms" }}
+          <motion.p
+            className="bk-motion-reveal inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/5 px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-accent-bright"
+            initial={reduced ? false : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...enterSpring, delay: 0 }}
           >
             <span className="bk-live-dot h-1.5 w-1.5 rounded-full bg-accent-bright" />
             WhatsApp API Gateway
-          </p>
+          </motion.p>
 
-          <h1
-            className="bk-enter-blur mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl md:text-[4.3rem]"
-            style={{ animationDelay: "80ms" }}
+          <motion.h1
+            className="bk-motion-reveal mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl md:text-[4.3rem]"
+            initial={reduced ? false : { opacity: 0, y: 20, filter: "blur(10px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ ...enterSpring, delay: 0.08 }}
           >
             Kirim pesan WhatsApp, semudah memanggil API.
-          </h1>
+          </motion.h1>
 
-          <p
-            className="bk-enter mt-6 max-w-[52ch] text-lg leading-relaxed text-fg-muted"
-            style={{ animationDelay: "160ms" }}
+          <motion.p
+            className="bk-motion-reveal mt-6 max-w-[52ch] text-lg leading-relaxed text-fg-muted"
+            initial={reduced ? false : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...enterSpring, delay: 0.16 }}
           >
             Sambungkan nomor bisnismu, kirim notifikasi transaksi, dan balas pelanggan
             langsung dari dashboard — atau satu baris kode.
-          </p>
+          </motion.p>
 
-          <div
-            className="bk-enter mt-8 flex flex-wrap items-center gap-3"
-            style={{ animationDelay: "240ms" }}
+          <motion.div
+            className="bk-motion-reveal mt-8 flex flex-wrap items-center gap-3"
+            initial={reduced ? false : { opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...enterSpring, delay: 0.24 }}
           >
             <a
               href="#harga"
@@ -151,11 +183,13 @@ export function Hero() {
             >
               Lihat API
             </a>
-          </div>
+          </motion.div>
 
-          <div
-            className="bk-enter mt-12 flex flex-wrap items-center gap-x-10 gap-y-6"
-            style={{ animationDelay: "320ms" }}
+          <motion.div
+            className="bk-motion-reveal mt-12 flex flex-wrap items-center gap-x-10 gap-y-6"
+            initial={reduced ? false : { opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...enterSpring, delay: 0.32 }}
           >
             {stats.map((s) => (
               <div key={s.label} className="flex flex-col">
@@ -169,14 +203,19 @@ export function Hero() {
                 <span className="mt-0.5 text-xs text-fg-faint">{s.label}</span>
               </div>
             ))}
-          </div>
+          </motion.div>
         </div>
 
-        <div className="bk-enter min-w-0" style={{ animationDelay: "200ms" }}>
+        <motion.div
+          className="bk-motion-reveal min-w-0"
+          initial={reduced ? false : { opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...enterSpring, delay: 0.2 }}
+        >
           <Tilt className="relative">
             <CodeCard />
           </Tilt>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

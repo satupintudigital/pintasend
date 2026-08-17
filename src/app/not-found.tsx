@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft, ArrowRight, BookOpenText, Gauge, HouseLine } from "@phosphor-icons/react/ssr";
-import { AmbientParallax } from "@/components/docs/AmbientParallax";
+import { AmbientParallax } from "@/components/AmbientParallax";
 
 export const metadata: Metadata = {
   title: "404 — Halaman tidak ditemukan · Wavio",

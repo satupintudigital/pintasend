@@ -7,6 +7,7 @@ import {
 import { Reveal } from "@/components/Reveal";
 import { Spotlight } from "@/components/Spotlight";
 import { Tokens, type Token } from "@/components/landing/Code";
+import { AmbientParallax } from "@/components/AmbientParallax";
 
 const apiTokens: Token[] = [
   ["k", "POST"],
@@ -64,7 +65,12 @@ export function Features() {
   return (
     <section id="fitur" className="relative mx-auto max-w-7xl overflow-hidden px-5 py-24 md:py-32">
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute right-[-10%] top-[-20%] h-[420px] w-[420px] rounded-full bg-accent/5 blur-[120px]" />
+        <AmbientParallax className="h-full">
+          <div
+            data-parallax="0.28"
+            className="absolute right-[-10%] top-[-20%] h-[420px] w-[420px] rounded-full bg-accent/5 blur-[120px] will-change-transform"
+          />
+        </AmbientParallax>
       </div>
 
       <Reveal>
