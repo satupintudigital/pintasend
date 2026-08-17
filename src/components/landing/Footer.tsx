@@ -12,8 +12,9 @@ const columns = [
   {
     title: "Developer",
     links: [
-      { label: "Dokumentasi API", href: "#api" },
-      { label: "Webhook", href: "#api" },
+      { label: "Dokumentasi", href: "/docs" },
+      { label: "Referensi API", href: "/docs/api" },
+      { label: "Integrasi Pihak Ketiga", href: "/docs/integrations" },
     ],
   },
   {

@@ -82,13 +82,13 @@ export function Nav() {
         </div>
 
         <div className="hidden items-center gap-2 md:flex">
-          <a
-            href="#api"
+          <Link
+            href="/docs"
             className="inline-flex items-center gap-1 rounded-full px-4 py-2 text-sm text-fg-muted transition-colors hover:text-fg"
           >
             Dokumentasi
             <ArrowUpRight size={14} />
-          </a>
+          </Link>
           <a
             href="#harga"
             className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-[0_0_24px_-8px_rgba(16,185,129,0.8)] transition-all hover:bg-accent-bright hover:shadow-[0_0_32px_-6px_rgba(52,211,153,0.7)] active:scale-[0.97]"

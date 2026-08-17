@@ -50,6 +50,26 @@ CREATE UNIQUE INDEX "Device_openwaSessionId_key" ON "Device"("openwaSessionId");
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- CreateTable
+CREATE TABLE "ApiKey" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "label" TEXT NOT NULL,
+    "keyHash" TEXT NOT NULL,
+    "prefix" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastUsedAt" TIMESTAMP(3),
+    "revokedAt" TIMESTAMP(3),
+
+    CONSTRAINT "ApiKey_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "ApiKey_tenantId_idx" ON "ApiKey"("tenantId");
+
+-- CreateIndex
+CREATE INDEX "ApiKey_keyHash_idx" ON "ApiKey"("keyHash");
+
 -- AddForeignKey
-ALTER TABLE "Device" ADD CONSTRAINT "Device_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

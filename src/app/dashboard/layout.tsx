@@ -6,7 +6,7 @@ import { SidebarNav } from "@/components/dashboard/SidebarNav";
 
 function Brand() {
   return (
-    <Link href="/" className="group flex items-center gap-2.5 font-display font-semibold tracking-tight text-fg">
+    <Link href="/" className="group flex h-11 items-center gap-2.5 font-display font-semibold tracking-tight text-fg">
       <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-accent text-sm font-bold text-accent-ink transition-shadow group-hover:shadow-[0_0_24px_-4px_rgba(52,211,153,0.7)]">
         W
       </span>

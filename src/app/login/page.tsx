@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
@@ -24,6 +24,8 @@ declare global {
     turnstile?: {
       reset: (widgetId?: string) => void;
       render: (container: HTMLElement | string, opts: Record<string, unknown>) => string;
+      getResponse: (container: HTMLElement | string) => string | undefined;
+      remove: (widgetId: string) => void;
     };
   }
 }
@@ -128,6 +130,39 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileRef = useRef<HTMLDivElement>(null);
+
+  // Render widget secara eksplisit: atribut data-* tidak bisa membawa fungsi di React,
+  // jadi data-callback/data-expired-callback/data-error-callback TIDAK pernah terpasang
+  // (div render dengan atribut null → token tidak pernah diterima → login selalu ditolak).
+  // Polling kecil menangani race dengan muatnya api.js (afterInteractive).
+  useEffect(() => {
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const render = () => {
+      const el = turnstileRef.current;
+      if (!el || !window.turnstile) return false;
+      window.turnstile.render(el, {
+        sitekey: TURNSTILE_SITEKEY,
+        action: "turnstile-spin-v1",
+        callback: (token: string) => setTurnstileToken(token),
+        "expired-callback": () => setTurnstileToken(""),
+        "error-callback": () => setTurnstileToken(""),
+      });
+      return true;
+    };
+    if (!render()) {
+      interval = setInterval(() => {
+        if (cancelled || render()) {
+          if (interval) clearInterval(interval);
+        }
+      }, 200);
+    }
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
+  }, []);
 
   // Validasi token Turnstile lewat managed siteverify worker (browser → worker → siteverify).
   async function verifyTurnstile(token: string): Promise<boolean> {
@@ -149,11 +184,18 @@ function LoginForm() {
     setError("");
 
     // Gate: verifikasi Turnstile dulu — jika belum/gagal, jangan lanjut ke login.
-    if (!turnstileToken) {
+    // Fallback ke getResponse() jika callback belum sempat menyimpan state.
+    const token =
+      turnstileToken ||
+      (turnstileRef.current && window.turnstile
+        ? (window.turnstile.getResponse(turnstileRef.current) as string)
+        : "") ||
+      "";
+    if (!token) {
       setError("Selesaikan verifikasi keamanan dulu.");
       return;
     }
-    const human = await verifyTurnstile(turnstileToken);
+    const human = await verifyTurnstile(token);
     if (!human) {
       window.turnstile?.reset();
       setTurnstileToken("");
@@ -253,6 +295,13 @@ function LoginForm() {
             />
           </div>
 
+          {/* Turnstile bot check — render eksplisit di useEffect (callback fungsi React tidak
+              bisa lewat atribut data-*). Div sengaja sebelum pesan error: posisi di pohon React
+              tetap stabil sehingga widget tidak remount saat error muncul. */}
+          <div className="flex justify-center">
+            <div ref={turnstileRef} />
+          </div>
+
           {error && (
             <p
               key={error}
@@ -262,16 +311,6 @@ function LoginForm() {
               {error}
             </p>
           )}
-
-          {/* Turnstile bot check — token dipakai di onSubmit sebelum signIn */}
-          <div
-            className="cf-turnstile flex justify-center"
-            data-sitekey={TURNSTILE_SITEKEY}
-            data-action="turnstile-spin-v1"
-            data-callback={(token: string) => setTurnstileToken(token)}
-            data-expired-callback={() => setTurnstileToken("")}
-            data-error-callback={() => setTurnstileToken("")}
-          />
 
           <button
             type="submit"

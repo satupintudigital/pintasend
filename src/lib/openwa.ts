@@ -20,6 +20,13 @@ export interface OpenwaQr {
   status: string;
 }
 
+export interface OpenwaSendResult {
+  messageId?: string;
+  id?: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
 export class OpenwaError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -72,4 +79,10 @@ export const openwa = {
     request<unknown>(`/api/sessions/${sessionId}/logout`, { method: "POST" }),
   deleteSession: (sessionId: string) =>
     request<unknown>(`/api/sessions/${sessionId}`, { method: "DELETE" }),
+  // Kirim pesan teks. chatId format "62812...@c.us".
+  sendText: (sessionId: string, chatId: string, text: string) =>
+    request<OpenwaSendResult>(`/api/sessions/${sessionId}/messages/send-text`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, text }),
+    }),
 };

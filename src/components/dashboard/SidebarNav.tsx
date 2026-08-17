@@ -2,11 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Devices, House, UsersThree } from "@phosphor-icons/react";
+import { Devices, House, Key, UsersThree } from "@phosphor-icons/react";
 
 const items = [
   { href: "/dashboard", label: "Beranda", icon: House },
   { href: "/dashboard/devices", label: "Device", icon: Devices },
+];
+
+const ownerItems = [
+  { href: "/dashboard/pengguna", label: "Pengguna", icon: UsersThree },
+  { href: "/dashboard/api-keys", label: "API Key", icon: Key },
 ];
 
 export function SidebarNav({
@@ -17,12 +22,10 @@ export function SidebarNav({
   canManageUsers?: boolean;
 }) {
   const pathname = usePathname();
-  const visible = canManageUsers
-    ? [...items, { href: "/dashboard/pengguna", label: "Pengguna", icon: UsersThree }]
-    : items;
+  const visible = canManageUsers ? [...items, ...ownerItems] : items;
 
   const linkClass = (active: boolean) =>
-    `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+    `flex items-center gap-2.5 rounded-lg px-3 text-sm transition-colors ${horizontal ? "py-3" : "py-2.5"} ${
       active
         ? "bg-surface-2 text-fg"
         : "text-fg-muted hover:bg-surface-2/60 hover:text-fg"

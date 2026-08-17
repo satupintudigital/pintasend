@@ -155,6 +155,7 @@ export default function DevicesPage() {
             if (qrRes.ok && qrData.qrCode) {
               qrShown = true;
               setAddState((s) => (s.phase === "qr" ? { ...s, qr: qrData.qrCode } : s));
+              loadDevices(); // perbarui badge daftar menjadi "Menunggu scan"
             }
             // Gagal transient → qrShown tetap false, coba lagi di polling berikutnya.
           } else if (status === "ready") {
@@ -414,7 +415,11 @@ export default function DevicesPage() {
                       </h2>
                       <p className="mt-1 text-sm text-fg-muted">Beri nama untuk device ini.</p>
                     </div>
-                    <button onClick={closeAdd} className="text-fg-faint transition-colors hover:text-fg" aria-label="Tutup">
+                    <button
+                      onClick={closeAdd}
+                      aria-label="Tutup"
+                      className="-m-2 flex h-11 w-11 items-center justify-center rounded-xl text-fg-faint transition-colors hover:bg-surface-2 hover:text-fg active:scale-95"
+                    >
                       <X size={18} />
                     </button>
                   </div>
@@ -458,7 +463,11 @@ export default function DevicesPage() {
                         <span className="font-medium text-fg">Menu › Perangkat Tertaut › Tautkan Perangkat</span>.
                       </p>
                     </div>
-                    <button onClick={closeAdd} className="text-fg-faint transition-colors hover:text-fg" aria-label="Tutup">
+                    <button
+                      onClick={closeAdd}
+                      aria-label="Tutup"
+                      className="-m-2 flex h-11 w-11 items-center justify-center rounded-xl text-fg-faint transition-colors hover:bg-surface-2 hover:text-fg active:scale-95"
+                    >
                       <X size={18} />
                     </button>
                   </div>
