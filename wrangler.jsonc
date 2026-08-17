@@ -8,6 +8,12 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  "kv_namespaces": [
+    {
+      "binding": "WAVIO_RATE_LIMIT",
+      "id": "32a48e3a53d846bf82f6d17a1f36fd5b"
+    }
+  ],
   "observability": {
     "enabled": true
   }

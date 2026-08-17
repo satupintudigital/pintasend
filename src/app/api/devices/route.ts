@@ -3,6 +3,7 @@ import { query } from "@/lib/db";
 import { openwa, OpenwaError } from "@/lib/openwa";
 import { uuidv7 } from "@/lib/uuidv7";
 import { listDevicesForTenant } from "@/lib/devices";
+import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 export async function GET() {
   const session = await auth();
@@ -17,6 +18,10 @@ export async function POST(req: Request) {
   const session = await auth();
   const tenantId = session?.user?.tenantId;
   if (!tenantId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Rate limit pembuatan device (mutasi) per tenant+IP.
+  const rl = await checkRateLimit(`device-create:${tenantId}:${clientIp(req)}`, 10, 60_000);
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterSec);
 
   const body = (await req.json().catch(() => null)) as { label?: unknown } | null;
   const label = typeof body?.label === "string" ? body.label.trim() : "";

@@ -7,14 +7,16 @@
     - kartu / panel  : 16px (rounded-2xl)
     - tombol          : pill (rounded-full)
     - code / input    : 12px (rounded-xl)
+  Display: Space Grotesk · Body: Manrope · Mono: JetBrains Mono.
 */
 
 @theme {
   --color-ink: #09090b;
-  --color-surface: #101012;
-  --color-surface-2: #17171a;
+  --color-ink-2: #0c0c0f;
+  --color-surface: #101013;
+  --color-surface-2: #17171b;
   --color-line: #26262b;
-  --color-line-soft: #1d1d21;
+  --color-line-soft: #1d1d22;
   --color-fg: #f4f4f5;
   --color-fg-muted: #9ca3af;
   --color-fg-faint: #71717a;
@@ -22,8 +24,9 @@
   --color-accent-bright: #34d399;
   --color-accent-ink: #022c22;
 
-  --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -34,7 +37,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 5rem;
+  scroll-padding-top: 5.5rem;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -53,6 +56,7 @@ body {
 }
 
 h1, h2, h3, h4 {
+  font-family: var(--font-display);
   letter-spacing: -0.03em;
   text-wrap: balance;
 }
@@ -70,15 +74,76 @@ button, a {
   outline-offset: 3px;
 }
 
+/* Angka pada data/statistik: lebar tabular agar tidak bergetar */
+.bk-tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Scrollbar (WebKit) ── */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 999px;
+  border: 2px solid var(--color-ink);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
 /* ── Fine grain overlay (fixed, non-scrolling) ── */
 .bk-grain {
   position: fixed;
   inset: 0;
   z-index: 60;
   pointer-events: none;
-  opacity: 0.045;
+  opacity: 0.05;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size: 160px 160px;
+}
+
+/* ── Subtle grid backdrop (hero & CTA) ── */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+.bg-grid-fade {
+  -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 25%, transparent 78%);
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 0%, black 25%, transparent 78%);
+}
+
+/* ── Spotlight hover: radial glow mengikuti kursor (--mx/--my dari JS) ── */
+.bk-spotlight {
+  position: relative;
+  isolation: isolate;
+}
+
+.bk-spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s var(--ease-out);
+  background: radial-gradient(
+    280px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(52, 211, 153, 0.09),
+    transparent 70%
+  );
+}
+
+.bk-spotlight:hover::before {
+  opacity: 1;
 }
 
 /* ── Scroll reveal (compositor-driven, ditambahkan oleh Reveal.tsx) ── */
@@ -129,6 +194,65 @@ button, a {
   animation: bkPulse 2.4s ease-in-out infinite;
 }
 
+/* ── Marquee strip (duplikasi konten → translateX(-50%)) ── */
+@keyframes bkMarquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.bk-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: bkMarquee 38s linear infinite;
+}
+
+.bk-marquee:hover .bk-marquee-track {
+  animation-play-state: paused;
+}
+
+/* ── Hero floating toast: muncul, diam, menghilang, berulang ── */
+@keyframes bkToast {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  10%, 75% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+}
+
+.bk-toast {
+  animation: bkToast 6.5s var(--ease-out) infinite;
+}
+
+/* ── CTA beam: kilatan cahaya melintas ── */
+@keyframes bkBeam {
+  0% {
+    transform: translateX(-130%) skewX(-14deg);
+  }
+  60%, 100% {
+    transform: translateX(230%) skewX(-14deg);
+  }
+}
+
+.bk-beam {
+  animation: bkBeam 4.5s var(--ease-out) infinite;
+}
+
+/* ── Syntax highlight tokens (kode di hero/API/features) ── */
+.tok-c { color: #52525b; font-style: italic; }      /* komentar */
+.tok-k { color: var(--color-accent-bright); }       /* command / key JSON */
+.tok-f { color: #a1a1aa; }                          /* flag CLI */
+.tok-s { color: #fbbf24; }                          /* string */
+.tok-n { color: #f472b6; }                          /* angka / variable */
+.tok-p { color: #6b7280; }                          /* tanda baca */
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -151,7 +275,10 @@ button, a {
     transform: none !important;
   }
 
-  .bk-live-dot {
+  .bk-live-dot,
+  .bk-marquee-track,
+  .bk-toast,
+  .bk-beam {
     animation: none !important;
   }
 }
