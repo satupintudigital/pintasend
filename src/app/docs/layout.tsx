@@ -4,6 +4,8 @@ import { DocsNav, DocsMobileTabs } from "@/components/docs/DocsNav";
 import { DocsProgress } from "@/components/docs/DocsProgress";
 import { DocsPager } from "@/components/docs/DocsPager";
 import { DocsSearch } from "@/components/docs/DocsSearch";
+import { BackToTop } from "@/components/docs/BackToTop";
+import { AmbientParallax } from "@/components/docs/AmbientParallax";
 
 export const metadata: Metadata = {
   title: "Dokumentasi — Wavio",
@@ -14,14 +16,17 @@ export const metadata: Metadata = {
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-[100dvh] bg-ink">
-      {/* Ambient: grid + glow halus di atas halaman */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[440px] overflow-hidden"
-      >
-        <div className="absolute inset-0 bg-grid bg-grid-fade opacity-30" />
-        <div className="absolute -top-40 left-1/2 h-[320px] w-[640px] -translate-x-1/2 rounded-full bg-accent/5 blur-[130px]" />
-      </div>
+      {/* Ambient: grid + glow halus dengan parallax (transform-only) */}
+      <AmbientParallax className="h-[440px]">
+        <div
+          data-parallax="0.12"
+          className="absolute inset-0 bg-grid bg-grid-fade opacity-30 will-change-transform"
+        />
+        <div
+          data-parallax="0.28"
+          className="absolute -top-40 left-1/2 h-[320px] w-[640px] -ml-80 rounded-full bg-accent/5 blur-[130px] will-change-transform"
+        />
+      </AmbientParallax>
 
       <header className="sticky top-0 z-40 border-b border-line-soft bg-ink/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
@@ -78,6 +83,8 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           </div>
         </footer>
       </div>
+
+      <BackToTop />
     </div>
   );
 }

@@ -245,7 +245,7 @@ export function ApiKeysPanel() {
                     )}
                   </div>
                   {revealed[k.id] && (
-                    <div className="mt-3 rounded-xl border border-line bg-ink-2/60 p-3">
+                    <div className="bk-code-in mt-3 rounded-xl border border-line bg-ink-2/60 p-3">
                       <dl className="grid gap-2 text-xs sm:grid-cols-2">
                         <div>
                           <dt className="text-fg-faint">ID</dt>
@@ -304,7 +304,7 @@ export function ApiKeysPanel() {
                 onClick={() => copy(created.raw, "new")}
                 className="flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-surface-2 px-3 text-xs font-medium text-fg transition-colors hover:text-accent-bright"
               >
-                {copiedId === "new" ? <CheckCircle size={14} weight="fill" /> : <Copy size={14} />}
+                {copiedId === "new" ? <CheckCircle size={14} weight="fill" className="bk-pop" /> : <Copy size={14} />}
                 {copiedId === "new" ? "Tersalin" : "Salin"}
               </button>
             </div>

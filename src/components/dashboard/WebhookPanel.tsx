@@ -186,7 +186,7 @@ export function WebhookPanel() {
       ) : (
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
           {/* Form */}
-          <div className="rounded-2xl border border-line bg-surface p-6 md:p-7">
+          <div className="bk-lift rounded-2xl border border-line bg-surface p-6 md:p-7 hover:border-accent/25">
             <div className="flex items-center gap-3">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent/20 bg-accent/10 text-accent-bright">
                 <PaperPlaneTilt size={19} weight="bold" />
@@ -350,7 +350,7 @@ export function WebhookPanel() {
                   }`}
                 >
                   {testResult.ok ? (
-                    <CheckCircle size={16} className="mt-0.5 shrink-0" weight="fill" />
+                    <CheckCircle size={16} className="bk-pop mt-0.5 shrink-0" weight="fill" />
                   ) : (
                     <XCircle size={16} className="mt-0.5 shrink-0" weight="fill" />
                   )}

@@ -175,8 +175,8 @@ export default function DocsIndex() {
               {steps.map((s, i) => (
                 <div
                   key={s.title}
-                  className={`relative flex flex-col rounded-2xl border border-line bg-surface p-5 transition-colors hover:border-accent/30 ${
-                    i === 1 ? "md:translate-y-6" : ""
+                  className={`bk-lift relative flex flex-col rounded-2xl border border-line bg-surface p-5 hover:border-accent/30 ${
+                    i === 1 ? "md:mt-6" : ""
                   }`}
                 >
                   <span className="absolute right-4 top-4 font-mono text-[10px] text-fg-faint">
@@ -208,6 +208,7 @@ export default function DocsIndex() {
           </div>
 
           <div className="mt-6 space-y-6">
+            <Reveal delay={80}>
             <div>
               <h3 className="text-sm font-semibold text-fg">Kirim pesan pertama</h3>
               <div className="mt-3">
@@ -226,7 +227,9 @@ curl -X POST https://wavio.satupintudigital.co.id/v1/messages \\\\
                 />
               </div>
             </div>
+            </Reveal>
 
+            <Reveal delay={160}>
             <div>
               <h3 className="text-sm font-semibold text-fg">Node.js</h3>
               <div className="mt-3">
@@ -249,7 +252,9 @@ console.log(data); // { ok: true, messageId: "3EB0F2A1…" }`}
                 />
               </div>
             </div>
+            </Reveal>
 
+            <Reveal delay={240}>
             <div>
               <h3 className="text-sm font-semibold text-fg">Respons sukses</h3>
               <div className="mt-3">
@@ -264,6 +269,7 @@ console.log(data); // { ok: true, messageId: "3EB0F2A1…" }`}
                 />
               </div>
             </div>
+            </Reveal>
           </div>
         </Reveal>
 

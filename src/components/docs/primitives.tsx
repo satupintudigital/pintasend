@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Copy, Info, Warning } from "@phosphor-icons/react";
+import { ArrowRight, Check, Copy, Info, Warning } from "@phosphor-icons/react";
 
 /* ── Tokenizer sintaks ringan ───────────────────────────────────────────────
    Token berupa [tipe, teks]. Tipe: c komentar · k key/command · f keyword ·
@@ -162,7 +162,7 @@ export function CodeBlock({ code, lang = "bash" }: { code: string; lang?: string
               : "border-line-soft text-fg-faint hover:border-line hover:text-fg"
           }`}
         >
-          {copied ? <Check size={11} weight="bold" /> : <Copy size={11} />}
+          {copied ? <Check size={11} weight="bold" className="bk-pop" /> : <Copy size={11} />}
           {copied ? "Tersalin" : "Salin"}
         </button>
       </div>
@@ -200,7 +200,7 @@ export function Anchor({
         {children}
         <span
           aria-hidden
-          className="font-mono text-sm font-normal text-accent-bright opacity-0 transition-opacity group-hover:opacity-100"
+          className="font-mono text-sm font-normal text-accent-bright -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100"
         >
           #
         </span>
@@ -263,13 +263,18 @@ export function EndpointTable({ endpoints }: { endpoints: EndpointDoc[] }) {
       {endpoints.map((e, i) => (
         <div
           key={e.method + e.path}
-          className={`flex flex-wrap items-center gap-3 px-4 py-3 transition-colors hover:bg-surface/60 ${
+          className={`group flex flex-wrap items-center gap-3 px-4 py-3 transition-all duration-200 hover:bg-surface/60 ${
             i > 0 ? "border-t border-line-soft" : ""
           }`}
         >
           <MethodBadge method={e.method} />
           <code className="font-mono text-sm text-fg">{e.path}</code>
           <span className="ml-auto text-sm text-fg-faint">{e.desc}</span>
+          <ArrowRight
+            size={14}
+            aria-hidden
+            className="-translate-x-1 text-accent-bright opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100"
+          />
         </div>
       ))}
     </div>

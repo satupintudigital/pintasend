@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft, ArrowRight, BookOpenText, Gauge, HouseLine } from "@phosphor-icons/react/ssr";
+import { AmbientParallax } from "@/components/docs/AmbientParallax";
 
 export const metadata: Metadata = {
   title: "404 — Halaman tidak ditemukan · Wavio",
@@ -16,14 +17,17 @@ const quickLinks = [
 export default function NotFound() {
   return (
     <div className="relative flex min-h-[100dvh] flex-col bg-ink">
-      {/* Ambient: grid + glow */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[560px] overflow-hidden"
-      >
-        <div className="absolute inset-0 bg-grid bg-grid-fade opacity-30" />
-        <div className="absolute -top-32 left-1/2 h-[340px] w-[680px] -translate-x-1/2 rounded-full bg-accent/5 blur-[130px]" />
-      </div>
+      {/* Ambient: grid + glow dengan parallax halus */}
+      <AmbientParallax className="h-[560px]">
+        <div
+          data-parallax="0.12"
+          className="absolute inset-0 bg-grid bg-grid-fade opacity-30 will-change-transform"
+        />
+        <div
+          data-parallax="0.28"
+          className="absolute -top-32 left-1/2 h-[340px] w-[680px] -ml-[340px] rounded-full bg-accent/5 blur-[130px] will-change-transform"
+        />
+      </AmbientParallax>
 
       {/* Header */}
       <header className="relative z-10 border-b border-line-soft bg-ink/70 backdrop-blur-xl">

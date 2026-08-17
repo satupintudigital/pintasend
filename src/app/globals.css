@@ -316,6 +316,41 @@ button, a {
   transform: scaleX(1);
 }
 
+/* ── Pop singkat untuk ikon sukses (mis. tombol salin) ── */
+@keyframes bkPop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.bk-pop {
+  animation: bkPop 0.3s var(--ease-out);
+}
+
+/* ── Rail sidebar aktif: tumbuh dari atas saat halaman dimuat ── */
+@keyframes bkRail {
+  from {
+    transform: translateY(-50%) scaleY(0);
+  }
+  to {
+    transform: translateY(-50%) scaleY(1);
+  }
+}
+
+.bk-rail {
+  animation: bkRail 0.45s var(--ease-out) both;
+  transform-origin: top;
+}
+
 /* ── Subtle pulse for live status dot (semantic state only) ── */
 @keyframes bkPulse {
   0%, 100% { opacity: 1; }

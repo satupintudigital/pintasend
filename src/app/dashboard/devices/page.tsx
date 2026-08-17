@@ -327,7 +327,7 @@ export default function DevicesPage() {
                 return (
                   <Spotlight
                     key={d.id}
-                    className="group rounded-2xl border border-line bg-surface p-5 transition-colors duration-300 hover:border-accent/30"
+                    className="bk-lift group rounded-2xl border border-line bg-surface p-5 hover:border-accent/30"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
@@ -501,7 +501,7 @@ export default function DevicesPage() {
               {addState.phase === "done" && (
                 <div className="text-center">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-emerald-500/25 bg-emerald-500/10 text-emerald-400 shadow-[0_0_40px_-12px_rgba(16,185,129,0.7)]">
-                    <CheckCircle size={28} weight="fill" />
+                    <CheckCircle size={28} weight="fill" className="bk-pop" />
                   </div>
                   <p className="mt-6 font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
                     Berhasil

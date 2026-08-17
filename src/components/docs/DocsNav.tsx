@@ -51,7 +51,7 @@ export function DocsNav() {
                       {active && (
                         <span
                           aria-hidden
-                          className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-full bg-accent-bright"
+                          className="bk-rail absolute left-0 top-1/2 h-4 w-0.5 rounded-full bg-accent-bright"
                         />
                       )}
                       {l.label}

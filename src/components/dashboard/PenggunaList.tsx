@@ -258,7 +258,7 @@ export function PenggunaList() {
 
                   {doneId === u.id ? (
                     <span className="flex items-center gap-1.5 text-sm font-medium text-accent-bright">
-                      <CheckCircle size={15} weight="fill" /> Terreset
+                      <CheckCircle size={15} weight="fill" className="bk-pop" /> Terreset
                     </span>
                   ) : (
                     <button
@@ -277,7 +277,7 @@ export function PenggunaList() {
                 </div>
 
                 {open && (
-                  <div className="mt-4 rounded-xl border border-line bg-ink-2/60 p-4">
+                  <div className="bk-code-in mt-4 rounded-xl border border-line bg-ink-2/60 p-4">
                     <p className="text-sm font-medium text-fg">
                       Password baru untuk <span className="text-accent-bright">{u.name}</span>
                     </p>

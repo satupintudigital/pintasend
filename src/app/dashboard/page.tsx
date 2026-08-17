@@ -63,7 +63,7 @@ export default async function DashboardHome() {
       </div>
 
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
-        <Spotlight className="rounded-2xl border border-line bg-surface transition-colors duration-300 hover:border-accent/30">
+        <Spotlight className="bk-lift rounded-2xl border border-line bg-surface hover:border-accent/30">
           <Link
             href="/dashboard/devices"
             className="group flex h-full flex-col p-6"
@@ -87,7 +87,7 @@ export default async function DashboardHome() {
           </Link>
         </Spotlight>
 
-        <Spotlight className="rounded-2xl border border-line bg-surface">
+        <Spotlight className="bk-lift rounded-2xl border border-line bg-surface hover:border-accent/30">
           <div className="flex h-full flex-col p-6">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent/20 bg-accent/10 text-accent-bright">
               <Waveform size={20} />
