@@ -8,7 +8,7 @@ const connectionString = process.env.DATABASE_URL as string;
 // batas ukuran 3 MiB. Satu koneksi singkat per query — tidak memakai
 // connection pooling lintas request (tidak didukung di Workers).
 
-export async function query<T extends Record<string, unknown>>(
+export async function query<T extends object>(
   text: string,
   params: unknown[] = [],
 ): Promise<T[]> {
@@ -22,7 +22,7 @@ export async function query<T extends Record<string, unknown>>(
   }
 }
 
-export async function queryOne<T extends Record<string, unknown>>(
+export async function queryOne<T extends object>(
   text: string,
   params: unknown[] = [],
 ): Promise<T | undefined> {

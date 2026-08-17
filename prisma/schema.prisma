@@ -36,5 +36,5 @@ model Device {
   phone           String?
   status          String   @default("created")
   createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  updatedAt       DateTime @updatedAt @default(now())
 }

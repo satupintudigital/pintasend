@@ -33,7 +33,7 @@ CREATE TABLE "Device" (
     "phone" TEXT,
     "status" TEXT NOT NULL DEFAULT 'created',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Device_pkey" PRIMARY KEY ("id")
 );
