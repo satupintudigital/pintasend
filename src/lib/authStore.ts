@@ -1,5 +1,5 @@
 import { query } from "@/lib/db";
-import { queryD1 } from "@/lib/d1";
+import { changesD1, queryD1 } from "@/lib/d1";
 import { uuidv7 } from "@/lib/uuidv7";
 
 export interface NewUser {
@@ -29,10 +29,11 @@ export async function createUser(input: NewUser): Promise<{ id: string }> {
   const now = new Date().toISOString();
   const role = input.role ?? "owner";
 
-  // 1. Neon (source of truth)
+  // 1. Neon (source of truth) — tabel User Neon TIDAK punya kolom updatedAt
+  // (lihat schema.prisma), jadi hanya createdAt di-set via default now().
   await query(
-    'INSERT INTO "User" (id, "tenantId", email, name, "passwordHash", role, "createdAt", "updatedAt") ' +
-      "VALUES ($1, $2, $3, $4, $5, $6, now(), now())",
+    'INSERT INTO "User" (id, "tenantId", email, name, "passwordHash", role) ' +
+      "VALUES ($1, $2, $3, $4, $5, $6)",
     [id, input.tenantId, input.email, input.name, input.passwordHash, role],
   );
 
@@ -115,18 +116,57 @@ export async function createUserWithTenant(
   return { id: userId, tenantId };
 }
 
-export async function updateUserPassword(userId: string, passwordHash: string): Promise<void> {
-  await query('UPDATE "User" SET "passwordHash" = $1, "updatedAt" = now() WHERE id = $2', [
-    passwordHash,
-    userId,
-  ]);
+export interface AdminUserRow {
+  id: string;
+  tenantId: string;
+  email: string;
+  name: string;
+  role: string;
+  createdAt: string;
+}
+
+// Daftar pengguna utk halaman admin — baca replika D1 (0 koneksi Neon).
+// Semua user yang bisa login pasti ada di D1 (login baca D1), jadi daftar ini
+// konsisten dengan jalur auth; D1 clone yang gagal sudah di-log (kasus langka).
+export async function listUsers(): Promise<AdminUserRow[]> {
+  return queryD1<AdminUserRow>(
+    "SELECT id, tenantId, email, name, role, createdAt FROM User ORDER BY createdAt DESC",
+  );
+}
+
+export interface UpdatePasswordResult {
+  /** User ditemukan di Neon & password berhasil diubah. */
+  updated: boolean;
+  /** Clone password ke D1 sukses (false → login baca D1 akan pakai password lama). */
+  d1Ok: boolean;
+}
+
+// Reset password — write-through: Neon source of truth → clone D1.
+export async function updateUserPassword(
+  userId: string,
+  passwordHash: string,
+): Promise<UpdatePasswordResult> {
+  // RETURNING id → bisa deteksi user tak ditemukan (404 di API) tanpa SELECT
+  // tambahan. Catatan: tabel User Neon tidak punya kolom updatedAt (schema
+  // Prisma), jadi hanya passwordHash yang di-update di Neon; D1 (yang punya
+  // updatedAt) tetap di-set agar replika akurat.
+  const rows = await query<{ id: string }>(
+    'UPDATE "User" SET "passwordHash" = $1 WHERE id = $2 RETURNING id',
+    [passwordHash, userId],
+  );
+  if (rows.length === 0) return { updated: false, d1Ok: false };
+
   try {
-    await queryD1("UPDATE User SET passwordHash = ?, updatedAt = ? WHERE id = ?", [
+    // D1 UPDATE yang tak menyentuh baris TIDAK error — cek meta.changes agar
+    // d1Ok jujur: baris user harus benar-benar ter-update di replika.
+    const changes = await changesD1("UPDATE User SET passwordHash = ?, updatedAt = ? WHERE id = ?", [
       passwordHash,
       new Date().toISOString(),
       userId,
     ]);
+    return { updated: true, d1Ok: changes > 0 };
   } catch (e) {
     console.error("authStore: update D1 gagal, D1 stale:", e);
+    return { updated: true, d1Ok: false };
   }
 }
