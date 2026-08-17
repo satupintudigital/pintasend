@@ -31,8 +31,10 @@ export function Reveal({
     return () => io.disconnect();
   }, []);
 
+  // min-w-0: item grid tidak boleh melebar karena konten (mis. <pre>) —
+  // cegah overflow horizontal pada viewport kecil.
   return (
-    <div ref={ref} className={`bk-reveal ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+    <div ref={ref} className={`bk-reveal min-w-0 ${className}`} style={{ transitionDelay: `${delay}ms` }}>
       {children}
     </div>
   );

@@ -73,6 +73,7 @@ export default function RootLayout({
         >
           Lewati ke konten utama
         </a>
+        <div aria-hidden className="bk-grain" />
         {children}
       </body>
     </html>

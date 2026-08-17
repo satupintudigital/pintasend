@@ -104,7 +104,7 @@ export function Hero() {
       </div>
 
       <div className="mx-auto grid max-w-7xl gap-14 px-5 pb-16 pt-14 md:grid-cols-[1.05fr_0.95fr] md:items-center md:pb-24 md:pt-20">
-        <div>
+        <div className="min-w-0">
           <p
             className="bk-enter inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/5 px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-accent-bright"
             style={{ animationDelay: "0ms" }}
@@ -114,7 +114,7 @@ export function Hero() {
           </p>
 
           <h1
-            className="bk-enter mt-6 font-display text-5xl font-semibold leading-[1.02] tracking-tight md:text-[4.3rem]"
+            className="bk-enter mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl md:text-[4.3rem]"
             style={{ animationDelay: "80ms" }}
           >
             Kirim pesan WhatsApp, semudah memanggil API.
@@ -166,7 +166,7 @@ export function Hero() {
           </div>
         </div>
 
-        <div className="bk-enter" style={{ animationDelay: "200ms" }}>
+        <div className="bk-enter min-w-0" style={{ animationDelay: "200ms" }}>
           <CodeCard />
         </div>
       </div>

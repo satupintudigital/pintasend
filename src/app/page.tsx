@@ -11,7 +11,6 @@ import { Footer } from "@/components/landing/Footer";
 export default function Home() {
   return (
     <>
-      <div aria-hidden className="bk-grain" />
       <Nav />
       <main id="main">
         <Hero />

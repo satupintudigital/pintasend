@@ -48,6 +48,8 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* Jaring pengaman: dekorasi absolut tidak boleh membuat scroll horizontal */
+  overflow-x: clip;
 }
 
 ::selection {
