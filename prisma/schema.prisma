@@ -28,15 +28,28 @@ model User {
 }
 
 model Device {
-  id              String   @id @default(uuid(7))
-  tenantId        String
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  label           String
-  openwaSessionId String   @unique
-  phone           String?
-  status          String   @default("created")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt @default(now())
+  id                String   @id @default(uuid(7))
+  tenantId          String
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  label             String
+  openwaSessionId   String   @unique
+  openwaWebhookId   String? // ID registrasi webhook di OpenWA (untuk unregister)
+  phone             String?
+  status            String   @default("created")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt @default(now())
+}
+
+model Webhook {
+  id        String   @id @default(uuid(7))
+  tenantId  String   @unique
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  url       String // URL endpoint milik client yang menerima event
+  secret    String // HMAC secret utk menandatangani delivery (x-wavio-signature)
+  events    String   @default("[\"message.received\",\"session.status\"]") // JSON array event
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
 }
 
 model ApiKey {

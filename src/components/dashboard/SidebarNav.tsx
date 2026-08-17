@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Devices, House, Key, UsersThree } from "@phosphor-icons/react";
+import { Devices, House, Key, UsersThree, WebhooksLogo } from "@phosphor-icons/react";
 
 const items = [
   { href: "/dashboard", label: "Beranda", icon: House },
@@ -12,6 +12,7 @@ const items = [
 const ownerItems = [
   { href: "/dashboard/pengguna", label: "Pengguna", icon: UsersThree },
   { href: "/dashboard/api-keys", label: "API Key", icon: Key },
+  { href: "/dashboard/webhook", label: "Webhook", icon: WebhooksLogo },
 ];
 
 export function SidebarNav({

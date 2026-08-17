@@ -22,3 +22,31 @@ CREATE TABLE IF NOT EXISTS ApiKey (
 );
 CREATE INDEX IF NOT EXISTS idx_apikey_tenant ON ApiKey(tenantId);
 CREATE INDEX IF NOT EXISTS idx_apikey_hash ON ApiKey(keyHash);
+
+-- Replika Device (Neon source of truth → D1 via write-through + d1-resync).
+-- Dipakai jalur baca cepat: ingest webhook (openwaSessionId → device) & dashboard.
+CREATE TABLE IF NOT EXISTS Device (
+  id                TEXT PRIMARY KEY,
+  tenantId          TEXT NOT NULL,
+  label             TEXT NOT NULL,
+  openwaSessionId   TEXT NOT NULL,
+  openwaWebhookId   TEXT,
+  phone             TEXT,
+  status            TEXT NOT NULL DEFAULT 'created',
+  createdAt         TEXT NOT NULL,
+  updatedAt         TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_device_tenant ON Device(tenantId);
+CREATE INDEX IF NOT EXISTS idx_device_session ON Device(openwaSessionId);
+
+-- Konfigurasi webhook per tenant (satu baris per tenant).
+CREATE TABLE IF NOT EXISTS Webhook (
+  id         TEXT PRIMARY KEY,
+  tenantId   TEXT NOT NULL UNIQUE,
+  url        TEXT NOT NULL,
+  secret     TEXT NOT NULL,
+  events     TEXT NOT NULL DEFAULT '["message.received","session.status"]',
+  active     INTEGER NOT NULL DEFAULT 1,
+  createdAt  TEXT NOT NULL,
+  updatedAt  TEXT NOT NULL
+);

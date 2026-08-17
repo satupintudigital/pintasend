@@ -1,5 +1,6 @@
 // REST client OpenWA — semua panggilan memakai admin key via header X-API-Key.
 // Endpoint diverifikasi dari OpenWA `docs/06-api-specification.md`.
+import { hashApiKey } from "@/lib/apiKeys";
 
 export interface OpenwaSession {
   id: string;
@@ -25,6 +26,15 @@ export interface OpenwaSendResult {
   id?: string;
   status?: string;
   [key: string]: unknown;
+}
+
+export interface OpenwaWebhook {
+  id: string;
+  url: string;
+  events: string[];
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export class OpenwaError extends Error {
@@ -85,4 +95,35 @@ export const openwa = {
       method: "POST",
       body: JSON.stringify({ chatId, text }),
     }),
+  // Webhook per session: OpenWA mem-POST event ke URL yang didaftarkan dan
+  // menandatangani raw body dgn HMAC-SHA256 (header `x-openwa-signature`).
+  // Secret bersifat write-only — di OpenWA sekalipun tidak bisa dibaca balik,
+  // jadi Wavio menderivasinya deterministik (lihat openwaWebhookSecret).
+  registerWebhook: (sessionId: string, body: { url: string; events: string[]; secret: string; retryCount?: number }) =>
+    request<OpenwaWebhook>(`/api/sessions/${sessionId}/webhooks`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  deleteWebhook: (sessionId: string, webhookId: string) =>
+    request<unknown>(`/api/sessions/${sessionId}/webhooks/${webhookId}`, { method: "DELETE" }),
 };
+
+export const OPENWA_WEBHOOK_EVENTS = ["message.received", "session.status"] as const;
+
+export type OpenwaWebhookEvent = (typeof OPENWA_WEBHOOK_EVENTS)[number];
+
+// Secret webhook per session, diturunkan DETERMINISTIK dari secret global
+// (OPENWA_WEBHOOK_SECRET, fallback OPENWA_ADMIN_KEY) + sessionId. Karena
+// OpenWA tidak mengembalikan secret webhook setelah dibuat, Wavio tidak perlu
+// menyimpan secret per device — cukup menghitung ulang saat verifikasi masuk.
+// (hashApiKey = SHA-256 hex, cukup sebagai material HMAC.)
+//
+// ⚠ OPENWA_WEBHOOK_SECRET bersifat stable-for-life: merotasi secret ini akan
+// membatalkan signature SEMUA device yang sudah terdaftar (ingest 401 → OpenWA
+// retry 3× → dead-letter). Jika terpaksa rotasi, semua device harus di-unregister
+// & di-register ulang webhook-nya.
+export async function openwaWebhookSecret(sessionId: string): Promise<string> {
+  const base =
+    process.env.OPENWA_WEBHOOK_SECRET ?? process.env.OPENWA_ADMIN_KEY ?? "wavio-dev";
+  return hashApiKey(`${base}:${sessionId}`);
+}

@@ -1,11 +1,12 @@
 // D1 re-sync worker (pola workers/turnstile-siteverify: standalone, deploy terpisah).
 //
 // Tujuan: menutup celah "D1 stale" — saat write-through (Neon → D1) gagal di
-// authStore, D1 tertinggal dari Neon. Job ini merekonsiliasi D1 terhadap Neon
-// (source of truth):
-//   1. Baca SEMUA user dari Neon.
-//   2. Upsert ke D1 (INSERT OR REPLACE) — menutup user yang hilang/basi.
-//   3. Hapus dari D1 user yang tidak ada di Neon — menutup user "hantu".
+// authStore/webhookStore/devices, D1 tertinggal dari Neon. Job ini
+// merekonsiliasi D1 terhadap Neon (source of truth) untuk 4 replika:
+//   User, ApiKey, Device, Webhook
+//   1. Baca SEMUA baris dari Neon.
+//   2. Upsert ke D1 (INSERT OR REPLACE) — menutup baris yang hilang/basi.
+//   3. Hapus dari D1 baris yang tidak ada di Neon — menutup baris "hantu".
 //
 // Arah WAJIB Neon → D1. Membalik arah (menimpa Neon dengan isi D1) akan
 // merusak source of truth — jangan pernah.
@@ -15,13 +16,96 @@
 //   - HTTP POST manual: ?token=<RESYNC_TOKEN> (untuk on-demand / testing).
 //
 // Secret: DATABASE_URL (Neon), RESYNC_TOKEN (proteksi trigger manual).
+//
+// Catatan kolom yang hanya hidup di D1:
+//   - ApiKey.lastUsedAt   — di-update saat verify (0 Neon); re-sync mereset ke
+//     nilai Neon (NULL). Metadata tampilan, bukan data kritis (disengaja).
+//   - User.updatedAt      — D1 punya, Neon (tabel Prisma) tidak; re-sync menimpa
+//     dengan waktu sekarang (perubahan password sudah ikut dari Neon).
 import { Client } from "@neondatabase/serverless";
 
-const USER_COLUMNS =
-  'id, "tenantId", email, name, "passwordHash", role, "createdAt"';
+const iso = (v) => (v instanceof Date ? v.toISOString() : v);
 
-const APIKEY_COLUMNS =
-  'id, "tenantId", label, "keyHash", prefix, "createdAt", "lastUsedAt", "revokedAt"';
+// Konfigurasi tiap tabel — kolom Neon (source of truth) → kolom D1 (replika).
+const TABLE_SPECS = [
+  {
+    stat: "user",
+    neonTable: "User",
+    d1Table: "User",
+    neonColumns: 'id, "tenantId", email, name, "passwordHash", role, "createdAt"',
+    d1Columns: "(id, tenantId, email, name, passwordHash, role, createdAt, updatedAt)",
+    d1Values: "(?, ?, ?, ?, ?, ?, ?, ?)",
+    map: (u) => [
+      u.id,
+      u.tenantId,
+      u.email,
+      u.name,
+      u.passwordHash,
+      u.role,
+      iso(u.createdAt),
+      new Date().toISOString(),
+    ],
+  },
+  {
+    stat: "apikey",
+    neonTable: "ApiKey",
+    d1Table: "ApiKey",
+    neonColumns:
+      'id, "tenantId", label, "keyHash", prefix, "createdAt", "lastUsedAt", "revokedAt"',
+    d1Columns: "(id, tenantId, label, keyHash, prefix, createdAt, lastUsedAt, revokedAt)",
+    d1Values: "(?, ?, ?, ?, ?, ?, ?, ?)",
+    map: (k) => [
+      k.id,
+      k.tenantId,
+      k.label,
+      k.keyHash,
+      k.prefix,
+      iso(k.createdAt),
+      iso(k.lastUsedAt),
+      iso(k.revokedAt),
+    ],
+  },
+  {
+    stat: "device",
+    neonTable: "Device",
+    d1Table: "Device",
+    neonColumns:
+      'id, "tenantId", label, "openwaSessionId", "openwaWebhookId", phone, status, "createdAt", "updatedAt"',
+    d1Columns:
+      "(id, tenantId, label, openwaSessionId, openwaWebhookId, phone, status, createdAt, updatedAt)",
+    d1Values: "(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    map: (d) => [
+      d.id,
+      d.tenantId,
+      d.label,
+      d.openwaSessionId,
+      d.openwaWebhookId,
+      d.phone,
+      d.status,
+      iso(d.createdAt),
+      iso(d.updatedAt),
+    ],
+  },
+  {
+    stat: "webhook",
+    neonTable: "Webhook",
+    d1Table: "Webhook",
+    neonColumns:
+      'id, "tenantId", url, secret, events, active, "createdAt", "updatedAt"',
+    d1Columns: "(id, tenantId, url, secret, events, active, createdAt, updatedAt)",
+    d1Values: "(?, ?, ?, ?, ?, ?, ?, ?)",
+    map: (w) => [
+      w.id,
+      w.tenantId,
+      w.url,
+      w.secret,
+      w.events,
+      w.active ? 1 : 0,
+      iso(w.createdAt),
+      iso(w.updatedAt),
+    ],
+  },
+];
 
 const worker = {
   async scheduled(_controller, env, ctx) {
@@ -55,128 +139,85 @@ export default worker;
 async function runResync(env) {
   const started = Date.now();
   const stats = {
-    scanned: 0,
-    upserted: 0,
-    removed: 0,
-    failed: 0,
-    apikeysScanned: 0,
-    apikeysUpserted: 0,
-    apikeysRemoved: 0,
-    apikeysFailed: 0,
+    ok: true,
+    durationMs: 0,
+    finishedAt: null,
     errors: [],
   };
 
   const connectionString = String(env.DATABASE_URL ?? "").trim();
   if (!connectionString) {
-    return { ok: false, ...stats, errors: ["DATABASE_URL secret tidak tersedia"] };
+    stats.ok = false;
+    stats.errors = ["DATABASE_URL secret tidak tersedia"];
+    return stats;
   }
 
   const client = new Client(connectionString);
   await client.connect();
   try {
-    const { rows } = await client.query(
-      `SELECT ${USER_COLUMNS} FROM "User" ORDER BY "createdAt"`,
-    );
-    stats.scanned = rows.length;
-
-    for (const u of rows) {
+    for (const spec of TABLE_SPECS) {
       try {
-        await env.WAVIO_AUTH_DB.prepare(
-          "INSERT OR REPLACE INTO User (id, tenantId, email, name, passwordHash, role, createdAt, updatedAt) " +
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-          .bind(
-            u.id,
-            u.tenantId,
-            u.email,
-            u.name,
-            u.passwordHash,
-            u.role,
-            u.createdAt instanceof Date ? u.createdAt.toISOString() : u.createdAt,
-            new Date().toISOString(),
-          )
-          .run();
-        stats.upserted++;
+        await syncTable(client, env.WAVIO_AUTH_DB, spec, stats);
       } catch (e) {
-        stats.failed++;
-        stats.errors.push(`upsert ${u.id}: ${e?.message ?? String(e)}`);
+        stats.ok = false;
+        stats.errors.push(`${spec.stat} sync: ${e?.message ?? String(e)}`);
       }
-    }
-
-    // Reconcile terbalik: hapus user D1 yang sudah tidak ada di Neon.
-    try {
-      const d1 = await env.WAVIO_AUTH_DB.prepare("SELECT id FROM User").all();
-      const neonIds = new Set(rows.map((r) => String(r.id)));
-      for (const row of d1.results ?? []) {
-        if (!neonIds.has(String(row.id))) {
-          await env.WAVIO_AUTH_DB.prepare("DELETE FROM User WHERE id = ?")
-            .bind(row.id)
-            .run();
-          stats.removed++;
-        }
-      }
-    } catch (e) {
-      stats.errors.push(`cleanup user: ${e?.message ?? String(e)}`);
-    }
-
-    // ===== Sinkronisasi tabel ApiKey (Neon source of truth → D1 replika) =====
-    // Menutup celah "D1 stale" yang sama untuk API key: write-through yang gagal
-    // (create/revoke) membuat D1 tertinggal → verifyApiKey (baca D1) menolak key
-    // yang baru dibuat atau masih menerima key yang sudah di-revoke.
-    //
-    // Catatan: lastUsedAt hanya di-update di D1 (fire-and-forget saat verify) dan
-    // TIDAK pernah ditulis ke Neon — re-sync ini meresetnya ke nilai Neon (NULL/
-    // apa adanya). Itu perilaku yang disengaja: metadata tampilan, bukan data kritis.
-    try {
-      const apiRows = (
-        await client.query(`SELECT ${APIKEY_COLUMNS} FROM "ApiKey" ORDER BY "createdAt"`)
-      ).rows;
-      stats.apikeysScanned = apiRows.length;
-
-      for (const k of apiRows) {
-        try {
-          const lastUsed =
-            k.lastUsedAt instanceof Date ? k.lastUsedAt.toISOString() : k.lastUsedAt;
-          const revoked =
-            k.revokedAt instanceof Date ? k.revokedAt.toISOString() : k.revokedAt;
-          const createdAt =
-            k.createdAt instanceof Date ? k.createdAt.toISOString() : k.createdAt;
-          await env.WAVIO_AUTH_DB.prepare(
-            "INSERT OR REPLACE INTO ApiKey (id, tenantId, label, keyHash, prefix, createdAt, lastUsedAt, revokedAt) " +
-              "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-          )
-            .bind(k.id, k.tenantId, k.label, k.keyHash, k.prefix, createdAt, lastUsed, revoked)
-            .run();
-          stats.apikeysUpserted++;
-        } catch (e) {
-          stats.apikeysFailed++;
-          stats.errors.push(`upsert apikey ${k.id}: ${e?.message ?? String(e)}`);
-        }
-      }
-
-      // Reconcile terbalik: hapus api key D1 yang sudah tidak ada di Neon
-      // (mis. dihapus manual di Neon atau tenant dihapus).
-      const d1Api = await env.WAVIO_AUTH_DB.prepare("SELECT id FROM ApiKey").all();
-      const neonApiIds = new Set(apiRows.map((r) => String(r.id)));
-      for (const row of d1Api.results ?? []) {
-        if (!neonApiIds.has(String(row.id))) {
-          await env.WAVIO_AUTH_DB.prepare("DELETE FROM ApiKey WHERE id = ?")
-            .bind(row.id)
-            .run();
-          stats.apikeysRemoved++;
-        }
-      }
-    } catch (e) {
-      stats.errors.push(`apikey sync: ${e?.message ?? String(e)}`);
     }
   } finally {
     await client.end();
   }
 
-  return {
-    ok: stats.failed === 0 && stats.apikeysFailed === 0,
-    ...stats,
-    durationMs: Date.now() - started,
-    finishedAt: new Date().toISOString(),
-  };
+  stats.durationMs = Date.now() - started;
+  stats.finishedAt = new Date().toISOString();
+  return stats;
+}
+
+// Sinkronisasi satu tabel: upsert semua baris Neon → D1, lalu hapus baris D1
+// yang tidak ada di Neon. Per-baris try/catch agar satu baris error tidak
+// menghentikan seluruh tabel.
+async function syncTable(client, d1, spec, stats) {
+  const prefix = `${spec.stat}:`;
+
+  const { rows } = await client.query(
+    `SELECT ${spec.neonColumns} FROM "${spec.neonTable}" ORDER BY "createdAt"`,
+  );
+  stats[`${prefix}scanned`] = rows.length;
+
+  let upserted = 0;
+  let removed = 0;
+  let failed = 0;
+
+  for (const row of rows) {
+    try {
+      await d1
+        .prepare(
+          `INSERT OR REPLACE INTO ${spec.d1Table} ${spec.d1Columns} VALUES ${spec.d1Values}`,
+        )
+        .bind(...spec.map(row))
+        .run();
+      upserted++;
+    } catch (e) {
+      failed++;
+      stats.errors.push(`${prefix}upsert ${row.id}: ${e?.message ?? String(e)}`);
+    }
+  }
+  stats[`${prefix}upserted`] = upserted;
+  stats[`${prefix}failed`] = failed;
+
+  // Reconcile terbalik: hapus baris D1 yang sudah tidak ada di Neon.
+  try {
+    const d1Rows = await d1.prepare(`SELECT id FROM ${spec.d1Table}`).all();
+    const neonIds = new Set(rows.map((r) => String(r.id)));
+    for (const row of d1Rows.results ?? []) {
+      if (!neonIds.has(String(row.id))) {
+        await d1.prepare(`DELETE FROM ${spec.d1Table} WHERE id = ?`).bind(row.id).run();
+        removed++;
+      }
+    }
+  } catch (e) {
+    stats.errors.push(`${prefix}cleanup: ${e?.message ?? String(e)}`);
+  }
+  stats[`${prefix}removed`] = removed;
+
+  if (failed > 0) stats.ok = false;
 }

@@ -1,14 +1,20 @@
 import { auth } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { openwa, OpenwaError } from "@/lib/openwa";
+import { openwa, openwaWebhookSecret, OpenwaError } from "@/lib/openwa";
 import { uuidv7 } from "@/lib/uuidv7";
-import { listDevicesForTenant } from "@/lib/devices";
+import { cloneDeviceToD1, listDevicesForTenant } from "@/lib/devices";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import {
   getCachedDeviceList,
   setCachedDeviceList,
   deleteCachedDeviceList,
 } from "@/lib/deviceCache";
+
+// URL ingest webhook Wavio — didaftarkan ke OpenWA per session.
+function openwaWebhookUrl(): string {
+  const base = process.env.WAVIO_PUBLIC_BASE_URL ?? "https://wavio.satupintudigital.co.id";
+  return `${base}/api/webhooks/openwa`;
+}
 
 export async function GET() {
   const session = await auth();
@@ -45,10 +51,52 @@ export async function POST(req: Request) {
 
   try {
     const owa = await openwa.createSession(sessionName);
-    await query(
-      'INSERT INTO "Device" (id, "tenantId", label, "openwaSessionId", status) VALUES ($1, $2, $3, $4, $5)',
-      [deviceId, tenantId, label, owa.id, owa.status],
-    );
+
+    // Daftarkan webhook OpenWA → event (message.received, session.status) untuk
+    // session ini dikirim ke ingest Wavio. Secret diturunkan deterministik per
+    // session (openwaWebhookSecret) — tidak perlu disimpan. Gagal mendaftar →
+    // hapus session (hindari orphan) + 502: device tanpa webhook tidak berguna.
+    let openwaWebhookId: string | null = null;
+    try {
+      const wh = await openwa.registerWebhook(owa.id, {
+        url: openwaWebhookUrl(),
+        events: ["message.received", "session.status"],
+        secret: await openwaWebhookSecret(owa.id),
+        retryCount: 3,
+      });
+      openwaWebhookId = wh.id;
+    } catch (whErr) {
+      await openwa.deleteSession(owa.id).catch(() => {});
+      throw whErr;
+    }
+
+    const now = new Date().toISOString();
+    try {
+      await query(
+        'INSERT INTO "Device" (id, "tenantId", label, "openwaSessionId", "openwaWebhookId", status, "createdAt", "updatedAt") ' +
+          "VALUES ($1, $2, $3, $4, $5, $6, $7, $7)",
+        [deviceId, tenantId, label, owa.id, openwaWebhookId, owa.status, now],
+      );
+    } catch (dbErr) {
+      // Neon INSERT gagal → bersihkan registrasi OpenWA (session + webhook)
+      // agar tidak ada orphan. Best-effort.
+      if (openwaWebhookId) {
+        await openwa.deleteWebhook(owa.id, openwaWebhookId).catch(() => {});
+      }
+      await openwa.deleteSession(owa.id).catch(() => {});
+      throw dbErr;
+    }
+    await cloneDeviceToD1({
+      id: deviceId,
+      tenantId,
+      label,
+      openwaSessionId: owa.id,
+      openwaWebhookId,
+      phone: null,
+      status: owa.status,
+      createdAt: now,
+      updatedAt: now,
+    }).catch((e) => console.error("devices: clone D1 gagal:", e));
     await deleteCachedDeviceList(tenantId);
     return Response.json(
       {

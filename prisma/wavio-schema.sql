@@ -30,6 +30,7 @@ CREATE TABLE "Device" (
     "tenantId" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "openwaSessionId" TEXT NOT NULL,
+    "openwaWebhookId" TEXT,
     "phone" TEXT,
     "status" TEXT NOT NULL DEFAULT 'created',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -72,4 +73,24 @@ CREATE INDEX "ApiKey_keyHash_idx" ON "ApiKey"("keyHash");
 
 -- AddForeignKey
 ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- CreateTable
+CREATE TABLE "Webhook" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "url" TEXT NOT NULL,
+    "secret" TEXT NOT NULL,
+    "events" TEXT NOT NULL DEFAULT '["message.received","session.status"]',
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Webhook_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Webhook_tenantId_key" ON "Webhook"("tenantId");
+
+-- AddForeignKey
+ALTER TABLE "Webhook" ADD CONSTRAINT "Webhook_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

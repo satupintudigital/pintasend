@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { query } from "@/lib/db";
 import { openwa, OpenwaError } from "@/lib/openwa";
-import { getDeviceForTenant } from "@/lib/devices";
+import { cloneDeviceToD1, deleteDeviceFromD1, getDeviceForTenant } from "@/lib/devices";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import {
   getCachedDevice,
@@ -29,13 +29,19 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   try {
     const owa = await openwa.getSession(device.openwaSessionId);
+    const newStatus = owa.status;
+    const newPhone = owa.phone ?? device.phone;
     await query(
       'UPDATE "Device" SET status = $1, phone = $2, "updatedAt" = now() WHERE id = $3',
-      [owa.status, owa.phone ?? device.phone, id],
+      [newStatus, newPhone, id],
     );
-    await setCachedDevice({ ...device, status: owa.status, phone: owa.phone ?? device.phone });
-    if (owa.status !== device.status) await deleteCachedDeviceList(tenantId);
-    return Response.json({ device: { ...device, status: owa.status, phone: owa.phone } });
+    const refreshed = { ...device, status: newStatus, phone: newPhone };
+    await setCachedDevice(refreshed);
+    await cloneDeviceToD1(refreshed).catch((e) =>
+      console.error("devices: clone D1 gagal:", e),
+    );
+    if (newStatus !== device.status) await deleteCachedDeviceList(tenantId);
+    return Response.json({ device: refreshed });
   } catch (e) {
     if (e instanceof OpenwaError && e.status === 404) {
       // Session sudah dihapus di OpenWA → tandai terputus.
@@ -67,12 +73,17 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const device = await getDeviceForTenant(id, tenantId);
   if (!device) return Response.json({ error: "Device tidak ditemukan" }, { status: 404 });
 
+  // Unregister webhook OpenWA dulu (best-effort — baris DB tetap dihapus).
+  if (device.openwaWebhookId) {
+    await openwa.deleteWebhook(device.openwaSessionId, device.openwaWebhookId).catch(() => {});
+  }
   try {
     await openwa.deleteSession(device.openwaSessionId);
   } catch {
     // Best effort — baris DB tetap dihapus.
   }
   await query('DELETE FROM "Device" WHERE id = $1', [id]);
+  await deleteDeviceFromD1(id).catch((e) => console.error("devices: delete D1 gagal:", e));
   await deleteCachedDevice(id);
   await deleteCachedDeviceList(tenantId);
   return Response.json({ ok: true });

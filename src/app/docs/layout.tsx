@@ -1,5 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { DocsNav, DocsMobileTabs } from "@/components/docs/DocsNav";
+import { DocsProgress } from "@/components/docs/DocsProgress";
+import { DocsPager } from "@/components/docs/DocsPager";
+import { DocsSearch } from "@/components/docs/DocsSearch";
 
 export const metadata: Metadata = {
   title: "Dokumentasi — Wavio",
@@ -7,83 +11,72 @@ export const metadata: Metadata = {
     "Dokumentasi API Wavio: mulai cepat, referensi endpoint, dan panduan integrasi pihak ketiga untuk mengirim notifikasi WhatsApp.",
 };
 
-const sections = [
-  {
-    title: "Memulai",
-    links: [
-      { href: "/docs", label: "Ringkasan & Mulai Cepat" },
-    ],
-  },
-  {
-    title: "Referensi API",
-    links: [
-      { href: "/docs/api", label: "Endpoint API" },
-    ],
-  },
-  {
-    title: "Integrasi",
-    links: [
-      { href: "/docs/integrations", label: "Panduan Pihak Ketiga" },
-    ],
-  },
-];
-
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-[100dvh] bg-ink">
+    <div className="relative min-h-[100dvh] bg-ink">
+      {/* Ambient: grid + glow halus di atas halaman */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 z-0 h-[440px] overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-grid bg-grid-fade opacity-30" />
+        <div className="absolute -top-40 left-1/2 h-[320px] w-[640px] -translate-x-1/2 rounded-full bg-accent/5 blur-[130px]" />
+      </div>
+
       <header className="sticky top-0 z-40 border-b border-line-soft bg-ink/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
-          <Link href="/" className="flex items-center gap-2.5 font-display font-semibold tracking-tight text-fg">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-ink">
+          <Link
+            href="/"
+            className="group flex items-center gap-2.5 font-display font-semibold tracking-tight text-fg"
+          >
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-ink transition-shadow group-hover:shadow-[0_0_24px_-4px_rgba(52,211,153,0.7)]">
               W
             </span>
             <span>wavio</span>
-            <span className="ml-1 rounded-full border border-line-soft bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-fg-faint">
+            <span className="ml-1 rounded-md border border-line-soft bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-fg-faint">
               Docs
             </span>
           </Link>
-          <div className="flex items-center gap-4 text-sm">
-            <Link href="/login" className="text-fg-muted transition-colors hover:text-fg">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <DocsSearch />
+            <Link
+              href="/login"
+              className="hidden text-fg-muted transition-colors hover:text-fg sm:inline"
+            >
               Masuk
             </Link>
             <Link
               href="/"
-              className="rounded-full bg-accent px-4 py-2 font-medium text-accent-ink transition-all hover:bg-accent-bright active:scale-[0.97]"
+              className="shrink-0 rounded-full bg-accent px-4 py-2 font-medium text-accent-ink transition-all hover:bg-accent-bright active:scale-[0.97]"
             >
               Beranda
             </Link>
           </div>
         </div>
+        <DocsProgress />
       </header>
 
-      <div className="mx-auto flex max-w-6xl gap-10 px-5 py-10 md:py-14">
-        {/* Sidebar */}
-        <aside className="hidden w-56 shrink-0 md:block">
-          <nav className="sticky top-24 space-y-8">
-            {sections.map((sec) => (
-              <div key={sec.title}>
-                <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-fg-faint">
-                  {sec.title}
-                </p>
-                <ul className="mt-3 space-y-1">
-                  {sec.links.map((l) => (
-                    <li key={l.href}>
-                      <Link
-                        href={l.href}
-                        className="block rounded-lg px-3 py-2 text-sm text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg"
-                      >
-                        {l.label}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </nav>
-        </aside>
+      <div className="relative z-10 mx-auto max-w-6xl px-5 pb-16 pt-8 md:pb-20 md:pt-14">
+        <DocsMobileTabs />
 
-        {/* Konten */}
-        <main className="min-w-0 flex-1">{children}</main>
+        <div className="mt-6 flex gap-10 md:mt-10">
+          <DocsNav />
+          <main className="min-w-0 flex-1">{children}</main>
+        </div>
+
+        <DocsPager />
+
+        <footer className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-line-soft pt-6 text-xs text-fg-faint sm:flex-row">
+          <p>© 2026 Wavio · Satu Pintu Digital</p>
+          <div className="flex gap-6">
+            <Link href="/privacy" className="transition-colors hover:text-fg">
+              Kebijakan Privasi
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-fg">
+              Syarat &amp; Ketentuan
+            </Link>
+          </div>
+        </footer>
       </div>
     </div>
   );
