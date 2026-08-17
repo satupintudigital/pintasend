@@ -259,19 +259,19 @@ app.post("/webhooks/wavio", express.raw({ type: "application/json" }), (req, res
               Peta jalan (roadmap)
             </h2>
             <div className="mt-4 overflow-hidden rounded-xl border border-line">
-            {[
-              ["Media & dokumen", "Kirim gambar, video, PDF, dan stiker"],
-                ["Riwayat pesan", "Ambil riwayat pesan masuk/keluar per device"],
-                ["Template pesan", "Template terstruktur untuk notifikasi yang konsisten"],
-              ].map(([title, desc], i) => (
+              {[
+                ["Media & dokumen", "Kirim gambar, video, PDF, dan stiker", "Segera"],
+                ["Template pesan", "Template terstruktur untuk notifikasi yang konsisten", "Segera"],
+                ["Filter tanggal", "Filter riwayat pesan berdasarkan rentang tanggal", "Segera"],
+              ].map(([title, desc, badge], i) => (
                 <div
                   key={title}
-                  className={`flex items-start gap-4 px-4 py-3.5 transition-colors hover:bg-surface/60 ${
+                  className={`flex items-start gap-4 px-4 py-3.5 transition-all duration-200 hover:translate-x-0.5 hover:bg-surface/60 ${
                     i > 0 ? "border-t border-line-soft" : ""
                   }`}
                 >
                   <span className="mt-1 shrink-0 rounded-md border border-accent/20 bg-accent/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-accent-bright">
-                    Segera
+                    {badge}
                   </span>
                   <div>
                     <p className="text-sm font-medium text-fg">{title}</p>
@@ -279,6 +279,26 @@ app.post("/webhooks/wavio", express.raw({ type: "application/json" }), (req, res
                   </div>
                 </div>
               ))}
+            </div>
+            <div className="mt-3 overflow-hidden rounded-xl border border-emerald-500/25">
+              <div className="flex items-start gap-4 px-4 py-3.5">
+                <span className="mt-1 shrink-0 rounded-md border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-emerald-400">
+                  Tersedia
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-fg">Riwayat pesan</p>
+                  <p className="mt-0.5 text-sm text-fg-muted">
+                    Riwayat pesan masuk &amp; keluar sudah tersedia di{" "}
+                    <a
+                      href="/dashboard/pesan"
+                      className="font-medium text-accent-bright underline decoration-accent/30 underline-offset-2 transition-colors hover:decoration-accent"
+                    >
+                      Dashboard → Riwayat Pesan
+                    </a>{" "}
+                    — dengan pencarian isi pesan &amp; nomor, filter arah, dan pagination.
+                  </p>
+                </div>
+              </div>
             </div>
           </Reveal>
         </section>

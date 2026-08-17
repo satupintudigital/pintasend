@@ -94,3 +94,26 @@ CREATE UNIQUE INDEX "Webhook_tenantId_key" ON "Webhook"("tenantId");
 -- AddForeignKey
 ALTER TABLE "Webhook" ADD CONSTRAINT "Webhook_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- CreateTable
+CREATE TABLE "MessageLog" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "deviceId" TEXT,
+    "deviceLabel" TEXT,
+    "direction" TEXT NOT NULL,
+    "chatId" TEXT NOT NULL,
+    "body" TEXT NOT NULL DEFAULT '',
+    "type" TEXT,
+    "status" TEXT,
+    "messageId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MessageLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "MessageLog_tenantId_createdAt_idx" ON "MessageLog"("tenantId", "createdAt" DESC);
+
+-- AddForeignKey
+ALTER TABLE "MessageLog" ADD CONSTRAINT "MessageLog_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

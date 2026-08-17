@@ -78,7 +78,14 @@ export default function DocsApi() {
               <EndpointTable endpoints={endpoints} />
             </div>
           <p className="mt-3 text-xs text-fg-faint">
-            Endpoint tambahan (riwayat pesan, media) sedang dalam pengembangan.
+            Riwayat pesan masuk &amp; keluar bisa dilihat di{" "}
+            <a
+              href="/dashboard/pesan"
+              className="font-medium text-accent-bright underline decoration-accent/30 underline-offset-2 transition-colors hover:decoration-accent"
+            >
+              Dashboard → Riwayat Pesan
+            </a>
+            . Endpoint media sedang dalam pengembangan.
           </p>
           </section>
 
@@ -175,6 +182,16 @@ export default function DocsApi() {
 // 429 — melebihi batas
 { "error": "Terlalu banyak permintaan. Coba lagi dalam 12 detik." }`}
               />
+            </div>
+
+            <div className="mt-4">
+              <Callout type="info" title="Tercatat di riwayat">
+                <p>
+                  Setiap pengiriman sukses maupun gagal dicatat otomatis dan bisa dilihat
+                  di <strong>Dashboard → Riwayat Pesan</strong> bersama pesan masuk dari
+                  webhook.
+                </p>
+              </Callout>
             </div>
           </section>
 
@@ -312,7 +329,7 @@ User-Agent: Wavio-Webhook/1.0`}
               ].map(([code, desc], i) => (
                 <div
                   key={code}
-                  className={`flex items-center gap-4 px-4 py-2.5 text-sm transition-colors hover:bg-surface/60 ${
+                  className={`flex items-center gap-4 px-4 py-2.5 text-sm transition-all duration-200 hover:translate-x-0.5 hover:bg-surface/60 ${
                     i > 0 ? "border-t border-line-soft" : ""
                   }`}
                 >

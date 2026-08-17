@@ -2,11 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Devices, House, Key, UsersThree, WebhooksLogo } from "@phosphor-icons/react";
+import {
+  ChatCircleText,
+  Devices,
+  House,
+  Key,
+  UsersThree,
+  WebhooksLogo,
+} from "@phosphor-icons/react";
 
 const items = [
   { href: "/dashboard", label: "Beranda", icon: House },
   { href: "/dashboard/devices", label: "Device", icon: Devices },
+  { href: "/dashboard/pesan", label: "Riwayat Pesan", icon: ChatCircleText },
 ];
 
 const ownerItems = [
@@ -56,7 +64,7 @@ export function SidebarNav({
             />
             {it.label}
             {active && !horizontal && (
-              <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent" />
+              <span className="bk-pop ml-auto h-1.5 w-1.5 rounded-full bg-accent" />
             )}
           </Link>
         );

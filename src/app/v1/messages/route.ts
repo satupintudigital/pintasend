@@ -2,6 +2,7 @@ import { verifyApiKey } from "@/lib/authStore";
 import { normalizeChatId } from "@/lib/chat";
 import { queryOne } from "@/lib/db";
 import { openwa, OpenwaError } from "@/lib/openwa";
+import { insertMessageLog } from "@/lib/messageStore";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 
 // API publik pihak ketiga: kirim pesan WhatsApp.
@@ -47,12 +48,12 @@ export async function POST(req: Request) {
 
   // Pilih device: sesuai deviceId, atau device ready pertama milik tenant.
   const device = deviceId
-    ? await queryOne<{ id: string; openwaSessionId: string; status: string }>(
-        'SELECT id, "openwaSessionId", status FROM "Device" WHERE id = $1 AND "tenantId" = $2',
+    ? await queryOne<{ id: string; label: string; openwaSessionId: string; status: string }>(
+        'SELECT id, label, "openwaSessionId", status FROM "Device" WHERE id = $1 AND "tenantId" = $2',
         [deviceId, tenantId],
       )
-    : await queryOne<{ id: string; openwaSessionId: string; status: string }>(
-        'SELECT id, "openwaSessionId", status FROM "Device" WHERE "tenantId" = $1 AND status = $2 ORDER BY "updatedAt" DESC LIMIT 1',
+    : await queryOne<{ id: string; label: string; openwaSessionId: string; status: string }>(
+        'SELECT id, label, "openwaSessionId", status FROM "Device" WHERE "tenantId" = $1 AND status = $2 ORDER BY "updatedAt" DESC LIMIT 1',
         [tenantId, "ready"],
       );
 
@@ -75,14 +76,39 @@ export async function POST(req: Request) {
 
   try {
     const result = await openwa.sendText(device.openwaSessionId, chatId, text);
+    // Catat pesan KELUAR (best-effort; kegagalan log tidak memengaruhi respons).
+    const messageId = result?.messageId ?? result?.id ?? null;
+    insertMessageLog({
+      tenantId,
+      deviceId: device.id,
+      deviceLabel: device.label,
+      direction: "outgoing",
+      chatId,
+      body: text,
+      type: "text",
+      status: typeof result?.status === "string" ? result.status : "sent",
+      messageId,
+    }).catch((e) => console.error("v1/messages: catat pesan keluar gagal:", e));
     return Response.json({
       ok: true,
       deviceId: device.id,
       to: chatId,
-      messageId: result?.messageId ?? result?.id ?? null,
+      messageId,
     });
   } catch (e) {
     if (e instanceof OpenwaError) {
+      // Catat kegagalan ke riwayat (status failed) agar terlihat di dashboard.
+      insertMessageLog({
+        tenantId,
+        deviceId: device.id,
+        deviceLabel: device.label,
+        direction: "outgoing",
+        chatId,
+        body: text,
+        type: "text",
+        status: "failed",
+        messageId: null,
+      }).catch((err) => console.error("v1/messages: catat gagal kirim:", err));
       return Response.json({ error: `OpenWA: ${e.message}` }, { status: 502 });
     }
     console.error("v1/messages:", e);

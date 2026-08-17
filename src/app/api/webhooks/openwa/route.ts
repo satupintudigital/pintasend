@@ -26,10 +26,12 @@ import { cloneDeviceToD1, getDeviceBySessionId } from "@/lib/devices";
 import { getWebhookForTenant } from "@/lib/webhookStore";
 import { isSafeWebhookUrl } from "@/lib/ssrf";
 import { deleteCachedDevice, deleteCachedDeviceList } from "@/lib/deviceCache";
+import { insertMessageLog } from "@/lib/messageStore";
 
 interface DeviceD1Row {
   id: string;
   tenantId: string;
+  label: string;
   openwaSessionId: string;
   openwaWebhookId: string | null;
   status: string;
@@ -77,7 +79,7 @@ export async function POST(req: Request) {
   // 2. Lookup device by session — D1 dulu (0 Neon per event), Neon sebagai
   //    fallback saat D1 belum punya (device baru sebelum resync) + clone balik.
   let device = await queryD1One<DeviceD1Row>(
-    "SELECT id, tenantId, openwaSessionId, openwaWebhookId, status FROM Device WHERE openwaSessionId = ?",
+    "SELECT id, tenantId, label, openwaSessionId, openwaWebhookId, status FROM Device WHERE openwaSessionId = ?",
     [sessionId],
   );
   if (!device) {
@@ -86,6 +88,7 @@ export async function POST(req: Request) {
       device = {
         id: dev.id,
         tenantId: dev.tenantId,
+        label: dev.label,
         openwaSessionId: dev.openwaSessionId,
         openwaWebhookId: dev.openwaWebhookId,
         status: dev.status,
@@ -98,6 +101,27 @@ export async function POST(req: Request) {
     // berulang (log untuk investigasi).
     console.error("webhook ingest: session tidak dikenal:", sessionId);
     return Response.json({ ok: true, skipped: "unknown session" });
+  }
+
+  // 2b. Catat pesan MASUK ke riwayat (best-effort — gagal log tidak menghalangi
+  //     forwarding). Diletakkan SEBELUM cek konfigurasi webhook agar riwayat
+  //     tetap tercatat walau tenant belum punya URL forwarding.
+  if (event === "message.received") {
+    const d = (payload.data ?? {}) as Record<string, unknown>;
+    await insertMessageLog({
+      tenantId: device.tenantId,
+      deviceId: device.id,
+      deviceLabel: device.label ?? null,
+      direction: "incoming",
+      chatId:
+        (typeof d.chatId === "string" ? d.chatId : "") ||
+        (typeof d.from === "string" ? d.from : "") ||
+        "",
+      body: typeof d.body === "string" ? d.body.slice(0, 4096) : "",
+      type: typeof d.type === "string" ? d.type : null,
+      status: typeof d.status === "string" ? d.status : null,
+      messageId: typeof d.id === "string" ? d.id : null,
+    }).catch((e) => console.error("webhook ingest: catat pesan masuk gagal:", e));
   }
 
   // 3. Konfigurasi webhook tenant.
