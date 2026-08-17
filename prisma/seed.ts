@@ -24,6 +24,9 @@ async function main() {
 
   await client.end();
   console.log("Seed selesai: owner@wavio.test / admin123");
+  // Catatan: D1 di-seed terpisah via wrangler (prisma/d1-seed.sql) karena
+  // binding D1 hanya ada di runtime Worker. Pastikan passwordHash D1 = Neon
+  // (keduanya hash bcrypt dari password yang sama → bcrypt.compare valid).
 }
 
 main().catch((e) => {
