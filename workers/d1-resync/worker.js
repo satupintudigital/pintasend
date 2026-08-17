@@ -20,6 +20,9 @@ import { Client } from "@neondatabase/serverless";
 const USER_COLUMNS =
   'id, "tenantId", email, name, "passwordHash", role, "createdAt"';
 
+const APIKEY_COLUMNS =
+  'id, "tenantId", label, "keyHash", prefix, "createdAt", "lastUsedAt", "revokedAt"';
+
 const worker = {
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil(runResync(env));
@@ -51,7 +54,17 @@ export default worker;
 
 async function runResync(env) {
   const started = Date.now();
-  const stats = { scanned: 0, upserted: 0, removed: 0, failed: 0, errors: [] };
+  const stats = {
+    scanned: 0,
+    upserted: 0,
+    removed: 0,
+    failed: 0,
+    apikeysScanned: 0,
+    apikeysUpserted: 0,
+    apikeysRemoved: 0,
+    apikeysFailed: 0,
+    errors: [],
+  };
 
   const connectionString = String(env.DATABASE_URL ?? "").trim();
   if (!connectionString) {
@@ -103,14 +116,65 @@ async function runResync(env) {
         }
       }
     } catch (e) {
-      stats.errors.push(`cleanup: ${e?.message ?? String(e)}`);
+      stats.errors.push(`cleanup user: ${e?.message ?? String(e)}`);
+    }
+
+    // ===== Sinkronisasi tabel ApiKey (Neon source of truth → D1 replika) =====
+    // Menutup celah "D1 stale" yang sama untuk API key: write-through yang gagal
+    // (create/revoke) membuat D1 tertinggal → verifyApiKey (baca D1) menolak key
+    // yang baru dibuat atau masih menerima key yang sudah di-revoke.
+    //
+    // Catatan: lastUsedAt hanya di-update di D1 (fire-and-forget saat verify) dan
+    // TIDAK pernah ditulis ke Neon — re-sync ini meresetnya ke nilai Neon (NULL/
+    // apa adanya). Itu perilaku yang disengaja: metadata tampilan, bukan data kritis.
+    try {
+      const apiRows = (
+        await client.query(`SELECT ${APIKEY_COLUMNS} FROM "ApiKey" ORDER BY "createdAt"`)
+      ).rows;
+      stats.apikeysScanned = apiRows.length;
+
+      for (const k of apiRows) {
+        try {
+          const lastUsed =
+            k.lastUsedAt instanceof Date ? k.lastUsedAt.toISOString() : k.lastUsedAt;
+          const revoked =
+            k.revokedAt instanceof Date ? k.revokedAt.toISOString() : k.revokedAt;
+          const createdAt =
+            k.createdAt instanceof Date ? k.createdAt.toISOString() : k.createdAt;
+          await env.WAVIO_AUTH_DB.prepare(
+            "INSERT OR REPLACE INTO ApiKey (id, tenantId, label, keyHash, prefix, createdAt, lastUsedAt, revokedAt) " +
+              "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          )
+            .bind(k.id, k.tenantId, k.label, k.keyHash, k.prefix, createdAt, lastUsed, revoked)
+            .run();
+          stats.apikeysUpserted++;
+        } catch (e) {
+          stats.apikeysFailed++;
+          stats.errors.push(`upsert apikey ${k.id}: ${e?.message ?? String(e)}`);
+        }
+      }
+
+      // Reconcile terbalik: hapus api key D1 yang sudah tidak ada di Neon
+      // (mis. dihapus manual di Neon atau tenant dihapus).
+      const d1Api = await env.WAVIO_AUTH_DB.prepare("SELECT id FROM ApiKey").all();
+      const neonApiIds = new Set(apiRows.map((r) => String(r.id)));
+      for (const row of d1Api.results ?? []) {
+        if (!neonApiIds.has(String(row.id))) {
+          await env.WAVIO_AUTH_DB.prepare("DELETE FROM ApiKey WHERE id = ?")
+            .bind(row.id)
+            .run();
+          stats.apikeysRemoved++;
+        }
+      }
+    } catch (e) {
+      stats.errors.push(`apikey sync: ${e?.message ?? String(e)}`);
     }
   } finally {
     await client.end();
   }
 
   return {
-    ok: stats.failed === 0,
+    ok: stats.failed === 0 && stats.apikeysFailed === 0,
     ...stats,
     durationMs: Date.now() - started,
     finishedAt: new Date().toISOString(),

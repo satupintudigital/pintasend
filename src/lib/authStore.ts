@@ -1,6 +1,7 @@
 import { query } from "@/lib/db";
-import { changesD1, queryD1 } from "@/lib/d1";
+import { changesD1, queryD1, queryD1One } from "@/lib/d1";
 import { uuidv7 } from "@/lib/uuidv7";
+import { API_KEY_PREFIX, generateApiKeyRaw, hashApiKey } from "@/lib/apiKeys";
 
 export interface NewUser {
   tenantId: string;
@@ -161,6 +162,129 @@ export async function listUsersPaginated(params: {
     users: userRows,
     total: Number(countRows[0]?.count ?? 0),
   };
+}
+
+export interface ApiKeyRow {
+  id: string;
+  tenantId: string;
+  label: string;
+  keyHash: string;
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+export interface PublicApiKeyRow {
+  id: string;
+  tenantId: string;
+  label: string;
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+}
+
+function toPublic(row: ApiKeyRow): PublicApiKeyRow {
+  return {
+    id: row.id,
+    tenantId: row.tenantId,
+    label: row.label,
+    prefix: row.prefix,
+    createdAt: row.createdAt,
+    lastUsedAt: row.lastUsedAt,
+    revokedAt: row.revokedAt,
+  };
+}
+
+// Buat API key — write-through Neon (source of truth) → clone D1.
+// Mengembalikan raw key SEKALI (untuk ditampilkan ke admin). d1Ok=false
+// berarti clone D1 gagal → key mungkin langsung ditolak verifyApiKey (baca D1)
+// sampai re-sync job (workers/d1-resync) menjalankannya.
+export async function createApiKey(input: {
+  tenantId: string;
+  label: string;
+}): Promise<{ id: string; raw: string; prefix: string; d1Ok: boolean }> {
+  const id = uuidv7();
+  const now = new Date().toISOString();
+  const { raw, prefix } = generateApiKeyRaw();
+  const keyHash = await hashApiKey(raw);
+
+  await query(
+    'INSERT INTO "ApiKey" (id, "tenantId", label, "keyHash", prefix) VALUES ($1, $2, $3, $4, $5)',
+    [id, input.tenantId, input.label, keyHash, prefix],
+  );
+
+  try {
+    await queryD1(
+      "INSERT OR REPLACE INTO ApiKey (id, tenantId, label, keyHash, prefix, createdAt, lastUsedAt, revokedAt) " +
+        "VALUES (?, ?, ?, ?, ?, ?, NULL, NULL)",
+      [id, input.tenantId, input.label, keyHash, prefix, now],
+    );
+    return { id, raw, prefix, d1Ok: true };
+  } catch (e) {
+    console.error("authStore: clone ApiKey D1 gagal, D1 stale:", e);
+    return { id, raw, prefix, d1Ok: false };
+  }
+}
+
+// Daftar API key milik tenant — baca D1 (0 koneksi Neon). Tanpa keyHash.
+export async function listApiKeys(tenantId: string): Promise<PublicApiKeyRow[]> {
+  const rows = await queryD1<ApiKeyRow>(
+    "SELECT id, tenantId, label, keyHash, prefix, createdAt, lastUsedAt, revokedAt " +
+      "FROM ApiKey WHERE tenantId = ? ORDER BY createdAt DESC",
+    [tenantId],
+  );
+  return rows.map(toPublic);
+}
+
+export interface RevokeApiKeyResult {
+  /** Key ditemukan & dicabut di Neon (source of truth). */
+  revoked: boolean;
+  /** Clone status revoke ke D1 sukses (false → D1 masih anggap aktif, key mungkin masih lolos verify). */
+  d1Ok: boolean;
+}
+
+// Revoke API key — Neon source of truth → clone D1.
+// Cek meta.changes di D1 agar d1Ok jujur (pola sama dengan updateUserPassword).
+export async function revokeApiKey(id: string, tenantId: string): Promise<RevokeApiKeyResult> {
+  const rows = await query<{ id: string }>(
+    'UPDATE "ApiKey" SET "revokedAt" = now() WHERE id = $1 AND "tenantId" = $2 RETURNING id',
+    [id, tenantId],
+  );
+  if (rows.length === 0) return { revoked: false, d1Ok: false };
+  try {
+    const changes = await changesD1("UPDATE ApiKey SET revokedAt = ? WHERE id = ?", [
+      new Date().toISOString(),
+      id,
+    ]);
+    return { revoked: true, d1Ok: changes > 0 };
+  } catch (e) {
+    console.error("authStore: revoke D1 gagal, D1 stale:", e);
+    return { revoked: true, d1Ok: false };
+  }
+}
+
+// Verifikasi API key untuk akses API publik — baca D1 (0 koneksi Neon).
+// Mencocokkan hash SHA-256 key yang masuk; key yang di-revoke ditolak.
+// lastUsedAt di-update di D1 best-effort (fire-and-forget, 0 Neon). Catatan:
+// re-sync job (Neon → D1) akan mereset lastUsedAt ke NULL karena Neon adalah
+// source of truth untuk kolom ini — metadata tampilan, bukan data kritis.
+export async function verifyApiKey(raw: string): Promise<{ tenantId: string } | null> {
+  if (!raw.startsWith(API_KEY_PREFIX)) return null;
+  const keyHash = await hashApiKey(raw);
+  const row = await queryD1One<{ tenantId: string; id: string; revokedAt: string | null }>(
+    "SELECT id, tenantId, revokedAt FROM ApiKey WHERE keyHash = ?",
+    [keyHash],
+  );
+  if (!row) return null;
+  if (row.revokedAt) return null;
+  // Best-effort: tidak memblokir respons bila update gagal.
+  changesD1("UPDATE ApiKey SET lastUsedAt = ? WHERE id = ?", [
+    new Date().toISOString(),
+    row.id,
+  ]).catch((e) => console.error("authStore: update lastUsedAt D1 gagal:", e));
+  return { tenantId: row.tenantId };
 }
 
 export interface UpdatePasswordResult {
