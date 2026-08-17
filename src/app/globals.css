@@ -170,6 +170,13 @@ button, a {
     opacity: 1;
     transform: none;
   }
+
+  /* Reveal via Motion (motion/react): inline initial styles tidak boleh
+     menyembunyikan konten saat JavaScript nonaktif. */
+  .bk-motion-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 /* ── Hero entrance, staggered via delay (pure CSS) ── */

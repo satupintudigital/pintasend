@@ -9,6 +9,7 @@ import {
 } from "@phosphor-icons/react/ssr";
 import { Callout, CodeBlock } from "@/components/docs/primitives";
 import { Reveal } from "@/components/Reveal";
+import { AmbientParallax } from "@/components/docs/AmbientParallax";
 
 export const metadata: Metadata = {
   title: "Ringkasan & Mulai Cepat — Wavio",
@@ -94,10 +95,15 @@ export default function DocsIndex() {
     <div>
       {/* Hero */}
       <div className="relative overflow-hidden">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-24 -top-20 z-0 h-[360px] w-[360px] rounded-full bg-accent/5 blur-[120px]"
-        />
+        {/* Glow hero dengan parallax sendiri — faktor 0.5, lebih cepat dari
+            ambient layout (0.12/0.28) → lapisan ketiga yang terasa paling
+            dekat dan "ditinggalkan" saat halaman discroll. */}
+        <AmbientParallax className="h-[420px]">
+          <div
+            data-parallax="0.5"
+            className="absolute -right-24 -top-20 h-[360px] w-[360px] rounded-full bg-accent/5 blur-[120px] will-change-transform"
+          />
+        </AmbientParallax>
         <div className="relative">
           <p className="bk-enter-blur font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
             Dokumentasi

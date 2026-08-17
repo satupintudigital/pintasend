@@ -1,7 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { motion, useReducedMotion } from "motion/react";
 
+/* Reveal scroll-driven berbasis Motion — kurva & durasi sama dengan versi
+   CSS lama (0.6s, cubic-bezier 0.16/1/0.3/1), delay tetap dalam ms.
+   - useReducedMotion → konten langsung terlihat (tanpa animasi).
+   - @media (scripting: none) di globals → konten terlihat tanpa JS
+     (Motion menerapkan initial styles inline saat SSR). */
 export function Reveal({
   children,
   delay = 0,
@@ -11,31 +16,17 @@ export function Reveal({
   delay?: number;
   className?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion();
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("bk-in");
-            io.unobserve(entry.target);
-          }
-        }
-      },
-      { threshold: 0.12 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-
-  // min-w-0: item grid tidak boleh melebar karena konten (mis. <pre>) —
-  // cegah overflow horizontal pada viewport kecil.
   return (
-    <div ref={ref} className={`bk-reveal min-w-0 ${className}`} style={{ transitionDelay: `${delay}ms` }}>
+    <motion.div
+      className={`bk-motion-reveal min-w-0 ${className}`}
+      initial={reduced ? false : { opacity: 0, y: 24 }}
+      whileInView={reduced ? undefined : { opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.12 }}
+      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: delay / 1000 }}
+    >
       {children}
-    </div>
+    </motion.div>
   );
 }
