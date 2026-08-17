@@ -12,14 +12,14 @@ async function POST(req: NextRequest) {
   const isLogin = url.pathname.endsWith("/callback/credentials");
 
   if (isLogin) {
+    // NextAuth credentials callback mengirim application/x-www-form-urlencoded,
+    // jadi parse pakai URLSearchParams (bukan json).
     let emailKey = "unknown";
     try {
-      const body = (await req.clone().json().catch(() => null)) as
-        | { email?: string }
-        | null;
-      emailKey = body?.email?.toLowerCase()?.trim() || "unknown";
+      const text = await req.clone().text();
+      emailKey = new URLSearchParams(text).get("email")?.toLowerCase()?.trim() || "unknown";
     } catch {
-      /* body non-JSON → pakai default */
+      /* body tidak terbaca → pakai default */
     }
 
     const key = `login:${clientIp(req)}:${emailKey}`;

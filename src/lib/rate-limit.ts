@@ -9,6 +9,11 @@
 // otomatis = windowMs. Counter KV best-effort (read-modify-write non-atomik,
 // eventual consistent) — bukan pengganti WAF rate limiting/akuntansi ketat.
 //
+// Tradeoff yang disengaja: (1) burst di perbatasan bucket bisa lolos 2× limit
+// (mis. 10 @ :59 + 10 @ :01) — untuk anti brute-force login ini diterima;
+// (2) read-modify-write KV non-atomik bisa undercount saat koncurrency tinggi
+// (risiko rendah untuk form login berurutan). Limit sengaja dibuat konservatif.
+//
 // Design key:
 // - login → `login:{ip}:{email}` (cegah brute-force password akun)
 // - mutasi device → `device-create:{tenantId}:{ip}` / `device-mutate:...`
@@ -30,15 +35,20 @@ export interface RateLimitResult {
 // Fallback in-memory (dev/test): bucket → { count, resetAt }.
 const mem = new Map<string, { count: number; resetAt: number }>();
 
+// Binding KV di-resolve sekali per isolate (env stabil), bukan per request.
+// null = sudah dicoba & tidak ada konteks Workers → pakai in-memory.
+let kvCache: KvLike | undefined | null = null;
+
 async function getKv(): Promise<KvLike | undefined> {
+  if (kvCache !== null) return kvCache;
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");
     const { env } = await getCloudflareContext({ async: true });
-    const kv = (env as Record<string, unknown>).WAVIO_RATE_LIMIT as KvLike | undefined;
-    return kv;
+    kvCache = (env as Record<string, unknown>).WAVIO_RATE_LIMIT as KvLike | undefined;
   } catch {
-    return undefined; // bukan runtime Workers → in-memory
+    kvCache = undefined; // bukan runtime Workers → in-memory
   }
+  return kvCache;
 }
 
 export async function checkRateLimit(

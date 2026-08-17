@@ -20,16 +20,28 @@ function LoginForm() {
     e.preventDefault();
     setError("");
     setLoading(true);
-    const res = await signIn("credentials", { email, password, redirect: false });
-    setLoading(false);
-    if (res?.error) {
-      setError("Email atau password salah");
-      return;
+    try {
+      const res = await signIn("credentials", { email, password, redirect: false });
+      if (!res) {
+        setError("Terjadi kesalahan. Coba lagi.");
+        return;
+      }
+      if (res.error) {
+        // 429 dari rate limiter → pesan spesifik dari body.
+        const detail = (res as unknown as { response?: { status?: number } }).response?.status;
+        if (detail === 429) setError("Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.");
+        else setError("Email atau password salah");
+        return;
+      }
+      const rawCb = searchParams.get("callbackUrl") || "/dashboard";
+      const safe = rawCb.startsWith("/") && !rawCb.startsWith("//") ? rawCb : "/dashboard";
+      router.push(safe);
+      router.refresh();
+    } catch {
+      setError("Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.");
+    } finally {
+      setLoading(false);
     }
-    const rawCb = searchParams.get("callbackUrl") || "/dashboard";
-    const safe = rawCb.startsWith("/") && !rawCb.startsWith("//") ? rawCb : "/dashboard";
-    router.push(safe);
-    router.refresh();
   }
 
   return (

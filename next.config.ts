@@ -7,6 +7,8 @@ const securityHeaders = [
   // MIME sniffing.
   { key: "X-Content-Type-Options", value: "nosniff" },
   // HSTS — semua traffic harus HTTPS (termasuk subdomain).
+  // Catatan: `preload` baru efektif setelah domain didaftarkan manual ke
+  // https://hstspreload.org — tanpa itu, direktif ini inert (tidak merusak).
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   // Privasi referrer.
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
