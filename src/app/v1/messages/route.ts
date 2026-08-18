@@ -8,6 +8,7 @@ import { MultipartError, parseMultipartForm, sanitizeFilename, type MultipartFor
 import { putMediaObject } from "@/lib/r2";
 import { uuidv7 } from "@/lib/uuidv7";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { checkMessageQuota } from "@/lib/quota";
 
 // API publik pihak ketiga: kirim pesan WhatsApp (teks ATAU media).
 // Auth: Authorization: Bearer <API key> (dibuat dari dashboard → D1, 0 Neon utk verifikasi).
@@ -151,6 +152,17 @@ export async function POST(req: Request) {
     return Response.json({ error: "API key tidak valid atau telah dicabut" }, { status: 401 });
   }
   const tenantId = verified.tenantId;
+
+  // Kuota pesan bulan berjalan (WIB) — hard block sebelum memproses body.
+  const quota = await checkMessageQuota(tenantId);
+  if (!quota.ok) {
+    return Response.json(
+      {
+        error: `Kuota pesan bulan ini tercapai (${quota.used}/${quota.max}). Coba lagi bulan depan atau hubungi admin untuk upgrade plan.`,
+      },
+      { status: 429 },
+    );
+  }
 
   const rl = await checkRateLimit(`v1-messages:${tenantId}:${clientIp(req)}`, 60, 60_000);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterSec);

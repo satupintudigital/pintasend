@@ -4,6 +4,7 @@ import { openwa, openwaWebhookSecret, OpenwaError } from "@/lib/openwa";
 import { uuidv7 } from "@/lib/uuidv7";
 import { cloneDeviceToD1, listDevicesForTenant } from "@/lib/devices";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { checkDeviceQuota } from "@/lib/quota";
 import {
   getCachedDeviceList,
   setCachedDeviceList,
@@ -39,6 +40,17 @@ export async function POST(req: Request) {
   // Rate limit pembuatan device (mutasi) per tenant+IP.
   const rl = await checkRateLimit(`device-create:${tenantId}:${clientIp(req)}`, 10, 60_000);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterSec);
+
+  // Kuota device plan — hard block sebelum bikin session OpenWA (hindari tulis sia-sia).
+  const quota = await checkDeviceQuota(tenantId);
+  if (!quota.ok) {
+    return Response.json(
+      {
+        error: `Kuota device plan tercapai (${quota.used}/${quota.max}). Hapus device yang tidak dipakai atau hubungi admin untuk upgrade plan.`,
+      },
+      { status: 429 },
+    );
+  }
 
   const body = (await req.json().catch(() => null)) as { label?: unknown } | null;
   const label = typeof body?.label === "string" ? body.label.trim() : "";
