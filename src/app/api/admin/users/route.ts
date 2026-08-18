@@ -27,10 +27,14 @@ export async function GET(req: Request) {
   }
 
   try {
+    // Scope ke tenant pemilik sesi: owner hanya melihat user tenant-nya sendiri
+    // (menutup kebocoran data lintas tenant; daftar lintas tenant hanya di
+    // /api/platform/* untuk platform_admin).
     const { users, total } = await listUsersPaginated({
       query,
       page: Math.floor(page),
       limit: Math.floor(limit),
+      tenantId: session.user.tenantId,
     });
     return Response.json({ users, total, page, limit });
   } catch (e) {

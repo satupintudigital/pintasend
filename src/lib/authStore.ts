@@ -136,6 +136,7 @@ export async function listUsersPaginated(params: {
   query?: string;
   page?: number;
   limit?: number;
+  tenantId?: string;
 }): Promise<{ users: AdminUserRow[]; total: number }> {
   const limit = Math.min(100, Math.max(1, params.limit ?? 10));
   const page = Math.max(1, params.page ?? 1);
@@ -146,8 +147,19 @@ export async function listUsersPaginated(params: {
   // diinterpretasikan sebagai pola SQL (prepared statement aman dr injection,
   // tapi wildcard tak ter-escape bisa memicu full-scan + hasil tak terduga).
   const escaped = q.replace(/[%_\\]/g, (m) => `\\${m}`);
-  const where = q ? "WHERE name LIKE ? OR email LIKE ?" : "";
-  const args: unknown[] = q ? [`%${escaped}%`, `%${escaped}%`] : [];
+  const clauses: string[] = [];
+  const args: unknown[] = [];
+  // Scope tenant: daftar lintas tenant HANYA untuk platform admin via
+  // /api/platform/* — pemanggil lain wajib mem-filter tenantId sendiri.
+  if (params.tenantId) {
+    clauses.push('"tenantId" = ?');
+    args.push(params.tenantId);
+  }
+  if (q) {
+    clauses.push("(name LIKE ? OR email LIKE ?)");
+    args.push(`%${escaped}%`, `%${escaped}%`);
+  }
+  const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 
   const [countRows, userRows] = await Promise.all([
     queryD1<{ count: number }>(`SELECT COUNT(*) AS count FROM User ${where}`, args),
