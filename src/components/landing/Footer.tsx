@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 
 const columns = [
   {
@@ -31,12 +32,7 @@ export function Footer() {
     <footer className="border-t border-line-soft">
       <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 md:grid-cols-[1.2fr_2fr]">
         <div>
-          <Link href="/" className="flex items-center gap-2.5 py-1.5 font-display font-semibold tracking-tight">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-ink">
-              W
-            </span>
-            wavio
-          </Link>
+          <Logo />
           <p className="mt-4 max-w-[34ch] text-sm leading-relaxed text-fg-faint">
             WhatsApp API gateway untuk bisnis Indonesia. Dibuat oleh Satu Pintu Digital.
           </p>

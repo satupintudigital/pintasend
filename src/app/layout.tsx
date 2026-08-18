@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/og.svg",
+        url: "/og.png",
         width: 1200,
         height: 630,
         alt: "Wavio — WhatsApp API Gateway untuk Bisnis",
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     title: "Wavio — WhatsApp API Gateway untuk Bisnis",
     description:
       "Kirim pesan WhatsApp, semudah memanggil API. Sambungkan nomor bisnismu dan kirim notifikasi dalam hitungan menit.",
-    images: ["/og.svg"],
+    images: ["/og.png"],
   },
 };
 

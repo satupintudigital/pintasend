@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { LogoMark } from "@/components/Logo";
 import { DocsNav, DocsMobileTabs } from "@/components/docs/DocsNav";
 import { DocsProgress } from "@/components/docs/DocsProgress";
 import { DocsPager } from "@/components/docs/DocsPager";
@@ -30,14 +31,8 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
 
       <header className="sticky top-0 z-40 border-b border-line-soft bg-ink/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
-          <Link
-            href="/"
-            className="group flex items-center gap-2.5 font-display font-semibold tracking-tight text-fg"
-          >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-ink transition-shadow group-hover:shadow-[0_0_24px_-4px_rgba(52,211,153,0.7)]">
-              W
-            </span>
-            <span>wavio</span>
+          <Link href="/" className="group flex items-center gap-2.5">
+            <LogoMark />
             <span className="ml-1 rounded-md border border-line-soft bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-fg-faint">
               Docs
             </span>

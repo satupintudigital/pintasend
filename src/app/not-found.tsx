@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowLeft, ArrowRight, BookOpenText, Gauge, HouseLine } from "@phosphor-icons/react/ssr";
+import { Logo } from "@/components/Logo";
 import { AmbientParallax } from "@/components/AmbientParallax";
 
 export const metadata: Metadata = {
@@ -32,15 +33,7 @@ export default function NotFound() {
       {/* Header */}
       <header className="relative z-10 border-b border-line-soft bg-ink/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
-          <Link
-            href="/"
-            className="group flex items-center gap-2.5 font-display font-semibold tracking-tight text-fg"
-          >
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-ink transition-shadow group-hover:shadow-[0_0_24px_-4px_rgba(52,211,153,0.7)]">
-              W
-            </span>
-            wavio
-          </Link>
+          <Logo />
           <div className="flex items-center gap-4 text-sm">
             <Link href="/login" className="text-fg-muted transition-colors hover:text-fg">
               Masuk

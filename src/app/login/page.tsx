@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import Script from "next/script";
-import Link from "next/link";
 import { signIn } from "next-auth/react";
+import { Logo } from "@/components/Logo";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, CheckCircle, Lock, Warning } from "@phosphor-icons/react";
 import { Tokens, type Token } from "@/components/landing/Code";
@@ -232,12 +232,7 @@ function LoginForm() {
     <div className="mx-auto w-full max-w-md">
       {/* Brand compact — mobile */}
       <div className="mb-10 text-center lg:hidden">
-        <Link href="/" className="inline-flex items-center gap-2.5 py-1 font-display font-semibold tracking-tight text-fg">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-ink">
-            W
-          </span>
-          wavio
-        </Link>
+        <Logo className="h-9" />
         <h1 className="bk-enter-blur mt-6 font-display text-2xl font-semibold tracking-tight">
           Masuk ke dashboard
         </h1>

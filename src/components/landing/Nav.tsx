@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, List, X } from "@phosphor-icons/react";
+import { Logo } from "@/components/Logo";
 
 const links = [
   { href: "#fitur", label: "Fitur" },
@@ -56,12 +57,7 @@ export function Nav() {
       }`}
     >
       <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5">
-        <Link href="/" className="group flex h-full items-center gap-2.5 font-display font-semibold tracking-tight text-fg">
-          <span className="relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-lg bg-accent text-sm font-bold text-accent-ink transition-shadow group-hover:shadow-[0_0_24px_-4px_rgba(52,211,153,0.7)]">
-            W
-          </span>
-          wavio
-        </Link>
+        <Logo priority />
 
         <div className="hidden items-center gap-1 md:flex">
           {links.map((l) => {
