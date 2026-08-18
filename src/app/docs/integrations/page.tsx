@@ -38,12 +38,15 @@ export default function DocsIntegrations() {
             <p className="mt-2 max-w-[65ch] text-sm leading-relaxed text-fg-muted">
               NalaNiaga (platform manajemen toko) mengintegrasikan Wavio agar notifikasi
               transaksi pelanggan terkirim otomatis ke WhatsApp — misalnya saat pesanan
-              baru masuk atau status pesanan berubah. Alurnya:
+              baru masuk atau status pesanan berubah. Pemilik toko menghubungkan nomornya
+              lewat **wizard SSO** (tanpa isi form manual), lalu NalaNiaga mengirim via API.
+              Alurnya:
             </p>
             <ol className="relative mt-5 space-y-3">
               {[
-                "Pemilik toko membuat akun Wavio, menyambungkan nomor WA (scan QR), dan membuat API key.",
-                "API key disimpan di pengaturan NalaNiaga untuk toko tersebut.",
+                "Pemilik toko memilih gateway Wavio di pengaturan integrasi NalaNiaga dan klik \"Hubungkan via Wavio\" — NalaNiaga menerbitkan token SSO (berlaku 10 menit).",
+                "Browser diarahkan ke halaman /connect Wavio: token diverifikasi, tenant NalaNiaga dibuat otomatis, lalu pemilik scan kode QR untuk menautkan nomor WhatsApp.",
+                "Saat device siap, Wavio memanggil callback NalaNiaga dengan API key + webhook secret khusus toko — konfigurasi selesai otomatis.",
                 "Saat event toko terjadi (order baru, pembayaran, pengiriman), NalaNiaga memanggil POST /v1/messages dengan nomor pelanggan.",
               ].map((item, i) => (
                 <li key={i} className="relative flex gap-3.5">
@@ -79,6 +82,18 @@ async function sendOrderNotification(order) {
   }
 }`}
               />
+            </div>
+            <div className="mt-4">
+              <Callout type="info" title="Wizard SSO — tanpa API key manual">
+                <p>
+                  NalaNiaga memakai JWT SSO (secret bersama) untuk mengarahkan pemilik toko
+                  ke halaman{" "}
+                  <code className="font-mono">/connect</code>{" "}
+                  Wavio; API key + webhook secret dibuat otomatis dan dikirim kembali via
+                  callback — pemilik toko tidak perlu membuat akun atau menyalin kredensial
+                  secara manual.
+                </p>
+              </Callout>
             </div>
             <div className="mt-4">
               <Callout type="info" title="Isolasi per tenant">
@@ -233,6 +248,7 @@ app.post("/webhooks/wavio", express.raw({ type: "application/json" }), (req, res
                 "Simpan API key di environment variable / secret manager — bukan di kode atau repository.",
                 "Tangani 409 (device belum siap) dengan retry eksponensial beberapa menit kemudian.",
                 "Tangani 429 dengan membaca header Retry-After.",
+                "Kirim header Idempotency-Key unik per operasi agar retry tidak mengirim pesan dua kali.",
                 "Kirim pesan hanya dengan persetujuan penerima — patuhi kebijakan anti-spam WhatsApp.",
                 "Gunakan satu device per toko/cabang agar pesan terarah dan tidak tercampur.",
               ].map((item) => (
