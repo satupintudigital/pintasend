@@ -14,6 +14,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     maxDevices?: unknown;
     maxUsers?: unknown;
     maxMessagesPerMonth?: unknown;
+    includesDelay?: unknown;
     isActive?: unknown;
   } | null;
 
@@ -32,6 +33,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   ) {
     patch.maxMessagesPerMonth = Math.floor(body.maxMessagesPerMonth);
   }
+  if (typeof body?.includesDelay === "boolean") patch.includesDelay = body.includesDelay;
   if (typeof body?.isActive === "boolean") patch.isActive = body.isActive;
 
   if (Object.keys(patch).length === 0) {
