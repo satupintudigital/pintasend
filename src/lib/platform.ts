@@ -97,3 +97,66 @@ export async function setTenantPlan(tenantId: string, planId: string | null): Pr
   );
   return rows.length > 0;
 }
+
+export interface PlatformMetrics {
+  messagesPerDay: { day: string; count: number }[];
+  deviceStatus: { status: string; count: number }[];
+  topTenants: { id: string; name: string; messages: number }[];
+}
+
+// Metrik lintas tenant — agregasi Neon. Dipakai halaman /platform (ringkasan)
+// dan /platform/metrics. Jalur admin, bukan hot path.
+export async function getPlatformMetrics(): Promise<PlatformMetrics> {
+  const [messagesPerDay, deviceStatus, topTenants] = await Promise.all([
+    query<{ day: string; count: number }>(
+      `SELECT TO_CHAR("createdAt" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') AS day, COUNT(*)::int AS count
+       FROM "MessageLog" WHERE "createdAt" >= now() - interval '30 days'
+       GROUP BY day ORDER BY day ASC`,
+    ),
+    query<{ status: string; count: number }>(
+      'SELECT status, COUNT(*)::int AS count FROM "Device" GROUP BY status ORDER BY count DESC',
+    ),
+    query<{ id: string; name: string; messages: number }>(
+      `SELECT t.id, t.name, COUNT(m.id)::int AS messages
+       FROM "MessageLog" m JOIN "Tenant" t ON t.id = m."tenantId"
+       GROUP BY t.id, t.name ORDER BY messages DESC LIMIT 5`,
+    ),
+  ]);
+  return { messagesPerDay, deviceStatus, topTenants };
+}
+
+export interface PlanPatch {
+  maxDevices?: number;
+  maxUsers?: number;
+  maxMessagesPerMonth?: number | null;
+  isActive?: boolean;
+}
+
+// Update sebagian kuota plan. Hanya kolom yang di-set yang diubah.
+export async function updatePlan(id: string, patch: PlanPatch): Promise<boolean> {
+  const sets: string[] = [];
+  const args: unknown[] = [];
+  if (patch.maxDevices !== undefined) {
+    args.push(patch.maxDevices);
+    sets.push(`"maxDevices" = $${args.length}`);
+  }
+  if (patch.maxUsers !== undefined) {
+    args.push(patch.maxUsers);
+    sets.push(`"maxUsers" = $${args.length}`);
+  }
+  if (patch.maxMessagesPerMonth !== undefined) {
+    args.push(patch.maxMessagesPerMonth);
+    sets.push(`"maxMessagesPerMonth" = $${args.length}`);
+  }
+  if (patch.isActive !== undefined) {
+    args.push(patch.isActive);
+    sets.push(`"isActive" = $${args.length}`);
+  }
+  if (!sets.length) return false;
+  args.push(id);
+  const rows = await query<{ id: string }>(
+    `UPDATE "Plan" SET ${sets.join(", ")} WHERE id = $${args.length} RETURNING id`,
+    args,
+  );
+  return rows.length > 0;
+}
