@@ -9,6 +9,7 @@ import { putMediaObject } from "@/lib/r2";
 import { uuidv7 } from "@/lib/uuidv7";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { checkMessageQuota } from "@/lib/quota";
+import { getTenantDelayInfo, randomDelayMs, sleep } from "@/lib/delay";
 
 // API publik pihak ketiga: kirim pesan WhatsApp (teks ATAU media).
 // Auth: Authorization: Bearer <API key> (dibuat dari dashboard → D1, 0 Neon utk verifikasi).
@@ -238,6 +239,18 @@ export async function POST(req: Request) {
   const logBody = media ? (media.caption ?? media.filename ?? "") : text;
   const logType = media ? media.mediaType : "text";
 
+  // Random delay anti-spam (fitur per tenant, 3–10 dtk acak). Kuota & rate
+  // limit dihitung SAAT TRIGGER (di atas) — window 3–10 dtk membuat risiko
+  // over-quota akibat in-flight negligible.
+  const delayInfo = await getTenantDelayInfo(tenantId);
+  const triggeredAt = new Date();
+  let delayMs: number | null = null;
+  if (delayInfo.active) {
+    delayMs = randomDelayMs();
+    await sleep(delayMs);
+  }
+  const sentAt = new Date();
+
   try {
     const result: OpenwaSendResult = media
       ? await openwa.sendMedia(device.openwaSessionId, chatId, media.mediaType, {
@@ -263,12 +276,15 @@ export async function POST(req: Request) {
       mediaUrl: media?.url ?? null,
       mimetype: media?.mimetype ?? null,
       mediaKey,
+      triggeredAt,
+      sentAt,
     }).catch((e) => console.error("v1/messages: catat pesan keluar gagal:", e));
     return Response.json({
       ok: true,
       deviceId: device.id,
       to: chatId,
       messageId,
+      ...(delayMs !== null ? { delayMs } : {}),
       ...(media ? { mediaType: media.mediaType } : {}),
       ...(mediaKey ? { stored: "r2" } : {}),
     });
@@ -288,6 +304,8 @@ export async function POST(req: Request) {
         mediaUrl: media?.url ?? null,
         mimetype: media?.mimetype ?? null,
         mediaKey,
+        triggeredAt,
+        sentAt,
       }).catch((err) => console.error("v1/messages: catat gagal kirim:", err));
       return Response.json({ error: `OpenWA: ${e.message}` }, { status: 502 });
     }
