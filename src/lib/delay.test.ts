@@ -7,7 +7,13 @@ import {
   resolveDelayActive,
 } from "./delay";
 
-const neonQuery = vi.fn(async (_text: string, _params?: unknown[]) => []);
+const neonQuery = vi.fn(
+  async (_text: string, _params?: unknown[]): Promise<Record<string, unknown>[]> => {
+    void _text;
+    void _params;
+    return [];
+  },
+);
 vi.mock("@/lib/db", () => ({
   query: (_t: string, _p?: unknown[]) => neonQuery(_t, _p),
   queryOne: (_t: string, _p?: unknown[]) => neonQuery(_t, _p).then((rows: unknown[]) => rows[0]),
