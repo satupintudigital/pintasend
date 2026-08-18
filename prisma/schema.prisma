@@ -15,6 +15,7 @@ model Plan {
   maxDevices          Int
   maxUsers            Int
   maxMessagesPerMonth Int?
+  includesDelay       Boolean  @default(false)
   isActive            Boolean  @default(true)
   createdAt           DateTime @default(now())
   tenants             Tenant[]
@@ -28,10 +29,24 @@ model Tenant {
   plan             Plan?    @relation(fields: [planId], references: [id])
   planAssignedAt   DateTime?
   suspendedAt      DateTime?
+  delayEnabled     Boolean  @default(false)
   createdAt        DateTime @default(now())
   users            User[]
   devices          Device[]
   messages         MessageLog[]
+  addons           TenantAddon[]
+}
+
+model TenantAddon {
+  id        String   @id @default(uuid(7))
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  key       String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  @@unique([tenantId, key])
 }
 
 model User {
@@ -85,6 +100,8 @@ model MessageLog {
   mediaUrl    String? // URL media (outgoing URL mode); null utk base64/multipart/incoming
   mimetype    String? // application/pdf, image/jpeg, …
   mediaKey    String? // R2 object key (upload multipart); null utk lainnya
+  triggeredAt DateTime? // waktu trigger kirim (sebelum delay) — pesan keluar
+  sentAt      DateTime? // waktu kirim ke OpenWA (setelah delay) — pesan keluar
   createdAt   DateTime @default(now())
 
   @@index([tenantId, createdAt(sort: Desc)])

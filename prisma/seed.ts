@@ -24,14 +24,14 @@ async function main() {
 
   // Plan (id statis agar seed idempoten).
   const plans = [
-    { id: "00000000-0000-7000-8000-000000000101", name: "Espresso", tagline: "Bayar sesuai pakai", priceDisplay: "Rp 400/pesan", maxDevices: 1, maxUsers: 3, maxMessagesPerMonth: null },
-    { id: "00000000-0000-7000-8000-000000000102", name: "Latte", tagline: "Paling laris", priceDisplay: "Rp 150.000/bulan", maxDevices: 3, maxUsers: 5, maxMessagesPerMonth: 500 },
-    { id: "00000000-0000-7000-8000-000000000103", name: "Mocha", tagline: "Unlimited", priceDisplay: "Rp 300.000/bulan", maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null },
+    { id: "00000000-0000-7000-8000-000000000101", name: "Espresso", tagline: "Bayar sesuai pakai", priceDisplay: "Rp 400/pesan", maxDevices: 1, maxUsers: 3, maxMessagesPerMonth: null, includesDelay: false },
+    { id: "00000000-0000-7000-8000-000000000102", name: "Latte", tagline: "Paling laris", priceDisplay: "Rp 150.000/bulan", maxDevices: 3, maxUsers: 5, maxMessagesPerMonth: 500, includesDelay: false },
+    { id: "00000000-0000-7000-8000-000000000103", name: "Mocha", tagline: "Unlimited", priceDisplay: "Rp 300.000/bulan", maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: true },
   ];
   for (const p of plans) {
     await client.query(
-      'INSERT INTO "Plan" (id, name, tagline, "priceDisplay", "maxDevices", "maxUsers", "maxMessagesPerMonth") VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING',
-      [p.id, p.name, p.tagline, p.priceDisplay, p.maxDevices, p.maxUsers, p.maxMessagesPerMonth],
+      'INSERT INTO "Plan" (id, name, tagline, "priceDisplay", "maxDevices", "maxUsers", "maxMessagesPerMonth", "includesDelay") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO NOTHING',
+      [p.id, p.name, p.tagline, p.priceDisplay, p.maxDevices, p.maxUsers, p.maxMessagesPerMonth, p.includesDelay],
     );
   }
 
