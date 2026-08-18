@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { uuidv7 } from "@/lib/uuidv7";
 
 export interface TenantListRow {
   id: string;
@@ -7,6 +8,7 @@ export interface TenantListRow {
   suspendedAt: string | null;
   planId: string | null;
   planName: string | null;
+  delayEnabled: boolean;
   devices: number;
   users: number;
   messages: number;
@@ -35,7 +37,7 @@ export async function listTenants(params: {
       whereArgs,
     ),
     query<TenantListRow>(
-      `SELECT t.id, t.name, t."createdAt", t."suspendedAt", t."planId", p.name AS "planName",
+      `SELECT t.id, t.name, t."createdAt", t."suspendedAt", t."planId", p.name AS "planName", t."delayEnabled",
               (SELECT COUNT(*)::int FROM "Device" d WHERE d."tenantId" = t.id) AS devices,
               (SELECT COUNT(*)::int FROM "User" u WHERE u."tenantId" = t.id) AS users,
               (SELECT COUNT(*)::int FROM "MessageLog" m WHERE m."tenantId" = t.id) AS messages
@@ -55,6 +57,8 @@ export interface TenantDetailRow {
   suspendedAt: string | null;
   planId: string | null;
   planName: string | null;
+  delayEnabled: boolean;
+  delayAddonActive: boolean;
   devices: number;
   users: number;
   messages: number;
@@ -63,6 +67,9 @@ export interface TenantDetailRow {
 export async function getTenantDetail(id: string): Promise<TenantDetailRow | null> {
   const rows = await query<TenantDetailRow>(
     `SELECT t.id, t.name, t."createdAt", t."suspendedAt", t."planId", p.name AS "planName",
+            t."delayEnabled",
+            EXISTS(SELECT 1 FROM "TenantAddon" a
+                   WHERE a."tenantId" = t.id AND a.key = 'random_delay' AND a.active) AS "delayAddonActive",
             (SELECT COUNT(*)::int FROM "Device" d WHERE d."tenantId" = t.id) AS devices,
             (SELECT COUNT(*)::int FROM "User" u WHERE u."tenantId" = t.id) AS users,
             (SELECT COUNT(*)::int FROM "MessageLog" m WHERE m."tenantId" = t.id) AS messages
@@ -80,12 +87,13 @@ export interface PlanRow {
   maxDevices: number;
   maxUsers: number;
   maxMessagesPerMonth: number | null;
+  includesDelay: boolean;
   isActive: boolean;
 }
 
 export async function listPlans(): Promise<PlanRow[]> {
   return query<PlanRow>(
-    'SELECT id, name, tagline, "priceDisplay", "maxDevices", "maxUsers", "maxMessagesPerMonth", "isActive" FROM "Plan" ORDER BY name ASC',
+    'SELECT id, name, tagline, "priceDisplay", "maxDevices", "maxUsers", "maxMessagesPerMonth", "includesDelay", "isActive" FROM "Plan" ORDER BY name ASC',
   );
 }
 
@@ -94,6 +102,30 @@ export async function setTenantPlan(tenantId: string, planId: string | null): Pr
   const rows = await query<{ id: string }>(
     'UPDATE "Tenant" SET "planId" = $1, "planAssignedAt" = now() WHERE id = $2 RETURNING id',
     [planId, tenantId],
+  );
+  return rows.length > 0;
+}
+
+// Toggle config delay per tenant (platform admin).
+export async function setTenantDelayEnabled(tenantId: string, enabled: boolean): Promise<boolean> {
+  const rows = await query<{ id: string }>(
+    'UPDATE "Tenant" SET "delayEnabled" = $1 WHERE id = $2 RETURNING id',
+    [enabled, tenantId],
+  );
+  return rows.length > 0;
+}
+
+// Grant/revoke addon tenant (upsert). Key di-whitelist di lapisan route.
+export async function setTenantAddon(
+  tenantId: string,
+  key: string,
+  active: boolean,
+): Promise<boolean> {
+  const rows = await query<{ id: string }>(
+    'INSERT INTO "TenantAddon" (id, "tenantId", key, active) VALUES ($1, $2, $3, $4) ' +
+      'ON CONFLICT ("tenantId", key) DO UPDATE SET active = EXCLUDED.active, "updatedAt" = now() ' +
+      "RETURNING id",
+    [uuidv7(), tenantId, key, active],
   );
   return rows.length > 0;
 }
@@ -129,6 +161,7 @@ export interface PlanPatch {
   maxDevices?: number;
   maxUsers?: number;
   maxMessagesPerMonth?: number | null;
+  includesDelay?: boolean;
   isActive?: boolean;
 }
 
@@ -147,6 +180,10 @@ export async function updatePlan(id: string, patch: PlanPatch): Promise<boolean>
   if (patch.maxMessagesPerMonth !== undefined) {
     args.push(patch.maxMessagesPerMonth);
     sets.push(`"maxMessagesPerMonth" = $${args.length}`);
+  }
+  if (patch.includesDelay !== undefined) {
+    args.push(patch.includesDelay);
+    sets.push(`"includesDelay" = $${args.length}`);
   }
   if (patch.isActive !== undefined) {
     args.push(patch.isActive);
