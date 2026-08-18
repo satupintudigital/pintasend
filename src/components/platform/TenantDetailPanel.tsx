@@ -11,6 +11,8 @@ interface TenantDetail {
   suspendedAt: string | null;
   planId: string | null;
   planName: string | null;
+  delayEnabled: boolean;
+  delayAddonActive: boolean;
   devices: number;
   users: number;
   messages: number;
@@ -31,6 +33,7 @@ interface PlanRow {
   maxDevices: number;
   maxUsers: number;
   maxMessagesPerMonth: number | null;
+  includesDelay: boolean;
   isActive: boolean;
 }
 
@@ -62,6 +65,7 @@ export function TenantDetailPanel({ tenantId, initial }: TenantDetailPanelProps)
   const [users, setUsers] = useState(initial.users);
   const [statusLoading, setStatusLoading] = useState(false);
   const [planLoading, setPlanLoading] = useState(false);
+  const [delayLoading, setDelayLoading] = useState(false);
   const [actionError, setActionError] = useState("");
 
   // Form tambah user
@@ -130,6 +134,46 @@ export function TenantDetailPanel({ tenantId, initial }: TenantDetailPanelProps)
     }
   }
 
+  async function setDelayEnabled(enabled: boolean) {
+    setDelayLoading(true);
+    setActionError("");
+    try {
+      const res = await fetch(`/api/platform/tenants/${tenantId}/delay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Gagal mengubah config delay");
+      setTenant((t) => ({ ...t, delayEnabled: enabled }));
+      router.refresh();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Terjadi kesalahan");
+    } finally {
+      setDelayLoading(false);
+    }
+  }
+
+  async function toggleAddon(active: boolean) {
+    setDelayLoading(true);
+    setActionError("");
+    try {
+      const res = await fetch(`/api/platform/tenants/${tenantId}/addons`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "random_delay", active }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Gagal mengubah addon");
+      setTenant((t) => ({ ...t, delayAddonActive: active }));
+      router.refresh();
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Terjadi kesalahan");
+    } finally {
+      setDelayLoading(false);
+    }
+  }
+
   async function addUser(e: React.FormEvent) {
     e.preventDefault();
     setUError("");
@@ -189,6 +233,8 @@ export function TenantDetailPanel({ tenantId, initial }: TenantDetailPanelProps)
   const quota = tenant.planId
     ? initial.plans.find((p) => p.id === tenant.planId)
     : null;
+  const delayIncludedByPlan = Boolean(quota?.includesDelay);
+  const delayEntitled = delayIncludedByPlan || tenant.delayAddonActive;
 
   return (
     <div className="mt-6 space-y-6">
@@ -279,6 +325,78 @@ export function TenantDetailPanel({ tenantId, initial }: TenantDetailPanelProps)
               </option>
             ))}
           </select>
+        </div>
+      </div>
+
+      {/* Random Delay (Anti-Spam) */}
+      <div className="rounded-2xl border border-line bg-surface p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
+              Random Delay (Anti-Spam)
+            </p>
+            <p className="mt-1 max-w-[52ch] text-sm leading-relaxed text-fg-muted">
+              Delay acak 3–10 detik sebelum kirim pesan keluar — mencegah deteksi
+              spam. Waktu trigger &amp; kirim tercatat di riwayat pesan untuk analitik.
+            </p>
+          </div>
+          <span
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+              delayEntitled
+                ? "border-accent/25 bg-accent/10 text-accent-bright"
+                : "border-line-soft bg-surface-2 text-fg-faint"
+            }`}
+          >
+            {delayIncludedByPlan
+              ? `Termasuk plan ${quota?.name ?? ""}`
+              : tenant.delayAddonActive
+                ? "Addon aktif"
+                : "Belum tersedia"}
+          </span>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={tenant.delayEnabled}
+            aria-label="Aktifkan random delay"
+            disabled={!delayEntitled || delayLoading}
+            onClick={() => setDelayEnabled(!tenant.delayEnabled)}
+            className={`relative h-7 w-12 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+              tenant.delayEnabled ? "bg-accent" : "bg-line"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
+                tenant.delayEnabled ? "translate-x-[22px]" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+          <span className="text-sm text-fg-muted">
+            {tenant.delayEnabled ? "Delay aktif (3–10 dtk acak)" : "Delay nonaktif"}
+          </span>
+          {!delayEntitled && (
+            <span className="text-xs text-fg-faint">
+              Tenant belum berhak — berikan addon di bawah.
+            </span>
+          )}
+          <button
+            type="button"
+            disabled={delayLoading}
+            onClick={() => toggleAddon(!tenant.delayAddonActive)}
+            className={`ml-auto rounded-full border px-4 py-2 text-sm font-semibold transition-all active:scale-[0.97] disabled:opacity-50 ${
+              tenant.delayAddonActive
+                ? "border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                : "border-accent/40 bg-accent/10 text-accent-bright hover:bg-accent/20"
+            }`}
+          >
+            {delayLoading
+              ? "Memproses…"
+              : tenant.delayAddonActive
+                ? "Cabut addon"
+                : "Berikan addon (random delay)"}
+          </button>
         </div>
       </div>
 
