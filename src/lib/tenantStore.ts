@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { changesD1, queryD1One } from "@/lib/d1";
+import { uuidv7 } from "@/lib/uuidv7";
 
 export interface SetTenantSuspendedResult {
   updated: boolean;
@@ -34,4 +35,23 @@ export async function setTenantSuspended(
     console.error("tenantStore: clone D1 gagal, D1 stale:", e);
     return { updated: true, d1Ok: false };
   }
+}
+
+// SSO wizard: temukan-atau-buat Tenant Wavio dari storeId NalaNiaga.
+// ON CONFLICT (nalaniagaStoreId) DO NOTHING + SELECT → idempotent & race-free.
+export async function findOrCreateTenantByNalaniaga(
+  storeId: string,
+  storeName: string,
+): Promise<{ id: string }> {
+  const inserted = await query<{ id: string }>(
+    'INSERT INTO "Tenant" (id, name, "nalaniagaStoreId") VALUES ($1, $2, $3) ' +
+      'ON CONFLICT ("nalaniagaStoreId") DO NOTHING RETURNING id',
+    [uuidv7(), storeName.slice(0, 100), storeId],
+  );
+  if (inserted[0]) return { id: inserted[0].id };
+  const rows = await query<{ id: string }>(
+    'SELECT id FROM "Tenant" WHERE "nalaniagaStoreId" = $1',
+    [storeId],
+  );
+  return { id: rows[0].id };
 }
