@@ -32,13 +32,15 @@ export interface MessageLogInput {
   mediaUrl?: string | null;
   mimetype?: string | null;
   mediaKey?: string | null;
+  triggeredAt?: Date | string | null;
+  sentAt?: Date | string | null;
 }
 
 /** Catat satu pesan (masuk/keluar) — best-effort oleh pemanggil. */
 export async function insertMessageLog(input: MessageLogInput): Promise<void> {
   await query(
-    'INSERT INTO "MessageLog" (id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey") ' +
-      "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
+    'INSERT INTO "MessageLog" (id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey", "triggeredAt", "sentAt") ' +
+      "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
     [
       uuidv7(),
       input.tenantId,
@@ -53,6 +55,8 @@ export async function insertMessageLog(input: MessageLogInput): Promise<void> {
       input.mediaUrl ?? null,
       input.mimetype ?? null,
       input.mediaKey ?? null,
+      input.triggeredAt ? new Date(input.triggeredAt) : null,
+      input.sentAt ? new Date(input.sentAt) : null,
     ],
   );
 }
@@ -71,6 +75,8 @@ export interface MessageLogRow {
   mediaUrl: string | null;
   mimetype: string | null;
   mediaKey: string | null;
+  triggeredAt: string | null;
+  sentAt: string | null;
   createdAt: string;
 }
 
@@ -82,7 +88,7 @@ export interface ListMessagesParams {
   limit?: number;
 }
 
-const MESSAGE_COLUMNS = `id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey", "createdAt"`;
+const MESSAGE_COLUMNS = `id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey", "triggeredAt", "sentAt", "createdAt"`;
 
 /** Daftar riwayat pesan tenant — pencarian (body/chatId) + filter arah + pagination. */
 export async function listMessagesPaginated(
