@@ -41,11 +41,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: string;
           passwordHash: string;
           role: string;
+          suspendedAt: string | null;
         }>(
-          "SELECT id, tenantId, email, name, passwordHash, role FROM User WHERE email = ?",
+          "SELECT u.id, u.tenantId, u.email, u.name, u.passwordHash, u.role, t.suspendedAt " +
+            "FROM User u LEFT JOIN Tenant t ON u.tenantId = t.id WHERE u.email = ?",
           [email],
         );
         if (!user) return null;
+        // Tenant nonaktif (suspended) → tolak login. Pesan generik ("Email atau
+        // password salah") sengaja dipakai agar status akun tidak bocor.
+        if (user.suspendedAt) return null;
 
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;

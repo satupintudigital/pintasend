@@ -273,12 +273,20 @@ export async function revokeApiKey(id: string, tenantId: string): Promise<Revoke
 export async function verifyApiKey(raw: string): Promise<{ tenantId: string } | null> {
   if (!raw.startsWith(API_KEY_PREFIX)) return null;
   const keyHash = await hashApiKey(raw);
-  const row = await queryD1One<{ tenantId: string; id: string; revokedAt: string | null }>(
-    "SELECT id, tenantId, revokedAt FROM ApiKey WHERE keyHash = ?",
+  const row = await queryD1One<{
+    id: string;
+    tenantId: string;
+    revokedAt: string | null;
+    suspendedAt: string | null;
+  }>(
+    "SELECT k.id, k.tenantId, k.revokedAt, t.suspendedAt FROM ApiKey k " +
+      "LEFT JOIN Tenant t ON k.tenantId = t.id WHERE k.keyHash = ?",
     [keyHash],
   );
   if (!row) return null;
   if (row.revokedAt) return null;
+  // Tenant nonaktif (suspended) → tolak semua pemakaian API key tenant itu.
+  if (row.suspendedAt) return null;
   // Best-effort: tidak memblokir respons bila update gagal.
   changesD1("UPDATE ApiKey SET lastUsedAt = ? WHERE id = ?", [
     new Date().toISOString(),
