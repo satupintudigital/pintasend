@@ -31,6 +31,8 @@ export interface MessageRow {
   messageId: string | null;
   mediaUrl: string | null;
   mimetype: string | null;
+  triggeredAt: string | null;
+  sentAt: string | null;
   createdAt: string;
 }
 
@@ -118,6 +120,14 @@ function formatTime(iso: string): string {
 
 function truncateChatId(chatId: string): string {
   return chatId.replace(/@(c\.us|g\.us|s\.whatsapp\.net)$/, "");
+}
+
+/** Delay aktual pesan keluar (detik) — null bila tidak ada data / pesan masuk. */
+function messageDelaySec(m: MessageRow): number | null {
+  if (m.direction !== "outgoing" || !m.triggeredAt || !m.sentAt) return null;
+  const diffMs = new Date(m.sentAt).getTime() - new Date(m.triggeredAt).getTime();
+  if (!Number.isFinite(diffMs) || diffMs <= 0) return null;
+  return diffMs / 1000;
 }
 
 export function MessageHistoryPanel() {
@@ -295,6 +305,7 @@ export function MessageHistoryPanel() {
             const kindStyle = KIND_STYLE[media.kind];
             const kindLabel = MEDIA_KIND_LABEL[media.kind];
             const showThumb = media.kind === "image" && !!m.mediaUrl;
+            const delaySec = messageDelaySec(m);
             return (
               <li key={m.id} className="py-4 first:pt-0 last:pb-0">
                 <div className="flex items-start gap-3">
@@ -332,6 +343,14 @@ export function MessageHistoryPanel() {
                       {m.status && (
                         <span className="font-mono text-[10px] uppercase tracking-wider text-fg-faint">
                           {m.status}
+                        </span>
+                      )}
+                      {delaySec !== null && delaySec >= 1 && (
+                        <span
+                          className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] text-amber-400"
+                          title={`Trigger: ${formatTime(m.triggeredAt!)} · Kirim: ${formatTime(m.sentAt!)}`}
+                        >
+                          delay {delaySec.toFixed(1)} dtk
                         </span>
                       )}
                       <span className="ml-auto text-[11px] text-fg-faint">

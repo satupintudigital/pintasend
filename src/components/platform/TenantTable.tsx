@@ -11,6 +11,7 @@ interface TenantRow {
   createdAt: string;
   suspendedAt: string | null;
   planName: string | null;
+  delayEnabled: boolean;
   devices: number;
   users: number;
   messages: number;
@@ -104,6 +105,14 @@ export function TenantTable() {
                     ) : (
                       <span className="rounded-full border border-accent/25 bg-accent/10 px-2 py-0.5 text-xs text-accent-bright">
                         Aktif
+                      </span>
+                    )}
+                    {t.delayEnabled && (
+                      <span
+                        className="ml-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400"
+                        title="Random delay kirim aktif"
+                      >
+                        delay
                       </span>
                     )}
                   </td>

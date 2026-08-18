@@ -267,6 +267,37 @@ export default function DocsApi() {
             </div>
           </section>
 
+          {/* Random delay */}
+          <section>
+            <Anchor id="random-delay">Random delay (anti-spam)</Anchor>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Fitur <strong>random delay</strong> menunda pengiriman pesan keluar
+              secara acak <strong>3–10 detik</strong> sebelum pesan benar-benar
+              dikirim — mengurangi risiko deteksi spam oleh Meta/WhatsApp.
+            </p>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
+              <li>
+                Termasuk <strong>gratis</strong> di plan <strong>Mocha</strong>{" "}
+                (plan tertinggi); plan lain mendapatkannya via{" "}
+                <strong>addon Random Delay</strong> (diatur platform admin).
+              </li>
+              <li>
+                Request <code className="font-mono">POST /v1/messages</code> bersifat
+                sinkron: menunggu delay, lalu mengirim. Respons sukses menyertakan{" "}
+                <code className="font-mono">delayMs</code> (delay aktual dalam
+                milidetik).
+              </li>
+              <li>
+                Setiap pesan keluar mencatat <strong>waktu trigger</strong> dan{" "}
+                <strong>waktu kirim</strong> — selisihnya adalah delay aktual yang
+                disematkan. Keduanya tampil di{" "}
+                <strong>Dashboard → Riwayat Pesan</strong> (chip{" "}
+                <code className="font-mono">delay X dtk</code>) untuk analitik
+                kebiasaan kirim yang aman.
+              </li>
+            </ul>
+          </section>
+
           {/* GET /api/health */}
           <section>
             <Anchor id="status-layanan">GET /api/health — Status layanan</Anchor>
