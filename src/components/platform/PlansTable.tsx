@@ -11,6 +11,7 @@ interface PlanRow {
   maxDevices: number;
   maxUsers: number;
   maxMessagesPerMonth: number | null;
+  includesDelay: boolean;
   isActive: boolean;
 }
 
@@ -40,6 +41,7 @@ export function PlansTable({ initial }: PlansTableProps) {
           maxDevices: p.maxDevices,
           maxUsers: p.maxUsers,
           maxMessagesPerMonth: p.maxMessagesPerMonth,
+          includesDelay: p.includesDelay,
           isActive: p.isActive,
         }),
       });
@@ -66,6 +68,7 @@ export function PlansTable({ initial }: PlansTableProps) {
             <th className="px-4 py-3 text-right">Device</th>
             <th className="px-4 py-3 text-right">User</th>
             <th className="px-4 py-3 text-right">Pesan/bulan</th>
+            <th className="px-4 py-3 text-center">Delay</th>
             <th className="px-4 py-3">Aktif</th>
             <th className="px-4 py-3 text-right">Aksi</th>
           </tr>
@@ -129,6 +132,30 @@ export function PlansTable({ initial }: PlansTableProps) {
                   className="bk-tabular w-24 rounded-lg border border-line bg-ink-2 px-2 py-1.5 text-right text-sm text-fg placeholder:text-fg-faint focus:border-accent focus:outline-none"
                 />
               </td>
+              <td className="px-4 py-3 text-center">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={p.includesDelay}
+                  onClick={() =>
+                    setPlans((ps) =>
+                      ps.map((x) =>
+                        x.id === p.id ? { ...x, includesDelay: !x.includesDelay } : x,
+                      ),
+                    )
+                  }
+                  title="Fitur random delay (anti-spam) gratis di plan ini"
+                  className={`relative h-6 w-11 rounded-full transition-colors ${
+                    p.includesDelay ? "bg-accent" : "bg-line"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                      p.includesDelay ? "translate-x-[22px]" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </td>
               <td className="px-4 py-3">
                 <button
                   type="button"
@@ -179,8 +206,8 @@ export function PlansTable({ initial }: PlansTableProps) {
         </tbody>
       </table>
       <p className="border-t border-line-soft px-4 py-3 text-xs text-fg-faint">
-        Kuota pesan kosong = unlimited (Espresso per-pesan & Mocha). Tenant tanpa plan tidak
-        dikuota.
+        Kuota pesan kosong = unlimited (Espresso per-pesan & Mocha). Tenant tanpa plan
+        tidak dikuota. Kolom Delay = plan menyertakan random delay kirim (3–10 dtk) gratis.
       </p>
     </div>
   );
