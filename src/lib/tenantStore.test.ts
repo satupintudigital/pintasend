@@ -2,17 +2,25 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { setTenantSuspended } from "./tenantStore";
 
 const neonQuery = vi.fn(
-  async (_text: string, _params?: unknown[]): Promise<{ id: string }[]> => [{ id: "t1" }],
+  async (text: string, params?: unknown[]): Promise<{ id: string }[]> => {
+    void text;
+    void params;
+    return [{ id: "t1" }];
+  },
 );
-const d1Changes = vi.fn(async (_sql: string, _params?: unknown[]): Promise<number> => 1);
+const d1Changes = vi.fn(async (sql: string, params?: unknown[]): Promise<number> => {
+  void sql;
+  void params;
+  return 1;
+});
 // Catatan: referensi ke mock di dalam factory harus lewat arrow function yang
 // dieksekusi saat dipanggil (vi.mock di-hoist ke atas file → TDZ error kalau
 // langsung mereferensikan konstanta).
 vi.mock("@/lib/db", () => ({
-  query: (_text: string, _params?: unknown[]) => neonQuery(_text, _params),
+  query: (text: string, params?: unknown[]) => neonQuery(text, params),
 }));
 vi.mock("@/lib/d1", () => ({
-  changesD1: (_sql: string, _params?: unknown[]) => d1Changes(_sql, _params),
+  changesD1: (sql: string, params?: unknown[]) => d1Changes(sql, params),
   queryD1: async () => [] as unknown[],
   queryD1One: async () => ({ name: "Wavio Demo" }),
 }));

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Devices, Lightning, QrCode, Waveform } from "@phosphor-icons/react/ssr";
 import { auth } from "@/lib/auth";
-import { query } from "@/lib/db";
+import { getTenantQuota, countDevices, countMessagesThisMonth } from "@/lib/quota";
 import { Spotlight } from "@/components/Spotlight";
 
 function greeting(): string {
@@ -35,12 +35,14 @@ export default async function DashboardHome() {
   const tenantId = session?.user?.tenantId;
 
   let deviceCount = 0;
+  let messageCount = 0;
+  let quota = null as Awaited<ReturnType<typeof getTenantQuota>>;
   if (tenantId) {
-    const rows = await query<{ count: number }>(
-      'SELECT COUNT(*)::int AS count FROM "Device" WHERE "tenantId" = $1',
-      [tenantId],
-    );
-    deviceCount = rows[0]?.count ?? 0;
+    [quota, deviceCount, messageCount] = await Promise.all([
+      getTenantQuota(tenantId),
+      countDevices(tenantId),
+      countMessagesThisMonth(tenantId),
+    ]);
   }
 
   const name = session?.user?.name ?? session?.user?.email ?? "pengguna";
@@ -80,6 +82,7 @@ export default async function DashboardHome() {
             <p className="mt-6 text-sm font-medium text-fg-muted">Device terhubung</p>
             <p className="bk-tabular mt-1 font-display text-4xl font-semibold tracking-tight">
               {deviceCount}
+              {quota && <span className="text-lg text-fg-faint"> / {quota.maxDevices}</span>}
             </p>
             <p className="mt-2 text-xs text-fg-faint">
               {deviceCount === 0 ? "Belum ada device — mulai dari sini" : "Kelola device → buka halaman Device"}
@@ -93,8 +96,27 @@ export default async function DashboardHome() {
               <Waveform size={20} />
             </span>
             <p className="mt-6 text-sm font-medium text-fg-muted">Pesan bulan ini</p>
-            <p className="bk-tabular mt-1 font-display text-4xl font-semibold tracking-tight">0</p>
-            <p className="mt-2 text-xs text-fg-faint">Fitur kirim pesan segera hadir</p>
+            <p className="bk-tabular mt-1 font-display text-4xl font-semibold tracking-tight">
+              {messageCount}
+              {quota?.maxMessagesPerMonth != null && (
+                <span className="text-lg text-fg-faint"> / {quota.maxMessagesPerMonth}</span>
+              )}
+            </p>
+            {quota?.maxMessagesPerMonth != null && (
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-line">
+                <div
+                  className="h-full rounded-full bg-accent transition-all"
+                  style={{
+                    width: `${Math.min(100, (messageCount / quota.maxMessagesPerMonth) * 100)}%`,
+                  }}
+                />
+              </div>
+            )}
+            <p className="mt-2 text-xs text-fg-faint">
+              {quota?.maxMessagesPerMonth != null
+                ? "Kuota pesan bulan berjalan"
+                : "Pemakaian pesan bulan berjalan"}
+            </p>
           </div>
         </Spotlight>
       </div>

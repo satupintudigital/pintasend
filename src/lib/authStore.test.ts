@@ -1,14 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { verifyApiKey } from "./authStore";
-import { hashApiKey, API_KEY_PREFIX } from "./apiKeys";
+import { API_KEY_PREFIX } from "./apiKeys";
 
 // Fake D1 dengan tabel ApiKey + Tenant (via mock @/lib/cf).
 const fakeStmt = {
-  bind: vi.fn((_args: unknown[]) => fakeStmt),
+  bind: vi.fn(() => fakeStmt),
   all: vi.fn(async () => ({ results: [] as Record<string, unknown>[] })),
 };
 const fakeDb = {
-  prepare: vi.fn((_sql: string) => fakeStmt),
+  prepare: vi.fn(() => fakeStmt),
 };
 vi.mock("@/lib/cf", () => ({
   getBinding: vi.fn(async () => fakeDb),
@@ -33,7 +33,7 @@ describe("verifyApiKey — gate suspend", () => {
     ]);
     const result = await verifyApiKey(raw);
     expect(result).toBeNull();
-    const sql = fakeDb.prepare.mock.calls[0][0] as string;
+    const sql = (fakeDb.prepare.mock.calls[0] as unknown as [string])[0];
     expect(sql.toLowerCase()).toContain("join tenant");
     expect(sql.toLowerCase()).toContain("keyhash");
   });

@@ -144,6 +144,11 @@ export function TenantDetailPanel({ tenantId, initial }: TenantDetailPanelProps)
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Gagal membuat user");
       setUSuccess(`Akun ${uEmail.trim()} berhasil dibuat`);
+      // Tambah ke daftar lokal agar langsung tampil tanpa reload penuh.
+      setUsers((prev) => [
+        ...prev,
+        { id: data.id as string, email: uEmail.trim(), name: uName.trim(), role: uRole },
+      ]);
       setUName("");
       setUEmail("");
       setUPassword("");

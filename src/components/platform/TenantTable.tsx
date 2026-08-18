@@ -24,21 +24,17 @@ export function TenantTable() {
   const q = sp.get("q") ?? "";
   const page = Math.max(1, Number(sp.get("page") ?? "1"));
   const [data, setData] = useState<{ tenants: TenantRow[]; total: number } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError("");
     fetch(`/api/platform/tenants?q=${encodeURIComponent(q)}&page=${page}&limit=${PAGE_SIZE}`)
       .then(async (res) => {
         const d = await res.json();
         if (!res.ok) throw new Error(d.error ?? "Gagal memuat");
         if (!cancelled) setData(d);
       })
-      .catch((e: Error) => !cancelled && setError(e.message))
-      .finally(() => !cancelled && setLoading(false));
+      .catch((e: Error) => !cancelled && setError(e.message));
     return () => {
       cancelled = true;
     };
@@ -67,9 +63,9 @@ export function TenantTable() {
       </form>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
-      {loading && <p className="text-sm text-fg-faint">Memuat…</p>}
+      {!data && !error && <p className="text-sm text-fg-faint">Memuat…</p>}
 
-      {!loading && data && (
+      {data && (
         <div className="overflow-hidden rounded-2xl border border-line bg-surface">
           <table className="w-full text-left text-sm">
             <thead>
@@ -121,7 +117,7 @@ export function TenantTable() {
         </div>
       )}
 
-      {!loading && data && totalPages > 1 && (
+      {data && totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
           <button
             type="button"

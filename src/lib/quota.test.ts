@@ -1,8 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   getTenantQuota,
-  countDevices,
-  countUsers,
   countMessagesThisMonth,
   checkDeviceQuota,
   checkUserQuota,
@@ -10,12 +8,15 @@ import {
 } from "./quota";
 
 const neonQuery = vi.fn(
-  async (_text: string, _params?: unknown[]): Promise<Record<string, unknown>[]> => [],
+  async (text: string, params?: unknown[]): Promise<Record<string, unknown>[]> => {
+    void text;
+    void params;
+    return [];
+  },
 );
 vi.mock("@/lib/db", () => ({
-  query: (_text: string, _params?: unknown[]) => neonQuery(_text, _params),
-  queryOne: (_text: string, _params?: unknown[]) =>
-    neonQuery(_text, _params).then((rows) => rows[0]),
+  query: (text: string, params?: unknown[]) => neonQuery(text, params),
+  queryOne: (text: string, params?: unknown[]) => neonQuery(text, params).then((rows) => rows[0]),
 }));
 
 describe("quota", () => {
