@@ -7,10 +7,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Plan {
+  id                  String   @id @default(uuid(7))
+  name                String
+  tagline             String
+  priceDisplay        String
+  maxDevices          Int
+  maxUsers            Int
+  maxMessagesPerMonth Int?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  tenants             Tenant[]
+}
+
 model Tenant {
   id               String   @id @default(uuid(7))
   name             String
   nalaniagaStoreId String?  @unique
+  planId           String?
+  plan             Plan?    @relation(fields: [planId], references: [id])
+  planAssignedAt   DateTime?
+  suspendedAt      DateTime?
   createdAt        DateTime @default(now())
   users            User[]
   devices          Device[]

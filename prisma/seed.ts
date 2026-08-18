@@ -22,6 +22,36 @@ async function main() {
     [uuidv7(), tenantId, "owner@wavio.test", "Owner Wavio", passwordHash, "owner"],
   );
 
+  // Plan (id statis agar seed idempoten).
+  const plans = [
+    { id: "00000000-0000-7000-8000-000000000101", name: "Espresso", tagline: "Bayar sesuai pakai", priceDisplay: "Rp 400/pesan", maxDevices: 1, maxUsers: 3, maxMessagesPerMonth: null },
+    { id: "00000000-0000-7000-8000-000000000102", name: "Latte", tagline: "Paling laris", priceDisplay: "Rp 150.000/bulan", maxDevices: 3, maxUsers: 5, maxMessagesPerMonth: 500 },
+    { id: "00000000-0000-7000-8000-000000000103", name: "Mocha", tagline: "Unlimited", priceDisplay: "Rp 300.000/bulan", maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null },
+  ];
+  for (const p of plans) {
+    await client.query(
+      'INSERT INTO "Plan" (id, name, tagline, "priceDisplay", "maxDevices", "maxUsers", "maxMessagesPerMonth") VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING',
+      [p.id, p.name, p.tagline, p.priceDisplay, p.maxDevices, p.maxUsers, p.maxMessagesPerMonth],
+    );
+  }
+
+  // Tenant platform + platform admin.
+  const platformTenantId = "00000000-0000-7000-8000-000000000002";
+  await client.query(
+    'INSERT INTO "Tenant" (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
+    [platformTenantId, "Wavio Platform"],
+  );
+  await client.query(
+    'INSERT INTO "User" (id, "tenantId", email, name, "passwordHash", role) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (email) DO NOTHING',
+    [uuidv7(), platformTenantId, "platform@wavio.test", "Platform Admin", passwordHash, "platform_admin"],
+  );
+
+  // Demo tenant diberi plan Latte.
+  await client.query(
+    'UPDATE "Tenant" SET "planId" = $1, "planAssignedAt" = now() WHERE id = $2',
+    ["00000000-0000-7000-8000-000000000102", tenantId],
+  );
+
   await client.end();
   console.log("Seed selesai: owner@wavio.test / admin123");
   // Catatan: D1 di-seed terpisah via wrangler (prisma/d1-seed.sql) karena

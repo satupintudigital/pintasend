@@ -1,3 +1,11 @@
+-- Replika Tenant (Neon source of truth → D1) — hanya utk gate suspend
+-- (login & verifyApiKey). Plan/quota TIDAK direplikasi (ADR-9).
+CREATE TABLE IF NOT EXISTS Tenant (
+  id          TEXT PRIMARY KEY,
+  name        TEXT NOT NULL,
+  suspendedAt TEXT
+);
+
 CREATE TABLE IF NOT EXISTS User (
   id           TEXT PRIMARY KEY,
   tenantId     TEXT NOT NULL,

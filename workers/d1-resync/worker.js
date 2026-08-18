@@ -105,6 +105,15 @@ const TABLE_SPECS = [
       iso(w.updatedAt),
     ],
   },
+  {
+    stat: "tenant",
+    neonTable: "Tenant",
+    d1Table: "Tenant",
+    neonColumns: 'id, name, "suspendedAt"',
+    d1Columns: "(id, name, suspendedAt)",
+    d1Values: "(?, ?, ?)",
+    map: (t) => [t.id, t.name, t.suspendedAt ? new Date(t.suspendedAt).toISOString() : null],
+  },
 ];
 
 const worker = {
