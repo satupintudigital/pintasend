@@ -7,7 +7,6 @@ import {
   Devices,
   House,
   Key,
-  UsersThree,
   WebhooksLogo,
 } from "@phosphor-icons/react";
 
@@ -17,8 +16,9 @@ const items = [
   { href: "/dashboard/pesan", label: "Riwayat Pesan", icon: ChatCircleText },
 ];
 
+// Provisioning tenant kini khusus platform admin (area /platform) — tenant
+// owner tidak lagi memiliki halaman "Pengguna".
 const ownerItems = [
-  { href: "/dashboard/pengguna", label: "Pengguna", icon: UsersThree },
   { href: "/dashboard/api-keys", label: "API Key", icon: Key },
   { href: "/dashboard/webhook", label: "Webhook", icon: WebhooksLogo },
 ];
