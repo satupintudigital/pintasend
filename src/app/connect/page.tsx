@@ -8,12 +8,15 @@ type Step = "verify" | "device" | "success" | "error";
 function ConnectWizard() {
   const params = useSearchParams();
   const token = params.get("token") ?? "";
-  const [step, setStep] = useState<Step>("verify");
+  // Tanpa token → langsung state error (hindari setState sinkron di effect).
+  const [step, setStep] = useState<Step>(token ? "verify" : "error");
   const [storeName, setStoreName] = useState("");
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    token ? "" : "Tautan tidak valid. Mulai ulang dari NalaNiaga.",
+  );
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const call = useCallback(
@@ -31,11 +34,7 @@ function ConnectWizard() {
   );
 
   useEffect(() => {
-    if (!token) {
-      setStep("error");
-      setError("Tautan tidak valid. Mulai ulang dari NalaNiaga.");
-      return;
-    }
+    if (!token) return;
     (async () => {
       const res = await call("/api/connect/verify", { method: "POST", body: JSON.stringify({ token }) });
       if (!res.ok) {
@@ -128,6 +127,7 @@ function ConnectWizard() {
                 </p>
                 <div className="mt-5 flex aspect-square items-center justify-center rounded-2xl border border-zinc-800 bg-white p-4">
                   {qr ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
                     <img src={qr} alt="QR" className="h-full w-full" />
                   ) : (
                     <span className="text-sm text-zinc-500">Memuat QR…</span>
