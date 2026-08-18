@@ -1,5 +1,8 @@
 import { query, queryOne } from "@/lib/db";
 import { queryD1 } from "@/lib/d1";
+import { uuidv7 } from "@/lib/uuidv7";
+import { openwa, openwaWebhookSecret } from "@/lib/openwa";
+import { deleteCachedDeviceList } from "@/lib/deviceCache";
 
 export interface DeviceRow {
   id: string;
@@ -30,6 +33,67 @@ export async function getDeviceForTenant(
     `SELECT ${DEVICE_COLUMNS} FROM "Device" WHERE id = $1 AND "tenantId" = $2`,
     [deviceId, tenantId],
   );
+}
+
+// URL ingest webhook Wavio — didaftarkan ke OpenWA per session.
+function openwaWebhookUrl(): string {
+  const base = process.env.WAVIO_PUBLIC_BASE_URL ?? "https://wavio.satupintudigital.co.id";
+  return `${base}/api/webhooks/openwa`;
+}
+
+/**
+ * Buat device: create session OpenWA → daftar webhook (message.received,
+ * session.status) → INSERT Device (Neon) → clone D1 → invalidasi cache.
+ * Gagal di tengah → bersihkan session/webhook OpenWA (hindari orphan).
+ * Dipakai route /api/devices (dashboard) & /api/connect/device (wizard SSO).
+ */
+export async function createDeviceAndStart(
+  label: string,
+  tenantId: string,
+): Promise<{ id: string; openwaSessionId: string; status: string }> {
+  const deviceId = uuidv7();
+  const sessionName = `wavio-${deviceId.replace(/-/g, "").slice(0, 12)}`;
+
+  const owa = await openwa.createSession(sessionName);
+  let openwaWebhookId: string | null = null;
+  try {
+    const wh = await openwa.registerWebhook(owa.id, {
+      url: openwaWebhookUrl(),
+      events: ["message.received", "session.status"],
+      secret: await openwaWebhookSecret(owa.id),
+      retryCount: 3,
+    });
+    openwaWebhookId = wh.id;
+  } catch (whErr) {
+    await openwa.deleteSession(owa.id).catch(() => {});
+    throw whErr;
+  }
+
+  const now = new Date().toISOString();
+  try {
+    await query(
+      'INSERT INTO "Device" (id, "tenantId", label, "openwaSessionId", "openwaWebhookId", status, "createdAt", "updatedAt") ' +
+        "VALUES ($1, $2, $3, $4, $5, $6, $7, $7)",
+      [deviceId, tenantId, label, owa.id, openwaWebhookId, owa.status, now],
+    );
+  } catch (dbErr) {
+    if (openwaWebhookId) await openwa.deleteWebhook(owa.id, openwaWebhookId).catch(() => {});
+    await openwa.deleteSession(owa.id).catch(() => {});
+    throw dbErr;
+  }
+  await cloneDeviceToD1({
+    id: deviceId,
+    tenantId,
+    label,
+    openwaSessionId: owa.id,
+    openwaWebhookId,
+    phone: null,
+    status: owa.status,
+    createdAt: now,
+    updatedAt: now,
+  }).catch((e) => console.error("devices: clone D1 gagal:", e));
+  await deleteCachedDeviceList(tenantId);
+  return { id: deviceId, openwaSessionId: owa.id, status: owa.status };
 }
 
 /** Lookup device by OpenWA session id (Neon) — fallback ingest saat D1 miss. */

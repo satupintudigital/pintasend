@@ -1,21 +1,9 @@
 import { auth } from "@/lib/auth";
-import { query } from "@/lib/db";
-import { openwa, openwaWebhookSecret, OpenwaError } from "@/lib/openwa";
-import { uuidv7 } from "@/lib/uuidv7";
-import { cloneDeviceToD1, listDevicesForTenant } from "@/lib/devices";
+import { OpenwaError, publicOpenwaError } from "@/lib/openwa";
+import { createDeviceAndStart, listDevicesForTenant } from "@/lib/devices";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { checkDeviceQuota } from "@/lib/quota";
-import {
-  getCachedDeviceList,
-  setCachedDeviceList,
-  deleteCachedDeviceList,
-} from "@/lib/deviceCache";
-
-// URL ingest webhook Wavio — didaftarkan ke OpenWA per session.
-function openwaWebhookUrl(): string {
-  const base = process.env.WAVIO_PUBLIC_BASE_URL ?? "https://wavio.satupintudigital.co.id";
-  return `${base}/api/webhooks/openwa`;
-}
+import { getCachedDeviceList, setCachedDeviceList } from "@/lib/deviceCache";
 
 export async function GET() {
   const session = await auth();
@@ -57,75 +45,25 @@ export async function POST(req: Request) {
   if (!label) return Response.json({ error: "Label wajib diisi" }, { status: 400 });
   if (label.length > 50) return Response.json({ error: "Label maksimal 50 karakter" }, { status: 400 });
 
-  const deviceId = uuidv7();
-  // Nama session OpenWA harus unik & hanya [a-zA-Z0-9-], 3–50 karakter.
-  const sessionName = `wavio-${deviceId.replace(/-/g, "").slice(0, 12)}`;
-
   try {
-    const owa = await openwa.createSession(sessionName);
-
-    // Daftarkan webhook OpenWA → event (message.received, session.status) untuk
-    // session ini dikirim ke ingest Wavio. Secret diturunkan deterministik per
-    // session (openwaWebhookSecret) — tidak perlu disimpan. Gagal mendaftar →
-    // hapus session (hindari orphan) + 502: device tanpa webhook tidak berguna.
-    let openwaWebhookId: string | null = null;
-    try {
-      const wh = await openwa.registerWebhook(owa.id, {
-        url: openwaWebhookUrl(),
-        events: ["message.received", "session.status"],
-        secret: await openwaWebhookSecret(owa.id),
-        retryCount: 3,
-      });
-      openwaWebhookId = wh.id;
-    } catch (whErr) {
-      await openwa.deleteSession(owa.id).catch(() => {});
-      throw whErr;
-    }
-
-    const now = new Date().toISOString();
-    try {
-      await query(
-        'INSERT INTO "Device" (id, "tenantId", label, "openwaSessionId", "openwaWebhookId", status, "createdAt", "updatedAt") ' +
-          "VALUES ($1, $2, $3, $4, $5, $6, $7, $7)",
-        [deviceId, tenantId, label, owa.id, openwaWebhookId, owa.status, now],
-      );
-    } catch (dbErr) {
-      // Neon INSERT gagal → bersihkan registrasi OpenWA (session + webhook)
-      // agar tidak ada orphan. Best-effort.
-      if (openwaWebhookId) {
-        await openwa.deleteWebhook(owa.id, openwaWebhookId).catch(() => {});
-      }
-      await openwa.deleteSession(owa.id).catch(() => {});
-      throw dbErr;
-    }
-    await cloneDeviceToD1({
-      id: deviceId,
-      tenantId,
-      label,
-      openwaSessionId: owa.id,
-      openwaWebhookId,
-      phone: null,
-      status: owa.status,
-      createdAt: now,
-      updatedAt: now,
-    }).catch((e) => console.error("devices: clone D1 gagal:", e));
-    await deleteCachedDeviceList(tenantId);
+    const created = await createDeviceAndStart(label, tenantId);
     return Response.json(
       {
         device: {
-          id: deviceId,
+          id: created.id,
           tenantId,
           label,
-          openwaSessionId: owa.id,
+          openwaSessionId: created.openwaSessionId,
           phone: null,
-          status: owa.status,
+          status: created.status,
         },
       },
       { status: 201 },
     );
   } catch (e) {
     if (e instanceof OpenwaError) {
-      return Response.json({ error: `OpenWA: ${e.message}` }, { status: 502 });
+      // Pesan publik generik — detail (status/message/host) hanya di log internal.
+      return Response.json({ error: publicOpenwaError(e, "devices buat") }, { status: 502 });
     }
     return Response.json({ error: "Gagal membuat device" }, { status: 500 });
   }
