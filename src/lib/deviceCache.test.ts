@@ -6,6 +6,8 @@ import {
   getCachedDeviceList,
   setCachedDeviceList,
   deleteCachedDeviceList,
+  shouldReconcileWebhook,
+  WEBHOOK_RECONCILE_COOLDOWN_MS,
   DEVICE_STATUS_TTL_MS,
   DEVICE_LIST_TTL_MS,
   type DeviceCacheValue,
@@ -37,6 +39,7 @@ const device: DeviceCacheValue = {
   label: "HP Kasir",
   openwaSessionId: "owa-1",
   phone: "62812",
+  restriction: null,
   status: "ready",
   createdAt: "2026-08-17T00:00:00.000Z",
   updatedAt: "2026-08-17T00:00:00.000Z",
@@ -93,5 +96,29 @@ describe("deviceCache", () => {
   it("list: terisolasi per tenant (dev-1 di tenant-2 tidak ketemu)", async () => {
     await setCachedDevice(device);
     expect(await getCachedDeviceList("tenant-2")).toBeNull();
+  });
+
+  describe("shouldReconcileWebhook (cooldown)", () => {
+    it("pertama kali → true (izinkan)", async () => {
+      expect(await shouldReconcileWebhook("dev-1")).toBe(true);
+    });
+
+    it("dalam cooldown → false", async () => {
+      expect(await shouldReconcileWebhook("dev-1")).toBe(true);
+      expect(await shouldReconcileWebhook("dev-1")).toBe(false);
+    });
+
+    it("setelah cooldown lewat → true lagi", async () => {
+      vi.useFakeTimers();
+      expect(await shouldReconcileWebhook("dev-1")).toBe(true);
+      vi.advanceTimersByTime(WEBHOOK_RECONCILE_COOLDOWN_MS + 100);
+      expect(await shouldReconcileWebhook("dev-1")).toBe(true);
+      vi.useRealTimers();
+    });
+
+    it("terisolasi per device", async () => {
+      expect(await shouldReconcileWebhook("dev-1")).toBe(true);
+      expect(await shouldReconcileWebhook("dev-2")).toBe(true);
+    });
   });
 });

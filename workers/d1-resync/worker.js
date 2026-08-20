@@ -70,10 +70,10 @@ const TABLE_SPECS = [
     neonTable: "Device",
     d1Table: "Device",
     neonColumns:
-      'id, "tenantId", label, "openwaSessionId", "openwaWebhookId", phone, status, "createdAt", "updatedAt"',
+      'id, "tenantId", label, "openwaSessionId", "openwaWebhookId", phone, status, restriction, "createdAt", "updatedAt"',
     d1Columns:
-      "(id, tenantId, label, openwaSessionId, openwaWebhookId, phone, status, createdAt, updatedAt)",
-    d1Values: "(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "(id, tenantId, label, openwaSessionId, openwaWebhookId, phone, status, restriction, createdAt, updatedAt)",
+    d1Values: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     map: (d) => [
       d.id,
       d.tenantId,
@@ -82,6 +82,7 @@ const TABLE_SPECS = [
       d.openwaWebhookId,
       d.phone,
       d.status,
+      d.restriction ?? null,
       iso(d.createdAt),
       iso(d.updatedAt),
     ],
@@ -91,15 +92,16 @@ const TABLE_SPECS = [
     neonTable: "Webhook",
     d1Table: "Webhook",
     neonColumns:
-      'id, "tenantId", url, secret, events, active, "createdAt", "updatedAt"',
-    d1Columns: "(id, tenantId, url, secret, events, active, createdAt, updatedAt)",
-    d1Values: "(?, ?, ?, ?, ?, ?, ?, ?)",
+      'id, "tenantId", url, secret, events, filters, active, "createdAt", "updatedAt"',
+    d1Columns: "(id, tenantId, url, secret, events, filters, active, createdAt, updatedAt)",
+    d1Values: "(?, ?, ?, ?, ?, ?, ?, ?, ?)",
     map: (w) => [
       w.id,
       w.tenantId,
       w.url,
       w.secret,
       w.events,
+      w.filters ?? '{"conditions":[]}',
       w.active ? 1 : 0,
       iso(w.createdAt),
       iso(w.updatedAt),

@@ -6,6 +6,7 @@ Dashboard + API gateway WhatsApp multi-tenant berbasis **OpenWA**. Produk mandir
 - **Workers dev fallback:** https://wavio.xolution.workers.dev
 - **Spec & plan:** `NalaNiaga/docs/superpowers/specs/2026-08-17-wa-gateway-saas-design.md` · `NalaNiaga/docs/superpowers/plans/2026-08-17-wavio-fase-0-1.md`
 - **Spec & plan (Fase 4 — integrasi NalaNiaga):** `NalaNiaga/docs/superpowers/specs/2026-08-18-wavio-gateway-sso-design.md` · `NalaNiaga/docs/superpowers/plans/2026-08-18-wavio-gateway-sso.md`
+- **Deploy OpenWA (v0.22.0):** [`docs/openwa-deploy.md`](docs/openwa-deploy.md)
 
 ## Arsitektur (aktual)
 
@@ -18,7 +19,7 @@ Browser ──► Cloudflare Workers (OpenNext Next.js 16)  ──► Neon Postg
 
 - **Runtime DB:** raw SQL via `@neondatabase/serverless` (`src/lib/db.ts`). Prisma **tidak** berjalan di Worker (bundle > 3 MiB free tier). Prisma dipakai hanya untuk schema → generate DDL.
 - **ID:** UUID v7 dibangkitkan aplikasi (`src/lib/uuidv7.ts`) — `@default(uuid(7))` Prisma tidak diterapkan oleh raw SQL.
-- **OpenWA:** hanya dicapai via hostname tunnel (`owa.nalaniaga.id`) — Worker memblokir fetch IP mentah (error 1003).
+- **OpenWA (v0.22.0):** hanya dicapai via hostname tunnel (`owa.nalaniaga.id`) — Worker memblokir fetch IP mentah (error 1003), dan port `2785` di VPS terikat `127.0.0.1` + tertutup firewall sehingga tidak bisa diakses via IP mentah. Detail deploy, upgrade, dan modifikasi compose lokal: [`docs/openwa-deploy.md`](docs/openwa-deploy.md).
 - **Isolasi tenant:** semua query device di-scope `tenantId`; admin key OpenWA internal-only.
 
 ## Stack
@@ -44,6 +45,19 @@ npm run dev            # http://localhost:3000
 | `npm run db:seed` | Seed demo ke Neon |
 | `npm run deploy` | Build + deploy ke Cloudflare Workers (OpenNext) |
 | `npm run cf-typegen` | Generate `cloudflare-env.d.ts` |
+
+## API publik (v1)
+
+| Endpoint | Fungsi |
+|---|---|
+| `POST /v1/messages` | Kirim teks/media — dukung `mentions` (@ di grup) & `replyTo` (balasan) |
+| `POST /v1/messages/send-template` | Kirim template tersimpan dengan `vars` |
+| `POST`/`DELETE /v1/contacts/:number/block` | Blokir / buka blokir kontak |
+| `POST /v1/chats/read` | Tandai chat/pesan dibaca |
+| `GET /v1/contacts/check/:number` | Cek nomor terdaftar WhatsApp |
+| `GET /v1/groups` | Daftar grup device |
+
+Referensi lengkap: `src/app/docs/api/page.tsx` (halaman `/docs/api`).
 
 ## Integrasi NalaNiaga (Fase 4 — gateway SSO)
 

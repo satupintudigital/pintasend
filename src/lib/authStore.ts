@@ -279,10 +279,12 @@ export async function revokeApiKey(id: string, tenantId: string): Promise<Revoke
 
 // Verifikasi API key untuk akses API publik — baca D1 (0 koneksi Neon).
 // Mencocokkan hash SHA-256 key yang masuk; key yang di-revoke ditolak.
+// Mengembalikan tenantId + keyId — keyId dipakai rate limit per API key
+// (bukan per tenant+IP) di jalur kirim v1/messages.
 // lastUsedAt di-update di D1 best-effort (fire-and-forget, 0 Neon). Catatan:
 // re-sync job (Neon → D1) akan mereset lastUsedAt ke NULL karena Neon adalah
 // source of truth untuk kolom ini — metadata tampilan, bukan data kritis.
-export async function verifyApiKey(raw: string): Promise<{ tenantId: string } | null> {
+export async function verifyApiKey(raw: string): Promise<{ tenantId: string; keyId: string } | null> {
   if (!raw.startsWith(API_KEY_PREFIX)) return null;
   const keyHash = await hashApiKey(raw);
   const row = await queryD1One<{
@@ -304,7 +306,7 @@ export async function verifyApiKey(raw: string): Promise<{ tenantId: string } | 
     new Date().toISOString(),
     row.id,
   ]).catch((e) => console.error("authStore: update lastUsedAt D1 gagal:", e));
-  return { tenantId: row.tenantId };
+  return { tenantId: row.tenantId, keyId: row.id };
 }
 
 export interface UpdatePasswordResult {

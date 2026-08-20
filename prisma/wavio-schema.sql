@@ -32,6 +32,7 @@ CREATE TABLE "Device" (
     "openwaSessionId" TEXT NOT NULL,
     "openwaWebhookId" TEXT,
     "phone" TEXT,
+    "restriction" TEXT,
     "status" TEXT NOT NULL DEFAULT 'created',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -81,6 +82,7 @@ CREATE TABLE "Webhook" (
     "url" TEXT NOT NULL,
     "secret" TEXT NOT NULL,
     "events" TEXT NOT NULL DEFAULT '["message.received","session.status"]',
+    "filters" TEXT NOT NULL DEFAULT '{"conditions":[]}',
     "active" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -109,6 +111,7 @@ CREATE TABLE "MessageLog" (
     "mediaUrl" TEXT,
     "mimetype" TEXT,
     "mediaKey" TEXT,
+    "reaction" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "MessageLog_pkey" PRIMARY KEY ("id")

@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { openwa, OpenwaError } from "@/lib/openwa";
-import { getDeviceForTenant } from "@/lib/devices";
+import { openwa, OpenwaError, publicOpenwaError } from "@/lib/openwa";
+import { ensureDeviceWebhookEvents, getDeviceForTenant } from "@/lib/devices";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { deleteCachedDeviceList } from "@/lib/deviceCache";
 
@@ -18,6 +18,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const device = await getDeviceForTenant(id, tenantId);
   if (!device) return Response.json({ error: "Device tidak ditemukan" }, { status: 404 });
 
+  // Rekonsiliasi webhook (device lama → ack delivery aktif) — best-effort.
+  const reconcile = await ensureDeviceWebhookEvents(device);
+  if (reconcile.error) console.error("devices start: webhook reconcile gagal:", reconcile.error);
+
   try {
     const owa = await openwa.startSession(device.openwaSessionId);
     await query('UPDATE "Device" SET status = $1, "updatedAt" = now() WHERE id = $2', [
@@ -28,7 +32,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return Response.json({ status: owa.status });
   } catch (e) {
     if (e instanceof OpenwaError) {
-      return Response.json({ error: `OpenWA: ${e.message}` }, { status: 502 });
+      return Response.json({ error: publicOpenwaError(e, "devices start") }, { status: 502 });
     }
     return Response.json({ error: "Gagal memulai device" }, { status: 500 });
   }

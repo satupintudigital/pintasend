@@ -17,6 +17,7 @@ export interface WebhookView {
   tenantId: string;
   url: string;
   events: string[];
+  filters: WebhookFilters | null;
   active: boolean;
   secretMasked: string;
   hasSecret: boolean;
@@ -24,10 +25,101 @@ export interface WebhookView {
   updatedAt: string;
 }
 
+type WebhookFilters = {
+  conditions: Array<{
+    field: string;
+    operator: string;
+    value: string | string[] | boolean;
+    caseSensitive?: boolean;
+  }>;
+};
+
 const EVENT_OPTIONS = [
   { value: "message.received", label: "message.received", desc: "Pesan masuk dari pelanggan" },
   { value: "session.status", label: "session.status", desc: "Perubahan status device (ready, disconnected, …)" },
+  { value: "message.ack", label: "message.ack", desc: "Status kirim pesan keluar (delivered / read)" },
+  { value: "message.failed", label: "message.failed", desc: "Pesan keluar gagal terkirim" },
+  { value: "message.edited", label: "message.edited", desc: "Pesan diedit (masuk atau keluar)" },
+  { value: "message.reaction", label: "message.reaction", desc: "Reaksi emoji pada sebuah pesan" },
+  { value: "session.restriction", label: "session.restriction", desc: "Akun dibatasi WhatsApp (time-lock / TOS block)" },
+  { value: "message.sent", label: "message.sent", desc: "Pesan keluar berhasil terkirim dari device" },
+  { value: "message.revoked", label: "message.revoked", desc: "Pesan dihapus/ditarik (unsend)" },
 ];
+
+// ── Smart filters editor (mirror src/lib/webhookFilters.ts) ────────────────
+type FilterFieldKind = "id" | "text" | "enum" | "boolean";
+
+const FILTER_FIELDS: { field: string; label: string; kind: FilterFieldKind }[] = [
+  { field: "sender", label: "Pengirim (sender)", kind: "id" },
+  { field: "recipient", label: "Penerima (recipient)", kind: "id" },
+  { field: "body", label: "Isi pesan (body)", kind: "text" },
+  { field: "type", label: "Tipe pesan (type)", kind: "enum" },
+  { field: "isGroup", label: "Pesan grup (isGroup)", kind: "boolean" },
+  { field: "fromMe", label: "Dari nomormu (fromMe)", kind: "boolean" },
+  { field: "hasMedia", label: "Punya media (hasMedia)", kind: "boolean" },
+];
+
+const OPERATORS_BY_KIND: Record<FilterFieldKind, { value: string; label: string }[]> = {
+  id: [
+    { value: "is", label: "adalah" },
+    { value: "isNot", label: "bukan" },
+  ],
+  text: [
+    { value: "contains", label: "mengandung" },
+    { value: "equals", label: "sama persis dengan" },
+  ],
+  enum: [
+    { value: "is", label: "adalah" },
+    { value: "isNot", label: "bukan" },
+  ],
+  boolean: [{ value: "is", label: "adalah" }],
+};
+
+const MESSAGE_TYPES = [
+  "text", "image", "video", "audio", "voice", "document", "sticker", "location", "contact", "poll",
+  "call", "revoked", "masked", "unknown",
+];
+
+interface ConditionDraft {
+  field: string;
+  operator: string;
+  value: string; // boolean disimpan sbg "true"/"false"; id/enum koma-separated
+  caseSensitive: boolean;
+}
+
+function kindOf(field: string): FilterFieldKind {
+  return FILTER_FIELDS.find((f) => f.field === field)?.kind ?? "text";
+}
+
+function toDraft(filters: WebhookFilters | null): ConditionDraft[] {
+  if (!filters?.conditions?.length) return [];
+  return filters.conditions.map((c) => {
+    const value = Array.isArray(c.value)
+      ? c.value.join(", ")
+      : typeof c.value === "boolean"
+        ? String(c.value)
+        : String(c.value ?? "");
+    return { field: c.field, operator: c.operator, value, caseSensitive: c.caseSensitive ?? false };
+  });
+}
+
+function buildFilters(conds: ConditionDraft[]): WebhookFilters | null {
+  const conditions = conds
+    .filter((c) => c.field)
+    .map((c) => {
+      const kind = kindOf(c.field);
+      if (kind === "boolean") return { field: c.field, operator: "is", value: c.value === "true" };
+      if (kind === "id" || kind === "enum") {
+        return {
+          field: c.field,
+          operator: c.operator,
+          value: c.value.split(",").map((s) => s.trim()).filter(Boolean),
+        };
+      }
+      return { field: c.field, operator: c.operator, value: c.value, caseSensitive: c.caseSensitive };
+    });
+  return conditions.length > 0 ? { conditions } : null;
+}
 
 const fieldClass =
   "min-h-12 w-full rounded-xl border border-line bg-ink-2 px-4 py-3 text-base text-fg placeholder:text-fg-faint transition-colors focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30";
@@ -41,6 +133,7 @@ export function WebhookPanel() {
 
   const [url, setUrl] = useState("");
   const [events, setEvents] = useState<string[]>([...EVENT_OPTIONS.map((o) => o.value)]);
+  const [conditions, setConditions] = useState<ConditionDraft[]>([]);
   const [secret, setSecret] = useState(""); // kosong = pertahankan / generate
   const [active, setActive] = useState(true);
   const [hasConfig, setHasConfig] = useState(false);
@@ -56,6 +149,7 @@ export function WebhookPanel() {
       if (wh) {
         setUrl(wh.url);
         setEvents(wh.events);
+        setConditions(toDraft(wh.filters ?? null));
         setActive(wh.active);
         setHasConfig(true);
         setSecretMasked(wh.secretMasked);
@@ -82,6 +176,18 @@ export function WebhookPanel() {
     );
   }
 
+  function addCondition() {
+    setConditions((prev) => [...prev, { field: "sender", operator: "is", value: "", caseSensitive: false }]);
+  }
+
+  function updateCondition(index: number, patch: Partial<ConditionDraft>) {
+    setConditions((prev) => prev.map((c, i) => (i === index ? { ...c, ...patch } : c)));
+  }
+
+  function removeCondition(index: number) {
+    setConditions((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function onSave(regenerateSecret = false) {
     if (!url.trim() || events.length === 0 || saving) return;
     setSaving(true);
@@ -95,6 +201,7 @@ export function WebhookPanel() {
         body: JSON.stringify({
           url: url.trim(),
           events,
+          filters: buildFilters(conditions),
           active,
           secret: regenerateSecret ? "__REGENERATE__" : secret,
         }),
@@ -138,6 +245,7 @@ export function WebhookPanel() {
       }
       setUrl("");
       setEvents(EVENT_OPTIONS.map((o) => o.value));
+      setConditions([]);
       setActive(true);
       setHasConfig(false);
       setSecretMasked("");
@@ -244,6 +352,120 @@ export function WebhookPanel() {
                   </label>
                 ))}
               </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="mb-1.5 flex items-center justify-between">
+                <p className="text-sm font-medium text-fg">Smart filters (opsional)</p>
+                <button
+                  type="button"
+                  onClick={addCondition}
+                  className="rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-fg-muted transition-colors hover:border-accent/40 hover:text-accent-bright"
+                >
+                  + Tambah kondisi
+                </button>
+              </div>
+              <p className="mb-2.5 text-xs text-fg-faint">
+                Hanya teruskan <code className="font-mono">message.received</code> /{" "}
+                <code className="font-mono">message.edited</code> yang cocok. Semua kondisi
+                digabung <strong>AND</strong>; kosong = semua event diteruskan.
+              </p>
+
+              {conditions.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-line px-4 py-4 text-center text-xs text-fg-faint">
+                  Belum ada filter — semua event akan diteruskan.
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {conditions.map((c, i) => {
+                    const kind = kindOf(c.field);
+                    const operators = OPERATORS_BY_KIND[kind];
+                    return (
+                      <div key={i} className="rounded-xl border border-line bg-ink-2/50 p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select
+                            value={c.field}
+                            onChange={(e) =>
+                              updateCondition(i, {
+                                field: e.target.value,
+                                operator: OPERATORS_BY_KIND[kindOf(e.target.value)][0].value,
+                              })
+                            }
+                            className="min-h-10 flex-1 rounded-lg border border-line bg-ink-2 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
+                          >
+                            {FILTER_FIELDS.map((f) => (
+                              <option key={f.field} value={f.field}>
+                                {f.label}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={c.operator}
+                            onChange={(e) => updateCondition(i, { operator: e.target.value })}
+                            className="min-h-10 w-36 rounded-lg border border-line bg-ink-2 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
+                          >
+                            {operators.map((op) => (
+                              <option key={op.value} value={op.value}>
+                                {op.label}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => removeCondition(i)}
+                            className="rounded-lg border border-line p-2 text-fg-muted transition-colors hover:border-red-500/40 hover:text-red-400"
+                            aria-label="Hapus kondisi"
+                          >
+                            <Trash size={15} />
+                          </button>
+                        </div>
+
+                        <div className="mt-2">
+                          {kind === "boolean" ? (
+                            <select
+                              value={c.value || "false"}
+                              onChange={(e) => updateCondition(i, { value: e.target.value })}
+                              className="min-h-10 w-full rounded-lg border border-line bg-ink-2 px-3 py-2 text-sm text-fg focus:border-accent focus:outline-none"
+                            >
+                              <option value="true">true</option>
+                              <option value="false">false</option>
+                            </select>
+                          ) : (
+                            <input
+                              value={c.value}
+                              onChange={(e) => updateCondition(i, { value: e.target.value })}
+                              className="min-h-10 w-full rounded-lg border border-line bg-ink-2 px-3 py-2 text-sm text-fg placeholder:text-fg-faint focus:border-accent focus:outline-none"
+                              placeholder={
+                                kind === "enum"
+                                  ? `mis. ${MESSAGE_TYPES.slice(0, 3).join(", ")}…`
+                                  : kind === "id"
+                                    ? "mis. 62812…, 62813…"
+                                    : "teks yang dicari…"
+                              }
+                            />
+                          )}
+                          {kind === "text" && (
+                            <label className="mt-2 flex items-center gap-2 text-xs text-fg-muted">
+                              <input
+                                type="checkbox"
+                                checked={c.caseSensitive}
+                                onChange={(e) => updateCondition(i, { caseSensitive: e.target.checked })}
+                                className="h-3.5 w-3.5 accent-[var(--color-accent)]"
+                              />
+                              Case-sensitive
+                            </label>
+                          )}
+                          {kind === "enum" && (
+                            <p className="mt-1.5 text-xs text-fg-faint">
+                              Pisahkan dengan koma. Pilihan: {MESSAGE_TYPES.join(", ")}.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="mt-5">

@@ -21,8 +21,41 @@ interface Device {
   label: string;
   openwaSessionId: string;
   phone: string | null;
+  restriction: string | null;
   status: string;
   createdAt: string;
+}
+
+interface RestrictionInfo {
+  kind: string;
+  code: string;
+  expiresAt: string | null;
+  label: string;
+}
+
+function restrictionInfo(raw: string | null): RestrictionInfo | null {
+  if (!raw) return null;
+  try {
+    const o = JSON.parse(raw) as { kind?: unknown; code?: unknown; expiresAt?: unknown };
+    if (!o || typeof o.kind !== "string" || !o.kind) return null;
+    const kind = o.kind;
+    const label =
+      kind === "reachout_timelock"
+        ? "Time-lock jangkauan"
+        : kind === "tos_block"
+          ? "Blokir ToS WhatsApp"
+          : kind === "proxy_block"
+            ? "Proxy diblokir"
+            : kind;
+    return {
+      kind,
+      code: typeof o.code === "string" ? o.code : "",
+      expiresAt: typeof o.expiresAt === "string" ? o.expiresAt : null,
+      label,
+    };
+  } catch {
+    return null;
+  }
 }
 
 type AddState =
@@ -324,6 +357,7 @@ export default function DevicesPage() {
               {devices.map((d) => {
                 const info = statusInfo(d.status);
                 const isReady = d.status === "ready";
+                const restriction = restrictionInfo(d.restriction);
                 return (
                   <Spotlight
                     key={d.id}
@@ -346,6 +380,23 @@ export default function DevicesPage() {
                         {info.label}
                       </span>
                     </div>
+
+                    {restriction && (
+                      <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                        <Warning size={15} className="mt-0.5 shrink-0" weight="fill" />
+                        <div className="min-w-0">
+                          <p className="font-medium">
+                            {restriction.label}
+                            {restriction.code ? <span className="bk-tabular font-mono text-red-400/80"> · {restriction.code}</span> : null}
+                          </p>
+                          {restriction.expiresAt && (
+                            <p className="bk-tabular mt-0.5 font-mono text-red-400/70">
+                              Sampai {formatDate(restriction.expiresAt)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {isReady ? (
                       <div className="bk-tabular mt-4 flex items-center gap-2 rounded-xl border border-emerald-500/15 bg-emerald-500/5 px-3 py-2 font-mono text-sm text-emerald-300">

@@ -1,13 +1,20 @@
 import { auth } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { openwa, OpenwaError } from "@/lib/openwa";
-import { cloneDeviceToD1, deleteDeviceFromD1, getDeviceForTenant } from "@/lib/devices";
+import { openwa, OpenwaError, publicOpenwaError } from "@/lib/openwa";
+import {
+  cloneDeviceToD1,
+  deleteDeviceFromD1,
+  ensureDeviceWebhookEvents,
+  getDeviceForTenant,
+  openwaRestrictionToJson,
+} from "@/lib/devices";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import {
   getCachedDevice,
   setCachedDevice,
   deleteCachedDevice,
   deleteCachedDeviceList,
+  shouldReconcileWebhook,
 } from "@/lib/deviceCache";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -27,15 +34,27 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const device = await getDeviceForTenant(id, tenantId);
   if (!device) return Response.json({ error: "Device tidak ditemukan" }, { status: 404 });
 
+  // 2b. Rekonsiliasi webhook OpenWA (device lama → ack delivery aktif), dibatasi
+  //     cooldown 5 menit & best-effort — tidak boleh menggagalkan polling status.
+  try {
+    if (await shouldReconcileWebhook(device.id)) {
+      const r = await ensureDeviceWebhookEvents(device);
+      if (r.error) console.error("devices: webhook reconcile gagal:", r.error);
+    }
+  } catch (e) {
+    console.error("devices: webhook reconcile guard gagal:", e);
+  }
+
   try {
     const owa = await openwa.getSession(device.openwaSessionId);
     const newStatus = owa.status;
     const newPhone = owa.phone ?? device.phone;
+    const newRestriction = openwaRestrictionToJson(owa.restriction);
     await query(
-      'UPDATE "Device" SET status = $1, phone = $2, "updatedAt" = now() WHERE id = $3',
-      [newStatus, newPhone, id],
+      'UPDATE "Device" SET status = $1, phone = $2, restriction = $3, "updatedAt" = now() WHERE id = $4',
+      [newStatus, newPhone, newRestriction, id],
     );
-    const refreshed = { ...device, status: newStatus, phone: newPhone };
+    const refreshed = { ...device, status: newStatus, phone: newPhone, restriction: newRestriction };
     await setCachedDevice(refreshed);
     await cloneDeviceToD1(refreshed).catch((e) =>
       console.error("devices: clone D1 gagal:", e),
@@ -54,7 +73,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       return Response.json({ device: { ...device, status: "disconnected", phone: null } });
     }
     if (e instanceof OpenwaError) {
-      return Response.json({ error: `OpenWA: ${e.message}` }, { status: 502 });
+      return Response.json({ error: publicOpenwaError(e, "devices status") }, { status: 502 });
     }
     return Response.json({ error: "Gagal mengambil status device" }, { status: 500 });
   }

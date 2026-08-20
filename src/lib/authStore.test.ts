@@ -38,11 +38,11 @@ describe("verifyApiKey — gate suspend", () => {
     expect(sql.toLowerCase()).toContain("keyhash");
   });
 
-  it("mengizinkan key tenant aktif", async () => {
+  it("mengizinkan key tenant aktif & mengembalikan keyId (utk rate limit per key)", async () => {
     const raw = `${API_KEY_PREFIX}${"b".repeat(48)}`;
     await seedD1([{ id: "k2", tenantId: "t1", revokedAt: null, suspendedAt: null }]);
     const result = await verifyApiKey(raw);
-    expect(result).toEqual({ tenantId: "t1" });
+    expect(result).toEqual({ tenantId: "t1", keyId: "k2" });
   });
 
   it("menolak key yang dicabut (revoked) walau tenant aktif", async () => {

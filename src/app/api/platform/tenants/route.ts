@@ -4,6 +4,7 @@ import {
   EmailAlreadyExistsError,
 } from "@/lib/authStore";
 import { listTenants } from "@/lib/platform";
+import { sendWelcomeEmail } from "@/lib/email";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
 
@@ -91,6 +92,9 @@ export async function POST(req: Request) {
       name,
       passwordHash,
     });
+    // Email welcome (never-throw helper) — kegagalan kirim tidak menggagalkan
+    // provisioning; tanpa RESEND_API_KEY otomatis di-skip.
+    await sendWelcomeEmail({ email, name });
     return Response.json({ id, tenantId }, { status: 201 });
   } catch (e) {
     if (e instanceof EmailAlreadyExistsError) {

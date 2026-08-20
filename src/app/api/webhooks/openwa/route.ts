@@ -9,24 +9,46 @@
 //   3. Lookup device by openwaSessionId (baca D1 = 0 Neon; fallback Neon + clone D1).
 //   4. Baca konfigurasi webhook tenant (D1). Jika tidak ada / nonaktif / event
 //      tidak disubscribe → ack 200 (OpenWA tidak perlu retry).
-//   5. Teruskan event ke URL milik client (envelope Wavio + x-wavio-signature)
-//      SECARA SINKRON dengan timeout 5 dtk. (Catatan: after() dari next/server
-//      tidak dieksekusi di runtime OpenNext Cloudflare — diverifikasi live.
-//      Sinkron = andal; risiko: endpoint client yang lambat membuat OpenWA
-//      timeout & retry → event duplikat. Diterima utk MVP.)
+//   5. Tulis event ke OUTBOX (WebhookDelivery, status pending) lalu coba
+//      deliver SEKALI secara sinkron (timeout 5 dtk). Gagal → baris tetap
+//      pending + nextAttemptAt = backoff; worker cron (workers/webhook-delivery)
+//      menuntaskan retry (+30s, +5m, lalu dead-letter). Selalu balas 2xx agar
+//      OpenWA tidak retry (retry OpenWA = event duplikat — retry ditangani
+//      outbox). Detail: src/lib/webhookDelivery.ts.
 //
 // Selalu balas 2xx setelah verifikasi lolos agar OpenWA tidak retry duplicate;
 // OpenWA sendiri sudah retry (retryCount=3) ke endpoint ini bila request masuk
 // gagal/5xx.
+//
+// X-Request-Id: dipakai dari header masuk (valid) atau generate uuidv7; diecho
+// di header respons & dipakai sebagai korelasi semua log event request (lihat
+// src/lib/requestLogger.ts). Log terstruktur (JSON per baris) memudahkan tracing
+// event per request di agregator log.
 
 import { openwaWebhookSecret } from "@/lib/openwa";
 import { hmacSha256Hex, verifySignature } from "@/lib/hmac";
 import { changesD1, queryD1One } from "@/lib/d1";
-import { cloneDeviceToD1, getDeviceBySessionId } from "@/lib/devices";
+import { query } from "@/lib/db";
+import { cloneDeviceToD1, getDeviceBySessionId, openwaRestrictionToJson } from "@/lib/devices";
 import { getWebhookForTenant } from "@/lib/webhookStore";
+import { evaluateFilters } from "@/lib/webhookFilters";
 import { isSafeWebhookUrl } from "@/lib/ssrf";
 import { deleteCachedDevice, deleteCachedDeviceList } from "@/lib/deviceCache";
-import { insertMessageLog } from "@/lib/messageStore";
+import {
+  insertMessageLog,
+  isMessageDeliveryStatus,
+  mergeMessageReaction,
+  setMessageReactions,
+  updateMessageDeliveryStatus,
+} from "@/lib/messageStore";
+import { getRequestId, logEvent } from "@/lib/requestLogger";
+import {
+  deliverWebhookOnce,
+  enqueueWebhookDelivery,
+  markWebhookDelivery,
+  nextRetryDelayMs,
+  DELIVERY_MAX_ATTEMPTS,
+} from "@/lib/webhookDelivery";
 
 interface DeviceD1Row {
   id: string;
@@ -38,9 +60,17 @@ interface DeviceD1Row {
 }
 
 export async function POST(req: Request) {
+  const requestId = getRequestId(req);
+
   // Raw body WAJIB dipertahankan untuk verifikasi HMAC (jangan re-parse/reserialize).
   const raw = await req.text();
-  if (!raw) return Response.json({ ok: false, error: "empty body" }, { status: 400 });
+  if (!raw) {
+    logEvent("warn", "webhook_invalid_body", requestId, { reason: "empty body" });
+    return Response.json(
+      { ok: false, error: "empty body" },
+      { status: 400, headers: { "x-request-id": requestId } },
+    );
+  }
 
   let payload: {
     event?: unknown;
@@ -51,7 +81,11 @@ export async function POST(req: Request) {
   try {
     payload = JSON.parse(raw);
   } catch {
-    return Response.json({ ok: false, error: "invalid json" }, { status: 400 });
+    logEvent("warn", "webhook_invalid_body", requestId, { reason: "invalid json" });
+    return Response.json(
+      { ok: false, error: "invalid json" },
+      { status: 400, headers: { "x-request-id": requestId } },
+    );
   }
 
   // Envelope OpenWA: { event, sessionId, timestamp, data }. Parsing defensif.
@@ -65,7 +99,11 @@ export async function POST(req: Request) {
     (typeof dataObj.event === "string" ? dataObj.event : "") ||
     "";
   if (!sessionId) {
-    return Response.json({ ok: false, error: "sessionId tidak ada" }, { status: 400 });
+    logEvent("warn", "webhook_missing_session", requestId);
+    return Response.json(
+      { ok: false, error: "sessionId tidak ada" },
+      { status: 400, headers: { "x-request-id": requestId } },
+    );
   }
 
   // 1. Verifikasi signature — SEBELUM lookup apa pun. Secret diturunkan dari
@@ -73,7 +111,11 @@ export async function POST(req: Request) {
   const signature = req.headers.get("x-openwa-signature");
   const valid = await verifySignature(await openwaWebhookSecret(sessionId), raw, signature);
   if (!valid) {
-    return Response.json({ ok: false, error: "signature tidak valid" }, { status: 401 });
+    logEvent("warn", "webhook_signature_invalid", requestId, { sessionId });
+    return Response.json(
+      { ok: false, error: "signature tidak valid" },
+      { status: 401, headers: { "x-request-id": requestId } },
+    );
   }
 
   // 2. Lookup device by session — D1 dulu (0 Neon per event), Neon sebagai
@@ -93,14 +135,16 @@ export async function POST(req: Request) {
         openwaWebhookId: dev.openwaWebhookId,
         status: dev.status,
       };
-      await cloneDeviceToD1(dev).catch((e) => console.error("webhook ingest: clone D1 gagal:", e));
+      await cloneDeviceToD1(dev).catch((e) =>
+        logEvent("error", "webhook_clone_failed", requestId, { tenantId: dev.tenantId, detail: String(e) }),
+      );
     }
   }
   if (!device) {
     // Session tidak terdaftar di Wavio — ack diam-diam agar OpenWA tidak retry
     // berulang (log untuk investigasi).
-    console.error("webhook ingest: session tidak dikenal:", sessionId);
-    return Response.json({ ok: true, skipped: "unknown session" });
+    logEvent("error", "webhook_unknown_session", requestId, { sessionId });
+    return Response.json({ ok: true, skipped: "unknown session" }, { headers: { "x-request-id": requestId } });
   }
 
   // 2b. Catat pesan MASUK ke riwayat (best-effort — gagal log tidak menghalangi
@@ -136,16 +180,118 @@ export async function POST(req: Request) {
       mimetype:
         (typeof media.mimetype === "string" ? media.mimetype : "") ||
         (typeof d.mimetype === "string" ? d.mimetype : null),
-    }).catch((e) => console.error("webhook ingest: catat pesan masuk gagal:", e));
+    }).catch((e) => logEvent("error", "webhook_log_failed", requestId, { tenantId: device.tenantId, detail: String(e) }));
+  }
+
+  // 2c. Ack pengiriman: `message.ack` (delivered/read) & `message.failed`
+  //     (failed) memajukan status pesan KELUAR di riwayat. Ditempatkan SEBELUM
+  //     cek konfigurasi webhook agar status riwayat tetap ter-update walau
+  //     tenant belum punya URL forwarding (konsisten dgn pencatatan pesan masuk).
+  //     Envelope OpenWA: data = { id, messageId, status, ack } — status netral
+  //     (delivered/read/failed/sent/pending); hanya 3 yang memajukan status.
+  if (event === "message.ack" || event === "message.failed") {
+    const d = (payload.data ?? {}) as Record<string, unknown>;
+    const ackMessageId =
+      (typeof d.messageId === "string" && d.messageId) ||
+      (typeof d.id === "string" && d.id) ||
+      "";
+    const ackStatus = typeof d.status === "string" ? d.status.toLowerCase() : "";
+    if (ackMessageId && isMessageDeliveryStatus(ackStatus)) {
+      await updateMessageDeliveryStatus(device.tenantId, ackMessageId, ackStatus).catch((e) =>
+        logEvent("error", "webhook_ack_update_failed", requestId, {
+          tenantId: device.tenantId,
+          deviceId: device.id,
+          messageId: ackMessageId,
+          status: ackStatus,
+          detail: String(e),
+        }),
+      );
+    }
+  }
+
+  // 2d. Reaksi pesan: `message.reaction` mencatat reaksi emoji pada pesan ke
+  //     MessageLog.reaction (JSON map senderId→emoji). Snapshot lengkap
+  //     (`reactions`) dipakai bila tersedia; selain itu merge satu sender.
+  if (event === "message.reaction") {
+    const d = (payload.data ?? {}) as Record<string, unknown>;
+    const reactionMessageId =
+      (typeof d.messageId === "string" && d.messageId) ||
+      (typeof d.id === "string" && d.id) ||
+      "";
+    const senderId = typeof d.senderId === "string" ? d.senderId : "";
+    const reaction = typeof d.reaction === "string" ? d.reaction : "";
+    if (reactionMessageId) {
+      const snapshot = d.reactions;
+      const apply = (() => {
+        if (snapshot && typeof snapshot === "object" && !Array.isArray(snapshot)) {
+          const map: Record<string, string> = {};
+          for (const [k, v] of Object.entries(snapshot as Record<string, unknown>)) {
+            if (typeof v === "string" && v.length > 0) map[k] = v;
+          }
+          return setMessageReactions(device.tenantId, reactionMessageId, map);
+        }
+        if (senderId) return mergeMessageReaction(device.tenantId, reactionMessageId, senderId, reaction);
+        return Promise.resolve(false);
+      })();
+      await apply.catch((e) =>
+        logEvent("error", "webhook_reaction_update_failed", requestId, {
+          tenantId: device.tenantId,
+          messageId: reactionMessageId,
+          detail: String(e),
+        }),
+      );
+    }
+  }
+
+  // 2e. Pembatasan akun: `session.restriction` menulis kolom Device.restriction
+  //     (Neon + D1) + invalidasi cache. Ditempatkan SEBELUM cek konfigurasi
+  //     webhook agar status pembatasan tetap tercatat walau tenant belum
+  //     subscribe event ini (konsisten dgn pencatatan pesan masuk / ack / reaksi).
+  //     Data bisa { kind, code, expiresAt } atau dibungkus { restriction: {...} };
+  //     `openwaRestrictionToJson` menormalisasi keduanya (null = pembatasan dicabut).
+  if (event === "session.restriction") {
+    const restrictionJson = openwaRestrictionToJson(payload.data);
+    try {
+      const now = new Date().toISOString();
+      await query('UPDATE "Device" SET restriction = $1, "updatedAt" = now() WHERE id = $2', [
+        restrictionJson,
+        device.id,
+      ]);
+      await changesD1("UPDATE Device SET restriction = ?, updatedAt = ? WHERE id = ?", [
+        restrictionJson,
+        now,
+        device.id,
+      ]);
+      await deleteCachedDevice(device.id).catch(() => {});
+      await deleteCachedDeviceList(device.tenantId).catch(() => {});
+    } catch (e) {
+      logEvent("error", "webhook_restriction_update_failed", requestId, {
+        tenantId: device.tenantId,
+        deviceId: device.id,
+        detail: String(e),
+      });
+    }
   }
 
   // 3. Konfigurasi webhook tenant.
   const wh = await getWebhookForTenant(device.tenantId);
   if (!wh || !wh.active) {
-    return Response.json({ ok: true, skipped: "no webhook configured" });
+    logEvent("info", "webhook_skipped", requestId, {
+      tenantId: device.tenantId,
+      reason: "no webhook configured",
+    });
+    return Response.json({ ok: true, skipped: "no webhook configured" }, { headers: { "x-request-id": requestId } });
   }
   if (event && !wh.events.includes(event)) {
-    return Response.json({ ok: true, skipped: "event not subscribed", event });
+    logEvent("info", "webhook_skipped", requestId, {
+      tenantId: device.tenantId,
+      reason: "event not subscribed",
+      openwaEvent: event,
+    });
+    return Response.json(
+      { ok: true, skipped: "event not subscribed", event },
+      { headers: { "x-request-id": requestId } },
+    );
   }
 
   // 3b. Event session.status → segarkan status device di D1 (best-effort) +
@@ -173,16 +319,38 @@ export async function POST(req: Request) {
         await deleteCachedDevice(device.id).catch(() => {});
         await deleteCachedDeviceList(device.tenantId).catch(() => {});
       } catch (e) {
-        console.error("webhook ingest: update status D1 gagal:", e);
+        logEvent("error", "webhook_status_update_failed", requestId, {
+          tenantId: device.tenantId,
+          deviceId: device.id,
+          detail: String(e),
+        });
       }
     }
+  }
+
+  // 3c. Smart filters (opsional): pre-filter event KONTEN (message.received /
+  //     message.edited) sebelum forwarding. Bila kondisi tidak lolos → skip
+  //     forwarding (tetap 200, OpenWA tidak retry). Event non-konten selalu lolos.
+  if (!evaluateFilters(wh.filters, event, (payload.data ?? {}) as Record<string, unknown>)) {
+    logEvent("info", "webhook_skipped", requestId, {
+      tenantId: device.tenantId,
+      reason: "filtered by smart filters",
+      openwaEvent: event,
+    });
+    return Response.json(
+      { ok: true, skipped: "filtered", event },
+      { headers: { "x-request-id": requestId } },
+    );
   }
 
   // 4. Envelope delivery ke client + tanda tangan. SSRF guard (defense-in-depth;
   //    admin PUT sudah memvalidasi saat simpan, tapi konfigurasi bisa basi).
   if (!isSafeWebhookUrl(wh.url)) {
-    console.error("webhook ingest: URL client tidak aman (SSRF guard):", wh.url);
-    return Response.json({ ok: true, skipped: "unsafe url" });
+    logEvent("error", "webhook_skipped", requestId, {
+      tenantId: device.tenantId,
+      reason: "unsafe url",
+    });
+    return Response.json({ ok: true, skipped: "unsafe url" }, { headers: { "x-request-id": requestId } });
   }
   const envelope = {
     event,
@@ -195,36 +363,80 @@ export async function POST(req: Request) {
   const body = JSON.stringify(envelope);
   const clientSig = `sha256=${await hmacSha256Hex(wh.secret, body)}`;
 
-  // 5. Forward ke client (sinkron, timeout 5 dtk).
-  const result = await deliverWebhook(wh.url, body, clientSig, event);
-  if (!result.ok) {
-    console.error(`webhook ingest: delivery ke ${wh.url} gagal (HTTP ${result.status})`);
+  // 5. OUTBOX: tulis baris pending dulu (durable), lalu coba deliver SEKALI.
+  //    - INSERT ke Neon cepat & tidak bergantung pada ketersediaan client.
+  //    - Attempt pertama sinkron (timeout 5 dtk) → latency rendah utk kasus normal.
+  //    - Gagal → baris tetap pending + nextAttemptAt = backoff; worker cron
+  //      (workers/webhook-delivery) mengambil alih retry sampai MAX_ATTEMPTS.
+  //    - Selalu balas 2xx setelah INSERT sukses agar OpenWA TIDAK retry
+  //      (retry OpenWA = event duplikat; retry sudah ditangani outbox).
+  let deliveryId: string | null = null;
+  try {
+    deliveryId = await enqueueWebhookDelivery({
+      tenantId: device.tenantId,
+      webhookId: wh.id,
+      event,
+      url: wh.url,
+      payload: body,
+      signature: clientSig,
+    });
+  } catch (e) {
+    logEvent("error", "webhook_enqueue_failed", requestId, {
+      tenantId: device.tenantId,
+      detail: String(e),
+    });
+    return Response.json(
+      { ok: false, error: "enqueue gagal" },
+      { status: 500, headers: { "x-request-id": requestId } },
+    );
   }
-  return Response.json({
-    ok: true,
-    event,
-    delivered: result.ok,
-    status: result.status,
+  logEvent("info", "webhook_enqueued", requestId, {
+    tenantId: device.tenantId,
+    deviceId: device.id,
+    openwaEvent: event,
+    deliveryId,
   });
-}
 
-async function deliverWebhook(
-  url: string,
-  body: string,
-  signature: string,
-  event: string,
-): Promise<{ ok: boolean; status: number }> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": "Wavio-Webhook/1.0",
-      "x-wavio-signature": signature,
-      "x-wavio-event": event,
-      "x-wavio-delivery-at": new Date().toISOString(),
+  const result = await deliverWebhookOnce(wh.url, body, clientSig, event);
+  if (result.ok) {
+    await markWebhookDelivery(deliveryId, { status: "delivered", attempts: 1 }).catch((e) =>
+      logEvent("error", "webhook_mark_failed", requestId, { deliveryId, detail: String(e) }),
+    );
+    logEvent("info", "webhook_delivered", requestId, {
+      tenantId: device.tenantId,
+      openwaEvent: event,
+      deliveryId,
+      status: result.status,
+    });
+  } else {
+    // Gagal → attempt 1 tercatat, nextAttemptAt = now + 30s (backoff berikutnya
+    // ditangani worker). Jika sudah maksimal (tidak mungkin di attempt 1, tapi
+    // defensif) → dead-letter.
+    const delayMs = nextRetryDelayMs(1);
+    await markWebhookDelivery(deliveryId, {
+      status: delayMs === null ? "failed" : "pending",
+      attempts: 1,
+      nextAttemptAt: delayMs === null ? null : new Date(Date.now() + delayMs),
+      lastError: result.error ?? `HTTP ${result.status}`,
+    }).catch((e) => logEvent("error", "webhook_mark_failed", requestId, { deliveryId, detail: String(e) }));
+    logEvent("error", "webhook_delivery_failed", requestId, {
+      tenantId: device.tenantId,
+      openwaEvent: event,
+      deliveryId,
+      status: result.status,
+      error: result.error ?? null,
+    });
+  }
+
+  return Response.json(
+    {
+      ok: true,
+      event,
+      delivered: result.ok,
+      status: result.status,
+      attempts: 1,
+      maxAttempts: DELIVERY_MAX_ATTEMPTS,
     },
-    body,
-    signal: AbortSignal.timeout(5_000),
-  });
-  return { ok: res.ok, status: res.status };
+    { headers: { "x-request-id": requestId } },
+  );
 }

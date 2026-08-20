@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { openwa, OpenwaError } from "@/lib/openwa";
+import { openwa, OpenwaError, publicOpenwaError } from "@/lib/openwa";
 import { getDeviceForTenant } from "@/lib/devices";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -16,7 +16,10 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return Response.json(qr);
   } catch (e) {
     if (e instanceof OpenwaError) {
-      return Response.json({ error: `OpenWA: ${e.message}` }, { status: e.status });
+      // Status 404 (session tidak ditemukan) tetap 404; selain itu 502. Pesan
+      // publik selalu generik — detail hanya di log internal.
+      const status = e.status === 404 ? 404 : 502;
+      return Response.json({ error: publicOpenwaError(e, "devices qr") }, { status });
     }
     return Response.json({ error: "Gagal mengambil QR" }, { status: 500 });
   }

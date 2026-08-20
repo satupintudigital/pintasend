@@ -7,8 +7,12 @@ export const apiTocItems = [
   { id: "autentikasi", label: "Autentikasi" },
   { id: "daftar-endpoint", label: "Daftar endpoint" },
   { id: "kirim-pesan", label: "Kirim pesan" },
+  { id: "kirim-template", label: "Kirim template" },
+  { id: "blokir-kontak", label: "Blokir kontak" },
+  { id: "tandai-dibaca", label: "Tandai dibaca" },
   { id: "status-layanan", label: "Status layanan" },
   { id: "webhook", label: "Webhook" },
+  { id: "x-request-id", label: "X-Request-Id" },
   { id: "rate-limit", label: "Rate limit" },
   { id: "kode-status", label: "Kode status" },
 ];

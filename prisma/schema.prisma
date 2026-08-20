@@ -68,6 +68,7 @@ model Device {
   openwaSessionId   String   @unique
   openwaWebhookId   String? // ID registrasi webhook di OpenWA (untuk unregister)
   phone             String?
+  restriction       String? // JSON { kind, code, expiresAt } (session.restriction)
   status            String   @default("created")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt @default(now())
@@ -80,9 +81,37 @@ model Webhook {
   url       String // URL endpoint milik client yang menerima event
   secret    String // HMAC secret utk menandatangani delivery (x-wavio-signature)
   events    String   @default("[\"message.received\",\"session.status\"]") // JSON array event
+  filters   String   @default("{\"conditions\":[]}") // JSON smart filters (lihat src/lib/webhookFilters.ts)
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt @default(now())
+  deliveries WebhookDelivery[]
+}
+
+// Outbox delivery webhook (pola outbox — lihat src/lib/webhookDelivery.ts).
+// Ingest menulis baris pending, mencoba deliver sekali; worker cron mengambil
+// alih retry (backoff 30s/5m) sampai DELIVERY_MAX_ATTEMPTS → dead-letter.
+// Hanya Neon (bukan D1) — jalur frekuensi rendah, konsisten dgn MessageLog.
+model WebhookDelivery {
+  id            String   @id @default(uuid(7))
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  webhookId     String
+  webhook       Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event         String
+  url           String // snapshot URL client saat enqueue
+  payload       String // envelope JSON mentah (body yg dikirim)
+  signature     String // x-wavio-signature atas payload
+  status        String   @default("pending") // pending | delivered | failed
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime? // kapan boleh dicoba lagi (null = segera)
+  lastError     String?
+  lastAttemptAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt @default(now())
+
+  @@index([tenantId, status])
+  @@index([status, nextAttemptAt])
 }
 
 model MessageLog {
@@ -102,6 +131,7 @@ model MessageLog {
   mediaKey    String? // R2 object key (upload multipart); null utk lainnya
   triggeredAt DateTime? // waktu trigger kirim (sebelum delay) — pesan keluar
   sentAt      DateTime? // waktu kirim ke OpenWA (setelah delay) — pesan keluar
+  reaction    String? // JSON map senderId → emoji (message.reaction)
   createdAt   DateTime @default(now())
 
   @@index([tenantId, createdAt(sort: Desc)])

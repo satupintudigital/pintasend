@@ -20,6 +20,8 @@ export interface DeviceCacheValue {
   label: string;
   openwaSessionId: string;
   phone: string | null;
+  /** JSON string { kind, code, expiresAt } (session.restriction); null = tidak ada. */
+  restriction: string | null;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -58,6 +60,36 @@ export async function setCachedDevice(device: DeviceCacheValue): Promise<void> {
 export async function deleteCachedDevice(deviceId: string): Promise<void> {
   const kv = await getBinding<KvLike>("WAVIO_CACHE");
   await kv.delete(cacheKey(deviceId));
+}
+
+// ── Cooldown rekonsiliasi webhook OpenWA ─────────────────────────────────────
+// Rekonsiliasi (ensureDeviceWebhookEvents) memanggil listWebhooks OpenWA; dipicu
+// dari polling status device (cache-miss ~tiap beberapa detik). Tanpa cooldown,
+// itu jadi spam ke OpenWA. Guard ini membatasi maksimal SATU upaya per device
+// per WEBHOOK_RECONCILE_COOLDOWN_MS (default 5 menit). Timestamp ditulis SEBELUM
+// upaya (bukan sesudah) agar OpenWA down tidak memicu retry tiap polling.
+export const WEBHOOK_RECONCILE_COOLDOWN_MS = 5 * 60_000;
+
+export async function shouldReconcileWebhook(deviceId: string): Promise<boolean> {
+  try {
+    const kv = await getBinding<KvLike>("WAVIO_CACHE");
+    const key = `device:${deviceId}:whreconcile`;
+    const raw = await kv.get(key);
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as { ts: number };
+        if (Date.now() - parsed.ts < WEBHOOK_RECONCILE_COOLDOWN_MS) return false;
+      } catch {
+        /* value korup → timpa di bawah */
+      }
+    }
+    await kv.put(key, JSON.stringify({ ts: Date.now() }), {
+      expirationTtl: Math.max(KV_TTL_SAFETY_S, Math.ceil(WEBHOOK_RECONCILE_COOLDOWN_MS / 1000)),
+    });
+  } catch {
+    // Binding tidak tersedia (dev/test) → izinkan (pemanggil tetap best-effort).
+  }
+  return true;
 }
 
 function listCacheKey(tenantId: string): string {

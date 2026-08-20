@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { createUser, listUsersPaginated } from "@/lib/authStore";
+import { sendWelcomeEmail } from "@/lib/email";
 import { checkUserQuota } from "@/lib/quota";
 import bcrypt from "bcryptjs";
 
@@ -65,6 +66,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       passwordHash,
       role,
     });
+    // Email welcome (never-throw helper) — kegagalan kirim tidak menggagalkan
+    // pembuatan user; tanpa RESEND_API_KEY otomatis di-skip.
+    await sendWelcomeEmail({ email, name });
     return Response.json({ id: userId }, { status: 201 });
   } catch (e) {
     console.error("platform/tenants/[id]/users POST:", e);

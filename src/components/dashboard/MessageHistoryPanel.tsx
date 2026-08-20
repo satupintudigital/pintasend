@@ -31,6 +31,7 @@ export interface MessageRow {
   messageId: string | null;
   mediaUrl: string | null;
   mimetype: string | null;
+  reaction: string | null;
   triggeredAt: string | null;
   sentAt: string | null;
   createdAt: string;
@@ -122,12 +123,37 @@ function truncateChatId(chatId: string): string {
   return chatId.replace(/@(c\.us|g\.us|s\.whatsapp\.net)$/, "");
 }
 
+/** Label & warna badge status kirim pesan keluar (sent → delivered → read / failed). */
+const STATUS_META: Record<string, { label: string; cls: string; dot: string }> = {
+  sent: { label: "Terkirim", cls: "border-line-soft text-fg-muted", dot: "bg-fg-faint" },
+  delivered: { label: "Tersampaikan", cls: "border-sky-500/25 text-sky-400", dot: "bg-sky-400" },
+  read: { label: "Terbaca", cls: "border-emerald-500/25 text-emerald-400", dot: "bg-emerald-400" },
+  failed: { label: "Gagal", cls: "border-red-500/25 text-red-400", dot: "bg-red-400" },
+};
+
 /** Delay aktual pesan keluar (detik) — null bila tidak ada data / pesan masuk. */
 function messageDelaySec(m: MessageRow): number | null {
   if (m.direction !== "outgoing" || !m.triggeredAt || !m.sentAt) return null;
   const diffMs = new Date(m.sentAt).getTime() - new Date(m.triggeredAt).getTime();
   if (!Number.isFinite(diffMs) || diffMs <= 0) return null;
   return diffMs / 1000;
+}
+
+/** Ringkasan reaksi (emoji + jumlah) dari JSON map senderId→emoji. */
+function reactionSummary(reaction: string | null): { emoji: string; count: number }[] | null {
+  if (!reaction) return null;
+  try {
+    const obj: unknown = JSON.parse(reaction);
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
+    const counts = new Map<string, number>();
+    for (const v of Object.values(obj as Record<string, unknown>)) {
+      if (typeof v === "string" && v.length > 0) counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+    const list = [...counts.entries()].map(([emoji, count]) => ({ emoji, count }));
+    return list.length > 0 ? list : null;
+  } catch {
+    return null;
+  }
 }
 
 export function MessageHistoryPanel() {
@@ -306,6 +332,7 @@ export function MessageHistoryPanel() {
             const kindLabel = MEDIA_KIND_LABEL[media.kind];
             const showThumb = media.kind === "image" && !!m.mediaUrl;
             const delaySec = messageDelaySec(m);
+            const reactions = reactionSummary(m.reaction);
             return (
               <li key={m.id} className="py-4 first:pt-0 last:pb-0">
                 <div className="flex items-start gap-3">
@@ -340,17 +367,39 @@ export function MessageHistoryPanel() {
                           {m.deviceLabel}
                         </span>
                       )}
-                      {m.status && (
+                      {m.status && STATUS_META[m.status] ? (
+                        <span
+                          className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider ${STATUS_META[m.status].cls}`}
+                        >
+                          <span className={`h-1.5 w-1.5 rounded-full ${STATUS_META[m.status].dot}`} />
+                          {STATUS_META[m.status].label}
+                        </span>
+                      ) : m.status ? (
                         <span className="font-mono text-[10px] uppercase tracking-wider text-fg-faint">
                           {m.status}
                         </span>
-                      )}
+                      ) : null}
                       {delaySec !== null && delaySec >= 1 && (
                         <span
                           className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] text-amber-400"
                           title={`Trigger: ${formatTime(m.triggeredAt!)} · Kirim: ${formatTime(m.sentAt!)}`}
                         >
                           delay {delaySec.toFixed(1)} dtk
+                        </span>
+                      )}
+                      {reactions && (
+                        <span
+                          className="flex items-center gap-1 rounded-full border border-pink-500/25 bg-pink-500/10 px-2 py-0.5"
+                          title="Reaksi pesan"
+                        >
+                          {reactions.map((r) => (
+                            <span key={r.emoji} className="text-[13px] leading-none">
+                              {r.emoji}
+                              {r.count > 1 && (
+                                <sup className="ml-0.5 text-[9px] text-fg-muted">{r.count}</sup>
+                              )}
+                            </span>
+                          ))}
                         </span>
                       )}
                       <span className="ml-auto text-[11px] text-fg-faint">

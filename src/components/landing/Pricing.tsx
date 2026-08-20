@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpRight, CheckCircle } from "@phosphor-icons/react";
+import { ArrowUpRight, CheckCircle, Timer } from "@phosphor-icons/react";
 import { Reveal } from "@/components/Reveal";
 import { AmbientParallax } from "@/components/AmbientParallax";
 
@@ -146,7 +146,61 @@ export function Pricing() {
           ))}
         </div>
 
-        <Reveal delay={200}>
+        <Reveal delay={240}>
+          <div className="mt-4 flex flex-col gap-6 rounded-2xl border border-line bg-surface p-6 transition-colors duration-300 hover:border-accent/30 md:flex-row md:items-center md:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span
+                  aria-hidden
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-300/10 text-amber-200"
+                >
+                  <Timer size={20} weight="fill" />
+                </span>
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-200">
+                  Add-on
+                </span>
+                <h3 className="font-display text-lg font-semibold">Random Delay (Anti-Spam)</h3>
+                <span className="rounded-full bg-accent/10 px-2.5 py-1 text-[10px] font-semibold text-accent-bright">
+                  Termasuk gratis di Mocha
+                </span>
+              </div>
+              <p className="mt-3 max-w-[68ch] text-sm leading-relaxed text-fg-muted">
+                Jeda acak 3–10 detik antar pesan untuk membantu membuat pola pengiriman lebih natural dan memberi konteks analitik yang lebih jelas.
+              </p>
+              <ul className="mt-4 flex flex-col gap-2 text-xs text-fg-faint sm:flex-row sm:flex-wrap sm:gap-x-5 sm:gap-y-2">
+                <li className="flex items-center gap-2">
+                  <CheckCircle size={15} className="shrink-0 text-accent-bright" weight="fill" />
+                  Delay acak 3–10 detik
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle size={15} className="shrink-0 text-accent-bright" weight="fill" />
+                  Waktu trigger &amp; kirim tercatat
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle size={15} className="shrink-0 text-accent-bright" weight="fill" />
+                  Aktif per tenant
+                </li>
+              </ul>
+            </div>
+
+            <div className="flex shrink-0 flex-col gap-3 md:items-end">
+              <div className="flex items-baseline gap-1">
+                <span className="bk-tabular font-display text-2xl font-semibold tracking-tight">Rp 25.000</span>
+                <span className="text-sm text-fg-faint">/bulan</span>
+              </div>
+              <p className="text-xs text-fg-faint">Untuk Espresso &amp; Latte</p>
+              <a
+                href="#mulai"
+                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-line px-5 py-3 text-sm font-semibold text-fg transition-all hover:border-accent/50 hover:text-accent-bright active:scale-[0.98]"
+              >
+                Tanyakan addon
+                <ArrowUpRight size={14} weight="bold" />
+              </a>
+            </div>
+          </div>
+        </Reveal>
+
+        <Reveal delay={300}>
           <p className="mt-10 text-center text-xs text-fg-faint">
             Semua paket termasuk dukungan via WhatsApp dan riwayat pesan 30 hari.
           </p>

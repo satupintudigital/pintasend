@@ -6,8 +6,10 @@ import {
   upsertWebhook,
   WEBHOOK_EVENT_LIST,
 } from "@/lib/webhookStore";
+import { collectFilterErrors, type WebhookFilters } from "@/lib/webhookFilters";
 import { isSafeWebhookUrl } from "@/lib/ssrf";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { cancelPendingDeliveriesForTenant } from "@/lib/webhookDelivery";
 
 // Konfigurasi webhook tenant — owner-only (API juga menegakkan 403).
 // - GET    → konfigurasi saat ini (secret di-mask, baca D1 = 0 Neon)
@@ -33,6 +35,7 @@ export async function GET() {
         tenantId: wh.tenantId,
         url: wh.url,
         events: wh.events,
+        filters: wh.filters,
         active: wh.active,
         secretMasked: maskSecret(wh.secret),
         hasSecret: wh.secret.length > 0,
@@ -60,6 +63,7 @@ export async function PUT(req: Request) {
   const body = (await req.json().catch(() => null)) as {
     url?: unknown;
     events?: unknown;
+    filters?: unknown;
     secret?: unknown;
     active?: unknown;
   } | null;
@@ -93,6 +97,17 @@ export async function PUT(req: Request) {
     events = [...new Set(arr)];
   }
 
+  // Validasi smart filters (opsional). Empty/null = semua event lolos.
+  let filters: WebhookFilters | null = null;
+  if (body?.filters !== undefined && body.filters !== null) {
+    const errors = collectFilterErrors(body.filters);
+    if (errors.length > 0) {
+      return Response.json({ error: errors[0] }, { status: 400 });
+    }
+    const conditions = (body.filters as { conditions?: unknown[] }).conditions ?? [];
+    filters = conditions.length > 0 ? (body.filters as WebhookFilters) : null;
+  }
+
   const active = typeof body?.active === "boolean" ? body.active : true;
   const existing = await getWebhookForTenant(tenantId).catch(() => null);
   // Kontrak secret (PENTING — lihat WebhookPanel):
@@ -113,7 +128,7 @@ export async function PUT(req: Request) {
   }
 
   try {
-    const { id } = await upsertWebhook({ tenantId, url, secret, events, active });
+    const { id } = await upsertWebhook({ tenantId, url, secret, events, filters, active });
     return Response.json({ ok: true, id });
   } catch (e) {
     console.error("admin/webhooks PUT:", e);
@@ -131,6 +146,13 @@ export async function DELETE() {
 
   try {
     const removed = await deleteWebhookForTenant(tenantId);
+    // Batalkan delivery yang masih pending (outbox) — jangan kirim event ke
+    // URL yang sudah dihapus tenant.
+    if (removed) {
+      await cancelPendingDeliveriesForTenant(tenantId).catch((e) =>
+        console.error("admin/webhooks DELETE: cancel pending outbox gagal:", e),
+      );
+    }
     return Response.json({ ok: removed });
   } catch (e) {
     console.error("admin/webhooks DELETE:", e);

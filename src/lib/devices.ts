@@ -1,7 +1,7 @@
 import { query, queryOne } from "@/lib/db";
 import { queryD1 } from "@/lib/d1";
 import { uuidv7 } from "@/lib/uuidv7";
-import { openwa, openwaWebhookSecret } from "@/lib/openwa";
+import { openwa, openwaWebhookSecret, OPENWA_WEBHOOK_EVENTS } from "@/lib/openwa";
 import { deleteCachedDeviceList } from "@/lib/deviceCache";
 
 export interface DeviceRow {
@@ -11,12 +11,13 @@ export interface DeviceRow {
   openwaSessionId: string;
   openwaWebhookId: string | null;
   phone: string | null;
+  restriction: string | null;
   status: string;
   createdAt: string;
   updatedAt: string;
 }
 
-const DEVICE_COLUMNS = `id, "tenantId", label, "openwaSessionId", "openwaWebhookId", phone, status, "createdAt", "updatedAt"`;
+const DEVICE_COLUMNS = `id, "tenantId", label, "openwaSessionId", "openwaWebhookId", phone, restriction, status, "createdAt", "updatedAt"`;
 
 export async function listDevicesForTenant(tenantId: string): Promise<DeviceRow[]> {
   return query<DeviceRow>(
@@ -59,7 +60,9 @@ export async function createDeviceAndStart(
   try {
     const wh = await openwa.registerWebhook(owa.id, {
       url: openwaWebhookUrl(),
-      events: ["message.received", "session.status"],
+      // Seluruh event yang Wavio inginkan dari OpenWA — termasuk message.ack
+      // & message.failed untuk pelacakan status kirim (sent → delivered → read).
+      events: [...OPENWA_WEBHOOK_EVENTS],
       secret: await openwaWebhookSecret(owa.id),
       retryCount: 3,
     });
@@ -88,6 +91,7 @@ export async function createDeviceAndStart(
     openwaSessionId: owa.id,
     openwaWebhookId,
     phone: null,
+    restriction: null,
     status: owa.status,
     createdAt: now,
     updatedAt: now,
@@ -106,14 +110,83 @@ export async function getDeviceBySessionId(
   );
 }
 
+// ── Rekonsiliasi webhook OpenWA (device lama → ack delivery aktif) ───────────
+// Device yang dibuat SEBELUM event message.ack/message.failed/message.edited
+// ditambahkan didaftarkan ke OpenWA hanya dengan { message.received,
+// session.status }, sehingga OpenWA belum mengirim ack → pelacakan status kirim
+// (sent → delivered → read) tidak jalan. Fungsi ini memastikan webhook Wavio
+// memuat SELURUH OPENWA_WEBHOOK_EVENTS. Idempoten & best-effort (error ditangkap
+// internal → tidak pernah melempar ke pemanggil polling/start):
+//   - list webhook session → cari milik Wavio (by openwaWebhookId, fallback URL).
+//   - events sudah superset & URL cocok → no-op.
+//   - events kurang / URL berubah → PUT update (url + events + secret + retry).
+//   - tidak ditemukan → POST register baru & simpan openwaWebhookId.
+
+export interface WebhookReconcileResult {
+  changed: boolean;
+  error?: string;
+}
+
+export async function ensureDeviceWebhookEvents(
+  device: Pick<DeviceRow, "id" | "openwaSessionId" | "openwaWebhookId">,
+): Promise<WebhookReconcileResult> {
+  const desired = [...OPENWA_WEBHOOK_EVENTS];
+  const url = openwaWebhookUrl();
+  try {
+    const secret = await openwaWebhookSecret(device.openwaSessionId);
+    const existing = await openwa.listWebhooks(device.openwaSessionId);
+
+    // Cari webhook milik Wavio: id tersimpan dulu, fallback cocokkan URL.
+    let wh = existing.find((w) => w.id === device.openwaWebhookId);
+    if (!wh) wh = existing.find((w) => w.url === url);
+
+    if (wh) {
+      const current = Array.isArray(wh.events) ? wh.events : [];
+      const missing = desired.filter((e) => !current.includes(e));
+      const urlDrift = wh.url !== url;
+      if (missing.length === 0 && !urlDrift) return { changed: false };
+
+      await openwa.updateWebhook(device.openwaSessionId, wh.id, {
+        url,
+        events: desired,
+        secret,
+        retryCount: 3,
+      });
+      // Bila id tersimpan basi (cocok via URL) → perbaiki pointer DB.
+      if (wh.id !== device.openwaWebhookId) {
+        await query('UPDATE "Device" SET "openwaWebhookId" = $1, "updatedAt" = now() WHERE id = $2', [
+          wh.id,
+          device.id,
+        ]);
+      }
+      return { changed: true };
+    }
+
+    // Tidak ada webhook Wavio → register baru & simpan id.
+    const created = await openwa.registerWebhook(device.openwaSessionId, {
+      url,
+      events: desired,
+      secret,
+      retryCount: 3,
+    });
+    await query('UPDATE "Device" SET "openwaWebhookId" = $1, "updatedAt" = now() WHERE id = $2', [
+      created.id,
+      device.id,
+    ]);
+    return { changed: true };
+  } catch (e) {
+    return { changed: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
 // ── Replika D1 (write-through, sama pola authStore) ──────────────────────────
 // D1 dipakai jalur baca cepat: ingest webhook (openwaSessionId → device) dan
 // dashboard. Gagal clone → log; konsistensi dikembalikan oleh d1-resync job.
 
 export async function cloneDeviceToD1(d: DeviceRow): Promise<void> {
   await queryD1(
-    "INSERT OR REPLACE INTO Device (id, tenantId, label, openwaSessionId, openwaWebhookId, phone, status, createdAt, updatedAt) " +
-      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT OR REPLACE INTO Device (id, tenantId, label, openwaSessionId, openwaWebhookId, phone, restriction, status, createdAt, updatedAt) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     [
       d.id,
       d.tenantId,
@@ -121,11 +194,66 @@ export async function cloneDeviceToD1(d: DeviceRow): Promise<void> {
       d.openwaSessionId,
       d.openwaWebhookId,
       d.phone,
+      d.restriction,
       d.status,
       d.createdAt,
       d.updatedAt,
     ],
   );
+}
+
+// ── Pembatasan akun (session.restriction) ────────────────────────────────────
+// OpenWA mengirim `session.restriction` (dan menyertakan `restriction` di respons
+// GET /api/sessions/:id) dengan bentuk { kind, code, expiresAt } — kind:
+// reachout_timelock | tos_block | proxy_block. Disimpan sebagai JSON string
+// (null = tidak ada). Helper menormalisasi berbagai bentuk payload.
+
+export interface DeviceRestriction {
+  kind: string;
+  code: string;
+  expiresAt: string | null;
+}
+
+/** Normalisasi payload OpenWA → JSON string (null = tidak ada restriction). */
+export function openwaRestrictionToJson(raw: unknown): string | null {
+  let obj = raw;
+  if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+    const inner = (obj as Record<string, unknown>).restriction;
+    if (inner && typeof inner === "object" && !Array.isArray(inner)) obj = inner;
+  }
+  if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+    const o = obj as Record<string, unknown>;
+    const kind = typeof o.kind === "string" ? o.kind : "";
+    if (kind) {
+      return JSON.stringify({
+        kind,
+        code: typeof o.code === "string" ? o.code : "",
+        expiresAt: typeof o.expiresAt === "string" ? o.expiresAt : null,
+      });
+    }
+  }
+  return null;
+}
+
+/** Parse JSON string restriction → objek (null = tidak ada / korup). */
+export function restrictionFromJson(raw: string | null): DeviceRestriction | null {
+  if (!raw) return null;
+  try {
+    const obj: unknown = JSON.parse(raw);
+    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+      const o = obj as Record<string, unknown>;
+      if (typeof o.kind === "string") {
+        return {
+          kind: o.kind,
+          code: typeof o.code === "string" ? o.code : "",
+          expiresAt: typeof o.expiresAt === "string" ? o.expiresAt : null,
+        };
+      }
+    }
+  } catch {
+    /* korup → null */
+  }
+  return null;
 }
 
 export async function deleteDeviceFromD1(id: string): Promise<void> {

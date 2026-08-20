@@ -10,7 +10,8 @@
 // Catatan retensi: MVP tanpa job pembersihan — tabel akan terus tumbuh sesuai
 // volume pesan. Hapus data lama di luar fitur bila diperlukan.
 
-import { query } from "@/lib/db";
+import { query, queryOne } from "@/lib/db";
+import { sleep } from "@/lib/delay";
 import { uuidv7 } from "@/lib/uuidv7";
 
 export type MessageDirection = "incoming" | "outgoing";
@@ -61,6 +62,122 @@ export async function insertMessageLog(input: MessageLogInput): Promise<void> {
   );
 }
 
+// ── Pelacakan status kirim (sent → delivered → read / failed) ──────────────
+// OpenWA mengirim ack asinkron lewat webhook `message.ack` (status delivered/
+// read) dan `message.failed` (status failed). Kita memajukan kolom
+// MessageLog.status dengan guard FORWARD-ONLY agar ack yang datang terlambat/
+// tak berurutan tidak menurunkan status (mis. delivered tiba setelah read).
+// Status `sent`/`pending` dari ack diabaikan — pesan keluar sudah tercatat
+// `sent` sejak dikirim (sendMessage.ts).
+
+export type MessageDeliveryStatus = "delivered" | "read" | "failed";
+
+/** Status ack OpenWA yang memajukan status tersimpan (sent/pending = no-op). */
+export function isMessageDeliveryStatus(s: string): s is MessageDeliveryStatus {
+  return s === "delivered" || s === "read" || s === "failed";
+}
+
+// Jeda reconcile — ack bisa tiba SEBELUM INSERT MessageLog (jalur kirim) commit;
+// retry sekali setelah jeda singkat (pola OpenWA ACK_RECONCILE_DELAY_MS = 750).
+export const ACK_RECONCILE_DELAY_MS = 750;
+
+/**
+ * Majukan status satu pesan keluar (dicari via messageId + tenantId) dengan
+ * guard forward-only. Mengembalikan true bila ada baris yang berubah.
+ * Guard: delivered ← sent · read ← sent/delivered · failed ← sent.
+ */
+export async function applyMessageDeliveryStatus(
+  tenantId: string,
+  messageId: string,
+  status: MessageDeliveryStatus,
+): Promise<boolean> {
+  const rows = await query<{ id: string }>(
+    'UPDATE "MessageLog" SET status = $3 ' +
+      'WHERE "tenantId" = $1 AND "messageId" = $2 AND (' +
+      "($3 = 'delivered' AND status = 'sent') OR " +
+      "($3 = 'read' AND status IN ('sent', 'delivered')) OR " +
+      "($3 = 'failed' AND status = 'sent')) " +
+      "RETURNING id",
+    [tenantId, messageId, status],
+  );
+  return rows.length > 0;
+}
+
+/**
+ * Update status kirim + reconcile SEKALI bila belum match (race ack vs insert
+ * log kirim). Dipakai ingest webhook — best-effort oleh pemanggil.
+ */
+export async function updateMessageDeliveryStatus(
+  tenantId: string,
+  messageId: string,
+  status: MessageDeliveryStatus,
+): Promise<boolean> {
+  if (await applyMessageDeliveryStatus(tenantId, messageId, status)) return true;
+  await sleep(ACK_RECONCILE_DELAY_MS);
+  return applyMessageDeliveryStatus(tenantId, messageId, status);
+}
+
+// ── Reaksi pesan (message.reaction) ─────────────────────────────────────────
+// Kolom `reaction` = JSON map senderId → emoji (mis. {"62812@c.us":"👍"}).
+// OpenWA mengirim event `message.reaction` dengan data { messageId, senderId,
+// reaction ("" = hapus), reactions? (snapshot lengkap semua sender) }. Snapshot
+// dipakai bila tersedia; selain itu merge satu sender (read-modify-write).
+
+function parseReactionMap(raw: string | null): Record<string, string> {
+  if (!raw) return {};
+  try {
+    const obj: unknown = JSON.parse(raw);
+    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+      const out: Record<string, string> = {};
+      for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+        if (typeof v === "string" && v.length > 0) out[k] = v;
+      }
+      return out;
+    }
+  } catch {
+    /* korup → anggap kosong */
+  }
+  return {};
+}
+
+function serializeReactionMap(map: Record<string, string>): string | null {
+  const keys = Object.keys(map);
+  return keys.length === 0 ? null : JSON.stringify(map);
+}
+
+/** Tulis snapshot reaksi lengkap (atau NULL bila kosong). */
+export async function setMessageReactions(
+  tenantId: string,
+  messageId: string,
+  reactions: Record<string, string>,
+): Promise<boolean> {
+  const value = serializeReactionMap(reactions);
+  const rows = await query<{ id: string }>(
+    'UPDATE "MessageLog" SET reaction = $3 WHERE "tenantId" = $1 AND "messageId" = $2 RETURNING id',
+    [tenantId, messageId, value],
+  );
+  return rows.length > 0;
+}
+
+/** Merge satu reaksi (read-modify-write) — reaction "" = hapus sender. */
+export async function mergeMessageReaction(
+  tenantId: string,
+  messageId: string,
+  senderId: string,
+  reaction: string,
+): Promise<boolean> {
+  const row = await queryOne<{ id: string; reaction: string | null }>(
+    'SELECT id, reaction FROM "MessageLog" WHERE "tenantId" = $1 AND "messageId" = $2',
+    [tenantId, messageId],
+  );
+  if (!row) return false;
+  const map = parseReactionMap(row.reaction);
+  if (reaction === "") delete map[senderId];
+  else map[senderId] = reaction;
+  await query('UPDATE "MessageLog" SET reaction = $2 WHERE id = $1', [row.id, serializeReactionMap(map)]);
+  return true;
+}
+
 export interface MessageLogRow {
   id: string;
   tenantId: string;
@@ -75,6 +192,7 @@ export interface MessageLogRow {
   mediaUrl: string | null;
   mimetype: string | null;
   mediaKey: string | null;
+  reaction: string | null;
   triggeredAt: string | null;
   sentAt: string | null;
   createdAt: string;
@@ -88,7 +206,7 @@ export interface ListMessagesParams {
   limit?: number;
 }
 
-const MESSAGE_COLUMNS = `id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey", "triggeredAt", "sentAt", "createdAt"`;
+const MESSAGE_COLUMNS = `id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey", reaction, "triggeredAt", "sentAt", "createdAt"`;
 
 /** Daftar riwayat pesan tenant — pencarian (body/chatId) + filter arah + pagination. */
 export async function listMessagesPaginated(

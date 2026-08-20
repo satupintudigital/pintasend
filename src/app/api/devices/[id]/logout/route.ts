@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { openwa, OpenwaError } from "@/lib/openwa";
+import { openwa, OpenwaError, publicOpenwaError } from "@/lib/openwa";
 import { getDeviceForTenant } from "@/lib/devices";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { deleteCachedDeviceList } from "@/lib/deviceCache";
@@ -24,7 +24,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (e instanceof OpenwaError && e.status === 404) {
       // Session sudah tidak ada di OpenWA — logout idempoten, lanjutkan.
     } else if (e instanceof OpenwaError) {
-      return Response.json({ error: `OpenWA: ${e.message}` }, { status: 502 });
+      return Response.json({ error: publicOpenwaError(e, "devices logout") }, { status: 502 });
     } else {
       return Response.json({ error: "Gagal logout device" }, { status: 500 });
     }

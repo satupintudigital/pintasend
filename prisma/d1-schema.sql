@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS Device (
   openwaSessionId   TEXT NOT NULL,
   openwaWebhookId   TEXT,
   phone             TEXT,
+  restriction       TEXT,
   status            TEXT NOT NULL DEFAULT 'created',
   createdAt         TEXT NOT NULL,
   updatedAt         TEXT NOT NULL
@@ -54,6 +55,7 @@ CREATE TABLE IF NOT EXISTS Webhook (
   url        TEXT NOT NULL,
   secret     TEXT NOT NULL,
   events     TEXT NOT NULL DEFAULT '["message.received","session.status"]',
+  filters    TEXT NOT NULL DEFAULT '{"conditions":[]}',
   active     INTEGER NOT NULL DEFAULT 1,
   createdAt  TEXT NOT NULL,
   updatedAt  TEXT NOT NULL
