@@ -2,10 +2,10 @@ import { neon } from "@neondatabase/serverless";
 
 // Lazy init — hindari error "No database connection string" saat modul
 // di-import di lingkungan tanpa DATABASE_URL (mis. unit test).
-type SqlClient = ReturnType<typeof neon>;
-let _sql: SqlClient | null = null;
-function sql(): SqlClient {
-  if (!_sql) _sql = neon(process.env.DATABASE_URL as string);
+type SqlFn = (text: string, params?: unknown[]) => Promise<Record<string, unknown>[]>;
+let _sql: SqlFn | null = null;
+function sql(): SqlFn {
+  if (!_sql) _sql = neon(process.env.DATABASE_URL as string) as unknown as SqlFn;
   return _sql;
 }
 
