@@ -2,11 +2,13 @@ import { neon } from "@neondatabase/serverless";
 
 // Lazy init — hindari error "No database connection string" saat modul
 // di-import di lingkungan tanpa DATABASE_URL (mis. unit test).
-type SqlFn = (text: string, params?: unknown[]) => Promise<Record<string, unknown>[]>;
-let _sql: SqlFn | null = null;
-function sql(): SqlFn {
-  if (!_sql) _sql = neon(process.env.DATABASE_URL as string) as unknown as SqlFn;
-  return _sql;
+type SqlClient = {
+  query: (text: string, params?: unknown[]) => Promise<Record<string, unknown>[]>;
+};
+let _client: SqlClient | null = null;
+function sql(): SqlClient {
+  if (!_client) _client = neon(process.env.DATABASE_URL as string) as unknown as SqlClient;
+  return _client;
 }
 
 // Helper eksekusi SQL via Neon serverless driver mode HTTP (fetch, port 443).
@@ -20,7 +22,7 @@ export async function query<T extends object>(
   text: string,
   params: unknown[] = [],
 ): Promise<T[]> {
-  const rows = (await sql()(text, params)) as T[];
+  const rows = (await sql().query(text, params)) as T[];
   return rows;
 }
 
