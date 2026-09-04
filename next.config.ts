@@ -21,6 +21,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: { cpus: 2, memoryBasedWorkersCount: true },
   images: {
     remotePatterns: [{ protocol: "https", hostname: "**" }],
   },

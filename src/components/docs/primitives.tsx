@@ -145,7 +145,7 @@ export function CodeBlock({ code, lang = "bash" }: { code: string; lang?: string
   }
 
   return (
-    <div className="group overflow-hidden rounded-xl border border-line bg-ink-2 shadow-[0_24px_60px_-36px_rgba(0,0,0,0.8)] transition-colors hover:border-line">
+    <div className="group overflow-hidden rounded-xl border border-line bg-ink-2 shadow-[0_24px_60px_-36px_rgba(15,23,42,0.25)] transition-colors hover:border-line">
       <div className="flex items-center gap-3 border-b border-line-soft bg-surface/60 px-4 py-2.5">
         <span aria-hidden className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full bg-line" />

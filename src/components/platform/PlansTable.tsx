@@ -186,7 +186,7 @@ export function PlansTable({ initial }: PlansTableProps) {
                         {feedback.msg}
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-xs text-red-400">
+                      <span className="flex items-center gap-1 text-xs text-red-600">
                         <Warning size={13} weight="fill" />
                         {feedback.msg}
                       </span>

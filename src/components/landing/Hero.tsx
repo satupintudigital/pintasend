@@ -80,7 +80,7 @@ function CodeCard() {
       </div>
 
       {/* Floating toast: pesan terkirim */}
-      <div className="bk-toast absolute -right-3 top-14 hidden items-center gap-2.5 rounded-xl border border-line bg-surface-2/95 px-3.5 py-2.5 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.7)] backdrop-blur sm:flex">
+      <div className="bk-toast absolute -right-3 top-14 hidden items-center gap-2.5 rounded-xl border border-line bg-surface-2/95 px-3.5 py-2.5 shadow-[0_16px_40px_-12px_rgba(15,23,42,0.25)] backdrop-blur sm:flex">
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-accent-bright">
           <CheckCircle size={15} weight="fill" />
         </span>
@@ -92,7 +92,7 @@ function CodeCard() {
 
       {/* Floating toast: webhook event */}
       <div
-        className="bk-toast absolute -left-4 bottom-10 hidden items-center gap-2.5 rounded-xl border border-line bg-surface-2/95 px-3.5 py-2.5 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.7)] backdrop-blur sm:flex"
+        className="bk-toast absolute -left-4 bottom-10 hidden items-center gap-2.5 rounded-xl border border-line bg-surface-2/95 px-3.5 py-2.5 shadow-[0_16px_40px_-12px_rgba(15,23,42,0.25)] backdrop-blur sm:flex"
         style={{ animationDelay: "3.2s" }}
       >
         <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/15 text-accent-bright">

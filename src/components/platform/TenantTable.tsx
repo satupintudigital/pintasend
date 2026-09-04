@@ -63,7 +63,7 @@ export function TenantTable() {
         </div>
       </form>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-600">{error}</p>}
       {!data && !error && <p className="text-sm text-fg-faint">Memuat…</p>}
 
       {data && (
@@ -99,17 +99,17 @@ export function TenantTable() {
                   <td className="bk-tabular px-4 py-3 text-right text-fg-muted">{t.messages}</td>
                   <td className="px-4 py-3">
                     {t.suspendedAt ? (
-                      <span className="rounded-full border border-red-500/25 bg-red-500/10 px-2 py-0.5 text-xs text-red-400">
+                      <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
                         Suspended
                       </span>
                     ) : (
-                      <span className="rounded-full border border-accent/25 bg-accent/10 px-2 py-0.5 text-xs text-accent-bright">
+                      <span className="rounded-full border border-accent/25 bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent-bright">
                         Aktif
                       </span>
                     )}
                     {t.delayEnabled && (
                       <span
-                        className="ml-1.5 rounded-full border border-amber-500/25 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400"
+                        className="ml-1.5 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700"
                         title="Random delay kirim aktif"
                       >
                         delay

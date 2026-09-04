@@ -125,7 +125,7 @@ export function TenantForm() {
       </div>
 
       {error && (
-        <p className="bk-shake mt-4 flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3.5 py-2.5 text-sm text-red-400">
+        <p className="bk-shake mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-600">
           <Warning size={16} className="mt-0.5 shrink-0" weight="fill" />
           {error}
         </p>

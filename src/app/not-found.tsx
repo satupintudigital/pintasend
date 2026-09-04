@@ -63,7 +63,7 @@ export default function NotFound() {
         <motion.p
           aria-hidden
           className="font-display text-[6.5rem] font-bold leading-none tracking-tighter text-transparent md:text-[10.5rem]"
-          style={{ WebkitTextStroke: "1.5px rgba(244, 244, 245, 0.22)" }}
+          style={{ WebkitTextStroke: "1.5px rgba(15, 23, 42, 0.12)" }}
           initial={reduced ? false : { opacity: 0, scale: 0.85, y: 24 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ ...enterSpring, delay: 0 }}
@@ -106,7 +106,7 @@ export default function NotFound() {
 
         {/* Blok error ala API response */}
         <motion.div
-          className="mt-8 w-full max-w-md overflow-hidden rounded-2xl border border-line bg-ink-2 text-left shadow-[0_24px_60px_-36px_rgba(0,0,0,0.8)]"
+          className="mt-8 w-full max-w-md overflow-hidden rounded-2xl border border-line bg-ink-2 text-left shadow-[0_24px_60px_-36px_rgba(15,23,42,0.25)]"
           initial={reduced ? false : { opacity: 0, y: 20, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ ...enterSpring, delay: 0.26 }}
