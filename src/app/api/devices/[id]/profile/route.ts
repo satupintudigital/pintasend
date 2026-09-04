@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { queryD1One } from "@/lib/d1";
-import { openwa } from "@/lib/openwa";
+import { openwa, OpenwaError } from "@/lib/openwa";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -19,7 +19,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   try {
     const profile = await openwa.getProfile(device.openwaSessionId);
     return Response.json({ profile });
-  } catch {
+  } catch (e) {
+    if (e instanceof OpenwaError) {
+      // 404 = endpoint not available on this engine (Baileys doesn't support profile)
+      if (e.status === 404) {
+        return Response.json({ error: "Profil tidak tersedia pada engine ini" }, { status: 501 });
+      }
+      return Response.json({ error: "Gagal mengambil profil" }, { status: 502 });
+    }
     return Response.json({ error: "Gagal mengambil profil" }, { status: 502 });
   }
 }
@@ -46,7 +53,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   try {
     const profile = await openwa.patchProfile(device.openwaSessionId, input);
     return Response.json({ profile });
-  } catch {
+  } catch (e) {
+    if (e instanceof OpenwaError) {
+      if (e.status === 404) {
+        return Response.json({ error: "Profil tidak tersedia pada engine ini" }, { status: 501 });
+      }
+      return Response.json({ error: "Gagal memperbarui profil" }, { status: 502 });
+    }
     return Response.json({ error: "Gagal memperbarui profil" }, { status: 502 });
   }
 }

@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { queryD1One } from "@/lib/d1";
-import { openwa } from "@/lib/openwa";
+import { openwa, OpenwaError } from "@/lib/openwa";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -19,7 +19,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   try {
     const channels = await openwa.listChannels(device.openwaSessionId);
     return Response.json({ channels });
-  } catch {
+  } catch (e) {
+    if (e instanceof OpenwaError) {
+      if (e.status === 404 || e.status === 501) {
+        return Response.json({ error: "Channels tidak tersedia pada engine ini" }, { status: 501 });
+      }
+      return Response.json({ error: "Gagal mengambil channels" }, { status: 502 });
+    }
     return Response.json({ error: "Gagal mengambil channels" }, { status: 502 });
   }
 }
@@ -47,7 +53,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (typeof body?.description === "string" && body.description.trim()) input.description = body.description.trim();
     const channel = await openwa.createChannel(device.openwaSessionId, input);
     return Response.json({ channel }, { status: 201 });
-  } catch {
+  } catch (e) {
+    if (e instanceof OpenwaError) {
+      if (e.status === 404 || e.status === 501) {
+        return Response.json({ error: "Channels tidak tersedia pada engine ini" }, { status: 501 });
+      }
+      return Response.json({ error: "Gagal membuat channel" }, { status: 502 });
+    }
     return Response.json({ error: "Gagal membuat channel" }, { status: 502 });
   }
 }

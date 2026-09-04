@@ -57,7 +57,15 @@ export default function ProfilePage() {
     try {
       const res = await fetch(`/api/devices/${selectedDevice}/profile`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Gagal memuat profil");
+      if (!res.ok) {
+        // 501 = engine limitation (Baileys doesn't support profile)
+        if (res.status === 501) {
+          setProfile(null);
+          setError("Profil tidak tersedia pada engine Baileys. Fitur ini memerlukan engine whatsapp-web.js.");
+          return;
+        }
+        throw new Error(data.error ?? "Gagal memuat profil");
+      }
       setProfile(data.profile);
       setEditName(data.profile.name ?? "");
       setEditAbout(data.profile.about ?? "");

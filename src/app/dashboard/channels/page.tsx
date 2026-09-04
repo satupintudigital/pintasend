@@ -55,7 +55,15 @@ export default function ChannelsPage() {
     try {
       const res = await fetch(`/api/devices/${selectedDevice}/channels`);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Gagal memuat channels");
+      if (!res.ok) {
+        // 501 = engine limitation (Baileys doesn't support channels)
+        if (res.status === 501) {
+          setChannels([]);
+          setError("Channels tidak tersedia pada engine Baileys. Fitur ini memerlukan engine whatsapp-web.js.");
+          return;
+        }
+        throw new Error(data.error ?? "Gagal memuat channels");
+      }
       setChannels(data.channels ?? []);
     } catch (e) {
       setError((e as Error).message);
