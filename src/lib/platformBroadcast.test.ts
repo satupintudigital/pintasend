@@ -16,10 +16,6 @@ vi.mock("@/lib/db", () => ({
 
 const q = query as unknown as ReturnType<typeof vi.fn>;
 
-function makeSqlMatcher(sql: string) {
-  return (call: unknown[]) => (call[0] as string).includes(sql);
-}
-
 beforeEach(() => vi.clearAllMocks());
 
 describe("createPlatformBroadcast", () => {

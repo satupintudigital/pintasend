@@ -51,6 +51,8 @@ export function InvoicesTable() {
   const [error, setError] = useState("");
   const [statusMsg, setStatusMsg] = useState<{ ok: boolean; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  // Token refetch — increment setelah aksi void/paid supaya useEffect reload.
+  const [reloadKey, setReloadKey] = useState(0);
 
   const params = new URLSearchParams();
   if (status) params.set("status", status);
@@ -73,7 +75,7 @@ export function InvoicesTable() {
     return () => {
       cancelled = true;
     };
-  }, [queryString]);
+  }, [queryString, reloadKey]);
 
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
 
@@ -127,8 +129,7 @@ export function InvoicesTable() {
         ok: true,
         msg: action === "mark_paid" ? "Invoice ditandai lunas." : "Invoice dibatalkan (void).",
       });
-      // Refresh halaman tetap — ganti page key.
-      router.push(`/platform/invoices?${queryString}&t=${Date.now()}`);
+      setReloadKey((k) => k + 1);
     } catch (e) {
       setStatusMsg({ ok: false, msg: e instanceof Error ? e.message : "Gagal" });
     } finally {

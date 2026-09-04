@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/auth", () => ({ auth: vi.fn() }));
 vi.mock("@/lib/platformBroadcast", () => ({
-  listPlatformBroadcasts: vi.fn(),
   createPlatformBroadcast: vi.fn(),
   getPlatformBroadcast: vi.fn(),
   startPlatformBroadcast: vi.fn(),
@@ -11,7 +10,6 @@ vi.mock("@/lib/platformBroadcast", () => ({
 
 import { auth } from "@/lib/auth";
 import {
-  listPlatformBroadcasts,
   createPlatformBroadcast,
   getPlatformBroadcast,
   startPlatformBroadcast,
@@ -21,7 +19,6 @@ import { GET as LIST, POST as CREATE } from "./route";
 import { GET as DETAIL, POST as ACT } from "./[id]/route";
 
 const mockedAuth = vi.mocked(auth);
-const mockedList = vi.mocked(listPlatformBroadcasts);
 const mockedCreate = vi.mocked(createPlatformBroadcast);
 const mockedDetail = vi.mocked(getPlatformBroadcast);
 const mockedStart = vi.mocked(startPlatformBroadcast);

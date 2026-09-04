@@ -56,20 +56,24 @@ export function BroadcastTable() {
   const [creating, setCreating] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
 
-  async function load() {
-    try {
-      const res = await fetch("/api/platform/broadcasts?limit=50");
-      const d = await res.json();
-      if (!res.ok) throw new Error(d.error ?? "Gagal memuat");
-      setData(d);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Gagal memuat");
-    }
-  }
+  // Token refetch: increment setelah aksi mutasi supaya useEffect reload data.
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    load();
-  }, []);
+    let cancelled = false;
+    fetch("/api/platform/broadcasts?limit=50")
+      .then(async (res) => {
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error ?? "Gagal memuat");
+        if (!cancelled) setData(d);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadKey]);
 
   async function createBroadcast(e: React.FormEvent) {
     e.preventDefault();
@@ -87,7 +91,7 @@ export function BroadcastTable() {
       setName("");
       setMessageBody("");
       setStatusMsg({ ok: true, msg: "Broadcast draft dibuat — review lalu Start." });
-      await load();
+      setReloadKey((k) => k + 1);
     } catch (err) {
       setStatusMsg({ ok: false, msg: err instanceof Error ? err.message : "Gagal membuat" });
     } finally {
@@ -112,7 +116,7 @@ export function BroadcastTable() {
           ? `Broadcast dimulai (${d.jobs ?? 0} perangkat sasaran).`
           : "Broadcast dibatalkan.",
       });
-      await load();
+      setReloadKey((k) => k + 1);
     } catch (err) {
       setStatusMsg({ ok: false, msg: err instanceof Error ? err.message : "Gagal" });
     } finally {

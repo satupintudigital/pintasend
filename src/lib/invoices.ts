@@ -118,7 +118,7 @@ export async function listInvoices(params: InvoiceQuery = {}): Promise<{
   if (params.tenantId) push('i."tenantId"', params.tenantId);
   if (params.status) push("i.status", params.status);
   if (params.year && params.month && isValidPeriod(params.year, params.month)) {
-    const { periodStart, periodEnd } = monthPeriodRange(params.year, params.month);
+    const { periodStart } = monthPeriodRange(params.year, params.month);
     clauses.push(`i."periodStart" = $${args.length + 1}`);
     args.push(periodStart.toISOString());
   }

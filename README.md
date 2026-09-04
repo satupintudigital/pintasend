@@ -71,6 +71,25 @@ npm run dev            # http://localhost:3000
 
 Referensi lengkap: `src/app/docs/api/page.tsx` (halaman `/docs/api`).
 
+## Dashboard & peran (tenant + platform)
+
+Wavio punya dua area dashboard dengan hierarki peran terpusat (`src/lib/abac.ts`):
+
+| Peran | Area tenant (`/dashboard`) | Area platform (`/platform`) |
+|---|---|---|
+| `member` | Pesan, device, kontak, campaign | — |
+| `tenant_admin` | + Kelola member tenant, API key, webhook | — |
+| `owner` | Akses penuh tenant (satu owner per tenant) | — |
+| `platform_admin` | — | Tenant & plan, addon, audit log, broadcast, invoice, global settings, metrics |
+
+Fitur platform (Task 6–13):
+
+- **Member management** — undang/list/ganti-role/reset-password/hapus user tenant di `/dashboard/members` (owner & tenant_admin, scoped ke tenant sendiri).
+- **Audit log** — jejak aksi admin lintas-tenant (`/platform/audit`, filter + export CSV); 13 titik mutasi ter-instrumentasi (`recordAudit` never-throw).
+- **Global settings** — `/platform/settings`: nama platform, footnote watermark iklan, kebijakan default (diprioritaskan env → setting DB → default).
+- **Broadcast** — `/platform/broadcasts`: pengumuman platform ke nomor pemilik perangkat (status ready); worker `workers/platform-broadcast` (HTTP on-demand); watermark tenant tetap dihormati.
+- **Invoice** — `/platform/invoices`: registri tagihan bulanan (WIB) per tenant ber-plan; generate idempoten, void/mark-paid, export CSV. *Registri simulasi — belum integrasi payment gateway.*
+
 ## Modul Campaign (WA Blast)
 
 Blast massal ratusan–ribuan penerima, digate `TenantAddon` key `campaign`:

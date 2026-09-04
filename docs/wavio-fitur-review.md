@@ -145,25 +145,38 @@ Platform admin = role `platform_admin`, tenantId = `00000000-0000-7000-8000-0000
 
 ## 3. GAP — Yang Kurang atau Perlu Diperjelas
 
-### 3.1 Member management (owner side)
-- Owner bisa menambah **member** pada tenant sendiri? 
-- Saat ini `User.role` hanya `"owner"` | `"member"` — tapi apakah owner punya UI untuk manage member?
-- **Tidak terlihat route `POST /api/admin/users` (member add) yang tenant-scoped di tampilan.**
+> Status: ditindaklanjuti oleh plan `2026-09-04-platform-owner-superadmin.md` —
+> gap 3.1–3.4 ditutup (lihat bagian 4).
 
-### 3.2 Platform admin — tidak ada fitur:
-- **Audit log lintas-tenant** — tidak ada tabel AuditLog / API audit.
-- **Platform-wide webhook/global broadcast** — tidak ada.
-- **Platform billing / invoice** — tidak ada.
-- **Platform global settings** — tidak ada halaman/route.
-- **Platform admin sendiri tidak punya "view" menu khusus** — hanya `/platform/*`.
+### 3.1 Member management (owner side) — ✅ DITUTUP (Task 3–5)
+- Owner & tenant_admin kini bisa mengundang/mengelola member tenant sendiri:
+  `POST/PATCH/DELETE /api/admin/users` (+ `[id]/password`) yang tenant-scoped
+  (scope dari sesi, bukan body), halaman `/dashboard/members`. Role baru
+  `tenant_admin` (hierarki member < tenant_admin < owner < platform_admin).
 
-### 3.3 User management cross-tenant agak ambigu
-- `GET /api/admin/users` ada (daftar semua user lintas-tenant). Apakah ini hanya untuk platform admin? 
-- Di `authStore.ts` disebut "daftar pengguna halaman admin — baca replika D1... Daftar lintas tenant HANYA untuk platform admin via /api/platform/*". Tapi route `/api/admin/users` tidak filter tenantId → berpotensi expose data user lintas-tenant ke siapa saja yang login (jika tidak ada guard).
+### 3.2 Platform admin — ✅ DITUTUP (Task 6–13)
+- **Audit log lintas-tenant** — model `AuditLog` + `recordAudit` (13 titik mutasi
+  ter-instrumentasi) + halaman/API `/platform/audit` + export CSV.
+- **Platform broadcast** — `PlatformBroadcast` + worker dispatcher + halaman
+  `/platform/broadcasts` (pengumuman ke pemilik perangkat, watermark tenant dihormati).
+- **Invoice** — model `Invoice` + `Plan.priceMonthly`, generate bulanan (WIB),
+  void/mark-paid, export CSV, halaman `/platform/invoices`. (Registri simulasi,
+  tanpa payment gateway.)
+- **Global settings** — `PlatformSetting` (nama platform, footnote watermark,
+  register, retensi default) + halaman `/platform/settings`.
+- **Menu/view** — sidebar platform kini: Ringkasan, Metrik, Plan, Tenant,
+  Broadcast, Invoice, Audit, Pengaturan.
 
-### 3.4 Security check
-- `/api/admin/users` (route.ts) harus dicek: apakah ada guard yang hanya `platform_admin` yang boleh akses?
-- Sama untuk `/api/admin/api-keys` — apakah terbuka untuk owner biasa?
+### 3.3 User management cross-tenant — ✅ AMAN
+- `/api/admin/*` kini tenant-scoped penuh: hanya member tenant sendiri (guard
+  `canManageTenantMembers(p, p.tenantId)`); jalur lintas-tenant hanya
+  `platform_admin` via `/api/platform/*`. Test regresi cross-tenant ada di
+  `src/lib/security-regression.test.ts`.
+
+### 3.4 Security check — ✅ DITUTUP (Task 14)
+- Seluruh guard route `admin/*` divalidasi + patch ke `canManageTenantMembers`
+  (owner & tenant_admin). Lihat `docs/security-hardening.md` untuk hasil audit
+  per file.
 
 ---
 
@@ -173,7 +186,7 @@ Platform admin = role `platform_admin`, tenantId = `00000000-0000-7000-8000-0000
 - [x] Register → buat tenant + owner user
 - [x] Login (credentials + JWT session)
 - [x] Reset password (owner sendiri via /api/admin/users/[id]/password)
-- [ ] Add member user ke tenant (belum jelas apakah ada)
+- [x] Add member user ke tenant (owner & tenant_admin via /dashboard/members)
 
 ### Device / WhatsApp
 - [x] Buat device (pairing session OpenWA)
@@ -272,15 +285,15 @@ Platform admin = role `platform_admin`, tenantId = `00000000-0000-7000-8000-0000
 - [x] Laporan metrik lintas tenant
 
 ### User management (lintas-tenant)
-- [x] Daftar semua user (`/api/admin/users`) — perlu dicek guard-nya
-- [x] Daftar semua API key (`/api/admin/api-keys`) — perlu dicek guard-nya
+- [x] Daftar user & API key tenant sendiri (`/api/admin/*`, tenant-scoped) — guard terverifikasi
+- [x] Jalur lintas-tenant eksklusif platform_admin via `/api/platform/*`
 
-### Kekurangan platform admin
-- [ ] Audit log lintas-tenant
-- [ ] Billing/invoice
-- [ ] Global platform settings
-- [ ] Platform-wide broadcast/webhook
-- [ ] Halaman dashboard platform yang lebih kaya (selain ringkasan)
+### Kekurangan platform admin — ✅ DITUTUP
+- [x] Audit log lintas-tenant (+ export CSV)
+- [x] Billing/invoice (registri simulasi bulanan)
+- [x] Global platform settings
+- [x] Platform broadcast (worker dispatcher)
+- [x] Halaman dashboard platform yang kaya (8 menu)
 
 ---
 

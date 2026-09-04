@@ -98,6 +98,49 @@ export default function DocsApi() {
             </div>
           </section>
 
+          {/* Peran & akses (dashboard) */}
+          <section>
+            <Anchor id="peran-dan-akses">Peran &amp; Akses</Anchor>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Dokumen ini adalah referensi API publik <code>v1</code> (dipakai
+              integrasi via API key). Selain itu Wavio punya antarmuka dashboard
+              dengan hierarki peran — guard terpusat di{" "}
+              <code className="font-mono text-accent-bright">src/lib/abac.ts</code>:
+            </p>
+            <div className="mt-3 overflow-x-auto rounded-xl border border-line bg-ink-2">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-line-soft text-xs uppercase tracking-wider text-fg-faint">
+                    <th className="px-4 py-2.5">Peran</th>
+                    <th className="px-4 py-2.5">Cakupan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["member", "Kirim pesan / kelola device & kontak tenant sendiri."],
+                    ["tenant_admin", "Semua akses member + kelola member tenant (undang, ganti role, reset password, hapus), API key, dan webhook tenant."],
+                    ["owner", "Akses penuh tenant: termasuk mengubah owner-invariant member (satu owner per tenant)."],
+                    ["platform_admin", "Operator platform: kelola tenant & plan, addon, audit log, global settings, broadcast lintas-tenant, dan invoice bulanan."],
+                  ].map(([role, desc]) => (
+                    <tr key={role} className="border-b border-line-soft/60 last:border-0">
+                      <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-accent-bright">
+                        {role}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-fg-muted">{desc}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-3 text-xs leading-relaxed text-fg-muted">
+              Jalur operator platform berada di <code>/platform/*</code> (dashboard
+              platform_admin): audit log + export CSV, pengaturan global (termasuk
+              footnote watermark), broadcast pengumuman ke pemilik perangkat, dan
+              registri invoice bulanan. Jalur ini tidak memakai API key — hanya sesi
+              login platform_admin.
+            </p>
+          </section>
+
           {/* Daftar endpoint */}
           <section>
             <Anchor id="daftar-endpoint">Daftar Endpoint</Anchor>

@@ -1,6 +1,10 @@
 # Wavio Platform Owner & Superadmin — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Status: ✅ SELESAI (16/16 task, inline di worktree `feat-platform-owner-superadmin`, 2026-09-04).**
+> Tiap task dikerjakan TDD (red→green), tsc + full suite hijau per commit. Ledger:
+> `.superpowers/sdd/2026-09-04-platform-owner-superadmin/progress.md`.
+>
+> Untuk agentic workers lain: plan ini sudah dieksekusi penuh; gunakan sebagai referensi implementasi, bukan checklist untuk dikerjakan ulang.
 
 **Goal:** Sebuah spesifikasi holistik satu-go yang menutup SEMUA gap Wavio: member management owner, fungsi platform admin yang belum ada (audit log, global settings, broadcast, invoice ringkas), hardening keamanan role, plus pola arsitektur modular + future-proof yang berlaku lintas fitur.
 
@@ -186,12 +190,12 @@ export function parsePrincipal(session: {
 } | null): Principal | null;
 ```
 
-- [ ] **Step 1: Tulis failing test** — `src/lib/abac.test.ts`: normalizeRole(undefined|“superuser”|“”) → “member”; canAccessTenant(owner tenant A, tenant A)=true, (owner A, tenant B)=false, (platform_admin, tenant B)=true; canManageTenantMembers(member A, A)=false, (tenant_admin A, A)=true, (tenant_admin A, B)=false; roleAtLeast(owner, owner)=true; roleAtLeast(member, owner)=false; parsePrincipal({user:null})=null.
-- [ ] **Step 2: Jalankan test** → FAIL (modul belum ada).
-- [ ] **Step 3: Implementasi `abac.ts`** (pure functions, tanpa import DB; export `forbidden()`/`unauthorized()` konsisten dengan teks pesan yang dipakai route sekarang: `{ error: "Forbidden — khusus platform admin" }` / `{ error: "Unauthorized" }`).
-- [ ] **Step 4: Refactor kecil** — di `src/app/api/platform/tenants/route.ts`, ganti fungsi lokal `requirePlatformAdmin` dengan pemakaian `parsePrincipal` + `isPlatformAdmin` dari `abac.ts` (perilaku identik, hapus duplikasi lokal).
-- [ ] **Step 5: Jalankan test** (`npx vitest run src/lib/abac.test.ts`) → PASS; `npx tsc --noEmit` bersih.
-- [ ] **Step 6: Commit** `refactor(abac): gate role terpusat untuk owner/tenant_admin/platform_admin`
+- [x] **Step 1: Tulis failing test** — `src/lib/abac.test.ts`: normalizeRole(undefined|“superuser”|“”) → “member”; canAccessTenant(owner tenant A, tenant A)=true, (owner A, tenant B)=false, (platform_admin, tenant B)=true; canManageTenantMembers(member A, A)=false, (tenant_admin A, A)=true, (tenant_admin A, B)=false; roleAtLeast(owner, owner)=true; roleAtLeast(member, owner)=false; parsePrincipal({user:null})=null.
+- [x] **Step 2: Jalankan test** → FAIL (modul belum ada).
+- [x] **Step 3: Implementasi `abac.ts`** (pure functions, tanpa import DB; export `forbidden()`/`unauthorized()` konsisten dengan teks pesan yang dipakai route sekarang: `{ error: "Forbidden — khusus platform admin" }` / `{ error: "Unauthorized" }`).
+- [x] **Step 4: Refactor kecil** — di `src/app/api/platform/tenants/route.ts`, ganti fungsi lokal `requirePlatformAdmin` dengan pemakaian `parsePrincipal` + `isPlatformAdmin` dari `abac.ts` (perilaku identik, hapus duplikasi lokal).
+- [x] **Step 5: Jalankan test** (`npx vitest run src/lib/abac.test.ts`) → PASS; `npx tsc --noEmit` bersih.
+- [x] **Step 6: Commit** `refactor(abac): gate role terpusat untuk owner/tenant_admin/platform_admin`
 
 ---
 
@@ -203,12 +207,12 @@ export function parsePrincipal(session: {
 - Modify: `src/app/api/platform/tenants/[id]/users/route.ts` — POST saat ini menerima `role` bebas; batasi: hanya `member|tenant_admin` untuk user baru non-owner via platform (owner tenant dibuat lewat provisioning terpisah).
 - Create test: `src/lib/authStore.abac.test.ts` (role whitelist saat create user invalid role → ditolak)
 
-- [ ] **Step 1:** Tulis failing test untuk whitelist role (createUser role “superuser” → throw/error).
-- [ ] **Step 2:** Jalankan → FAIL.
-- [ ] **Step 3:** Implementasi: helper `normalizeRole` dari Task 1 dipakai sebelum INSERT; input role di luar whitelist ditolak (lemparkan `InvalidRoleError`).
-- [ ] **Step 4:** Update route platform users POST → hanya izinkan `member|tenant_admin`; jaga kuota `checkUserQuota` tetap dipanggil.
-- [ ] **Step 5:** Jalankan test + `tsc` → hijau.
-- [ ] **Step 6: Commit** `feat(roles): role tenant_admin + whitelist role di jalur create user`
+- [x] **Step 1:** Tulis failing test untuk whitelist role (createUser role “superuser” → throw/error).
+- [x] **Step 2:** Jalankan → FAIL.
+- [x] **Step 3:** Implementasi: helper `normalizeRole` dari Task 1 dipakai sebelum INSERT; input role di luar whitelist ditolak (lemparkan `InvalidRoleError`).
+- [x] **Step 4:** Update route platform users POST → hanya izinkan `member|tenant_admin`; jaga kuota `checkUserQuota` tetap dipanggil.
+- [x] **Step 5:** Jalankan test + `tsc` → hijau.
+- [x] **Step 6: Commit** `feat(roles): role tenant_admin + whitelist role di jalur create user`
 
 ---
 
@@ -241,11 +245,11 @@ Invariant yang dijaga service (unit-test wajib):
 - `resetTenantMemberPassword` hanya untuk user dalam tenant yang sama (`getUserInTenant`), TIDAK lintas-tenant.
 - Semua mutasi mencatat audit (dipanggil di Task 6+ — tandai call-site dengan TODO kecil berkomentar `// TODO(audit): recordAudit(...)` yang diisi Task 7).
 
-- [ ] **Step 1:** Failing test: invite owner via jalur member → ditolak; role change mencabut owner terakhir → ditolak; remove diri sendiri → ditolak.
-- [ ] **Step 2:** Jalankan → FAIL.
-- [ ] **Step 3:** Implementasi `tenantMembers.ts` memakai `authStore.createUser` (sudah ada), `listUsersPaginated`, plus `deleteUser`/`getUserInTenant` baru di `authStore.ts` (write-through Neon→D1, hapus baris D1 `DELETE FROM User WHERE id=?`).
-- [ ] **Step 4:** test hijau; `tsc` bersih.
-- [ ] **Step 5: Commit** `feat(tenant): service member management tenant-scoped (invite/list/role/remove/reset)`
+- [x] **Step 1:** Failing test: invite owner via jalur member → ditolak; role change mencabut owner terakhir → ditolak; remove diri sendiri → ditolak.
+- [x] **Step 2:** Jalankan → FAIL.
+- [x] **Step 3:** Implementasi `tenantMembers.ts` memakai `authStore.createUser` (sudah ada), `listUsersPaginated`, plus `deleteUser`/`getUserInTenant` baru di `authStore.ts` (write-through Neon→D1, hapus baris D1 `DELETE FROM User WHERE id=?`).
+- [x] **Step 4:** test hijau; `tsc` bersih.
+- [x] **Step 5: Commit** `feat(tenant): service member management tenant-scoped (invite/list/role/remove/reset)`
 
 ---
 
@@ -258,11 +262,11 @@ Invariant yang dijaga service (unit-test wajib):
 - Create: `[id]/route.ts` — `PATCH { role }` → `updateTenantMemberRole`; `DELETE` → `removeTenantMember`
 - Create test: `src/app/api/admin/users/route.test.ts` + `src/app/api/admin/users/[id]/route.test.ts` (mock session; kasus: 401 tanpa session; member → 403; owner lintas-tenant disimulasikan service ditolak → 400/403; happy path 201/200)
 
-- [ ] **Step 1:** Failing test route: POST valid → 201; POST role owner → 400; DELETE diri sendiri → 400.
-- [ ] **Step 2:** Jalankan → FAIL (belum ada handler).
-- [ ] **Step 3:** Implementasi handler thin — `auth()` → `parsePrincipal` → `canManageTenantMembers(p, p.tenantId)` → rate limit (bucket `admin-user:${tenantId}:${clientIp}` 30/mnt) → panggil service → Response.
-- [ ] **Step 4:** Jalankan test + `tsc` hijau.
-- [ ] **Step 5: Commit** `feat(api): route member management (POST/PATCH/DELETE) owner & tenant_admin`
+- [x] **Step 1:** Failing test route: POST valid → 201; POST role owner → 400; DELETE diri sendiri → 400.
+- [x] **Step 2:** Jalankan → FAIL (belum ada handler).
+- [x] **Step 3:** Implementasi handler thin — `auth()` → `parsePrincipal` → `canManageTenantMembers(p, p.tenantId)` → rate limit (bucket `admin-user:${tenantId}:${clientIp}` 30/mnt) → panggil service → Response.
+- [x] **Step 4:** Jalankan test + `tsc` hijau.
+- [x] **Step 5: Commit** `feat(api): route member management (POST/PATCH/DELETE) owner & tenant_admin`
 
 ---
 
@@ -274,10 +278,10 @@ Invariant yang dijaga service (unit-test wajib):
 - Modify: sidebar/nav dashboard (temukan file nav — pola `src/components/dashboard/*Sidebar*` atau sejenisnya — tambah entri “Members” untuk owner/tenant_admin)
 - Create test: `src/components/dashboard/MembersTable.test.tsx` (opsional — happy path render; bila tim UI repo belum punya pola test component, konfirmasi dulu & cukup smoke via `npm test` yang ada)
 
-- [ ] **Step 1:** Buat halaman + komponen mengikuti pola halaman settings/members yang sudah ada di dashboard (cek `src/app/dashboard/*` untuk referensi styling & fetch).
-- [ ] **Step 2:** Sambungkan semua aksi ke route Task 4; tampilkan pesan error dari API; role `platform_admin`/`owner` label jelas.
-- [ ] **Step 3:** Build typecheck (`tsc --noEmit`) + test hijau.
-- [ ] **Step 4: Commit** `feat(ui): halaman members dashboard (invite, role, reset, remove)`
+- [x] **Step 1:** Buat halaman + komponen mengikuti pola halaman settings/members yang sudah ada di dashboard (cek `src/app/dashboard/*` untuk referensi styling & fetch).
+- [x] **Step 2:** Sambungkan semua aksi ke route Task 4; tampilkan pesan error dari API; role `platform_admin`/`owner` label jelas.
+- [x] **Step 3:** Build typecheck (`tsc --noEmit`) + test hijau.
+- [x] **Step 4: Commit** `feat(ui): halaman members dashboard (invite, role, reset, remove)`
 
 ---
 
@@ -356,11 +360,11 @@ export async function listAuditLogs(q: AuditQuery): Promise<{ logs: AuditLogRow[
 export interface AuditLogRow { id: string; tenantId: string | null; actorUserId: string | null; actorEmail: string; actorRole: string; action: string; targetType: string | null; targetId: string | null; meta: string; ip: string | null; createdAt: string; }
 ```
 
-- [ ] **Step 1:** Failing test: `recordAudit` menulis baris (mock query) walau meta berisi objek (ter-serialize JSON); `listAuditLogs` filter action+tenantId+page; recordAudit tidak melempar saat query gagal (mock reject → resolve).
-- [ ] **Step 2:** Jalankan → FAIL.
-- [ ] **Step 3:** Implementasi `audit.ts` memakai `query` dari `src/lib/db` (Neon), uuidv7 untuk id.
-- [ ] **Step 4:** Terapkan migration SQL (cek pola `prisma/apply-schema.mjs`; jalankan `node prisma/apply-schema.mjs` untuk dev) + test hijau + `tsc` bersih.
-- [ ] **Step 5: Commit** `feat(audit): model + service AuditLog (never-throw record, list filter paginated)`
+- [x] **Step 1:** Failing test: `recordAudit` menulis baris (mock query) walau meta berisi objek (ter-serialize JSON); `listAuditLogs` filter action+tenantId+page; recordAudit tidak melempar saat query gagal (mock reject → resolve).
+- [x] **Step 2:** Jalankan → FAIL.
+- [x] **Step 3:** Implementasi `audit.ts` memakai `query` dari `src/lib/db` (Neon), uuidv7 untuk id.
+- [x] **Step 4:** Terapkan migration SQL (cek pola `prisma/apply-schema.mjs`; jalankan `node prisma/apply-schema.mjs` untuk dev) + test hijau + `tsc` bersih.
+- [x] **Step 5: Commit** `feat(audit): model + service AuditLog (never-throw record, list filter paginated)`
 
 ---
 
@@ -383,11 +387,11 @@ export interface AuditLogRow { id: string; tenantId: string | null; actorUserId:
 
 **Kontrak:** action string snake_case di atas; `meta` berisi `before`/`after` bila relevan; `tenantId` dari target (bukan hanya session); actor dari `parsePrincipal(session)`. Kegagalan `recordAudit` tidak menggagalkan respons (sudah never-throw di Task 6).
 
-- [ ] **Step 1:** Pilih 2 file (mis. tenants status + api-keys) → tulis unit test route yang mengassert `recordAudit` dipanggil dengan action benar (mock `src/lib/audit`).
-- [ ] **Step 2:** Implementasi instrumentasi di kedua file → test hijau.
-- [ ] **Step 3:** Terapkan ke file tersisa (tanpa test per-file — cukup test Task 6 + smoke `npm test` penuh).
-- [ ] **Step 4:** `tsc` + `npm test` hijau.
-- [ ] **Step 5: Commit** `feat(audit): instrumentasi action platform & tenant (create/suspend/plan/delay/addon/user/apikey/webhook/device)`
+- [x] **Step 1:** Pilih 2 file (mis. tenants status + api-keys) → tulis unit test route yang mengassert `recordAudit` dipanggil dengan action benar (mock `src/lib/audit`).
+- [x] **Step 2:** Implementasi instrumentasi di kedua file → test hijau.
+- [x] **Step 3:** Terapkan ke file tersisa (tanpa test per-file — cukup test Task 6 + smoke `npm test` penuh).
+- [x] **Step 4:** `tsc` + `npm test` hijau.
+- [x] **Step 5: Commit** `feat(audit): instrumentasi action platform & tenant (create/suspend/plan/delay/addon/user/apikey/webhook/device)`
 
 ---
 
@@ -401,11 +405,11 @@ export interface AuditLogRow { id: string; tenantId: string | null; actorUserId:
 - Modify: `src/components/platform/PlatformSidebar.tsx` (tambah entri “Audit”)
 - Create test: `src/app/api/platform/audit/route.test.ts` (401/403/200 + delegasi filter)
 
-- [ ] **Step 1:** Failing test route audit (mock listAuditLogs): 401 tanpa session, 403 role owner, 200 & filter diteruskan.
-- [ ] **Step 2:** Implementasi route GET + export CSV (helper kecil `toAuditCsv(logs)` di `audit.ts` agar ter-test; CSV escape koma/quote/newline).
-- [ ] **Step 3:** Halaman + tabel + sidebar.
-- [ ] **Step 4:** `tsc` + test hijau.
-- [ ] **Step 5: Commit** `feat(platform): audit log API + halaman + export CSV`
+- [x] **Step 1:** Failing test route audit (mock listAuditLogs): 401 tanpa session, 403 role owner, 200 & filter diteruskan.
+- [x] **Step 2:** Implementasi route GET + export CSV (helper kecil `toAuditCsv(logs)` di `audit.ts` agar ter-test; CSV escape koma/quote/newline).
+- [x] **Step 3:** Halaman + tabel + sidebar.
+- [x] **Step 4:** `tsc` + test hijau.
+- [x] **Step 5: Commit** `feat(platform): audit log API + halaman + export CSV`
 
 ---
 
@@ -431,11 +435,11 @@ model PlatformSetting {
 ```
 **Known keys (whitelist):** `platform_name` (string, default "Wavio"), `watermark_footnote` (string), `allow_public_registration` (bool, default false — kendalikan halaman `/register`), `message_retention_default_days` (int 30..365, default 30). Catatan: `allow_public_registration=false` → route register mengembalikan 403 (opsional flag ke deprecation, karena provisioning tenant kini via platform admin).
 
-- [ ] **Step 1:** Failing test: getPlatformSetting default fallback; set + get round-trip; PUT whitelist key tak dikenal → 400; tipe salah → 400.
-- [ ] **Step 2:** Implementasi service + route.
-- [ ] **Step 3:** Update `watermark.ts` fallback + test watermark dengan setting (mock).
-- [ ] **Step 4:** UI settings + sidebar.
-- [ ] **Step 5:** `tsc` + test hijau → commit `feat(platform): global settings (nama platform, watermark footnote, register, retention default)`
+- [x] **Step 1:** Failing test: getPlatformSetting default fallback; set + get round-trip; PUT whitelist key tak dikenal → 400; tipe salah → 400.
+- [x] **Step 2:** Implementasi service + route.
+- [x] **Step 3:** Update `watermark.ts` fallback + test watermark dengan setting (mock).
+- [x] **Step 4:** UI settings + sidebar.
+- [x] **Step 5:** `tsc` + test hijau → commit `feat(platform): global settings (nama platform, watermark footnote, register, retention default)`
 
 ---
 
@@ -508,11 +512,11 @@ export async function markBroadcastJobSent(jobId: string, messageId: string | nu
 export async function markBroadcastJobFailed(jobId: string, error: string, retryAfterMs?: number): Promise<void>;
 ```
 
-- [ ] **Step 1:** Failing test service: create broadcast draft; start → jobs tersnap dari device ready (mock query); start broadcast yang bukan draft → ditolak; cancel running → ok.
-- [ ] **Step 2:** Jalankan → FAIL.
-- [ ] **Step 3:** Implementasi service (query Neon, uuidv7; reuse `logEvent` requestLogger).
-- [ ] **Step 4:** Migration SQL idempotent + `apply-schema`; test hijau + `tsc`.
-- [ ] **Step 5: Commit** `feat(broadcast): model + service platform broadcast (draft/start/cancel, job queue)`
+- [x] **Step 1:** Failing test service: create broadcast draft; start → jobs tersnap dari device ready (mock query); start broadcast yang bukan draft → ditolak; cancel running → ok.
+- [x] **Step 2:** Jalankan → FAIL.
+- [x] **Step 3:** Implementasi service (query Neon, uuidv7; reuse `logEvent` requestLogger).
+- [x] **Step 4:** Migration SQL idempotent + `apply-schema`; test hijau + `tsc`.
+- [x] **Step 5: Commit** `feat(broadcast): model + service platform broadcast (draft/start/cancel, job queue)`
 
 ---
 
@@ -541,11 +545,11 @@ async function handleBroadcastDispatch(env) {
 }
 ```
 
-- [ ] **Step 1:** Tulis worker mengikuti pola worker campaign-dispatch yang ada (baca dulu file tsb); pastikan binding env D1/KV sama.
-- [ ] **Step 2:** Route + test (401/403/400/200 + delegasi service mock).
-- [ ] **Step 3:** UI broadcast + sidebar.
-- [ ] **Step 4:** `tsc` + `npm test` hijau.
-- [ ] **Step 5: Commit** `feat(broadcast): dispatcher cron + API + UI broadcast platform`
+- [x] **Step 1:** Tulis worker mengikuti pola worker campaign-dispatch yang ada (baca dulu file tsb); pastikan binding env D1/KV sama.
+- [x] **Step 2:** Route + test (401/403/400/200 + delegasi service mock).
+- [x] **Step 3:** UI broadcast + sidebar.
+- [x] **Step 4:** `tsc` + `npm test` hijau.
+- [x] **Step 5: Commit** `feat(broadcast): dispatcher cron + API + UI broadcast platform`
 
 ---
 
@@ -588,11 +592,11 @@ export async function markInvoicePaid(id: string): Promise<{ ok: boolean; reason
 export async function exportInvoicesCsv(params: {...}): Promise<string>; // helper pure, ter-test
 ```
 
-- [ ] **Step 1:** Failing test: generate bulan tertentu membuat invoice per tenant ber-plan (skip tenant tanpa plan/suspended, skip duplikat); void/mark paid transisi status valid; export CSV escape.
-- [ ] **Step 2:** Jalankan → FAIL.
-- [ ] **Step 3:** Implementasi service (periode WIB via helper tanggal — ikuti pola `monthStartWib` di `src/lib/quota.ts`; ekstrak ke util kecil `src/lib/monthPeriod.ts` agar reusable invoice/broadcast).
-- [ ] **Step 4:** Update `updatePlan` + route `plans/[id]` + UI `PlansTable` (kolom harga bulanan opsional) + migration.
-- [ ] **Step 5:** test hijau + `tsc` → commit `feat(invoice): model invoice + priceMonthly plan + generate/list/void/paid`
+- [x] **Step 1:** Failing test: generate bulan tertentu membuat invoice per tenant ber-plan (skip tenant tanpa plan/suspended, skip duplikat); void/mark paid transisi status valid; export CSV escape.
+- [x] **Step 2:** Jalankan → FAIL.
+- [x] **Step 3:** Implementasi service (periode WIB via helper tanggal — ikuti pola `monthStartWib` di `src/lib/quota.ts`; ekstrak ke util kecil `src/lib/monthPeriod.ts` agar reusable invoice/broadcast).
+- [x] **Step 4:** Update `updatePlan` + route `plans/[id]` + UI `PlansTable` (kolom harga bulanan opsional) + migration.
+- [x] **Step 5:** test hijau + `tsc` → commit `feat(invoice): model invoice + priceMonthly plan + generate/list/void/paid`
 
 ---
 
@@ -604,10 +608,10 @@ export async function exportInvoicesCsv(params: {...}): Promise<string>; // help
 - Modify: `PlatformSidebar.tsx`
 - Create test: `src/app/api/platform/invoices/route.test.ts` (401/403/200; generate idempoten; void/mark paid)
 
-- [ ] **Step 1:** Failing test route.
-- [ ] **Step 2:** Implementasi route (guard `platform_admin`, rate limit generate 10/mnt) + export.
-- [ ] **Step 3:** Halaman + tabel + sidebar.
-- [ ] **Step 4:** `tsc` + test hijau → commit `feat(platform): invoice API + halaman + generate + export`
+- [x] **Step 1:** Failing test route.
+- [x] **Step 2:** Implementasi route (guard `platform_admin`, rate limit generate 10/mnt) + export.
+- [x] **Step 3:** Halaman + tabel + sidebar.
+- [x] **Step 4:** `tsc` + test hijau → commit `feat(platform): invoice API + halaman + generate + export`
 
 ---
 
@@ -620,10 +624,10 @@ export async function exportInvoicesCsv(params: {...}): Promise<string>; // help
 - Cek khusus: `src/app/api/admin/users/[id]/password/route.ts` (lintas-tenant reset password) & `api-keys/[id]` revoke (scope tenantId sudah benar?) — ini yang Task 4 sudah mulai tutup; pastikan lengkap.
 - Tambahkan test regresi cross-tenant: mock session tenant A mencoba akses resource tenant B → 403/404 (bukan data bocor).
 
-- [ ] **Step 1:** Buat daftar audit singkat di komentar file `docs/security-hardening.md` (baru) — hasil per-file (guard lama → baru).
-- [ ] **Step 2:** Patch guard sesuai daftar; jaga pesan error konsisten (401/403).
-- [ ] **Step 3:** Test regresi cross-tenant (file `src/lib/security-regression.test.ts` menguji abac + satu route sampel per kategori).
-- [ ] **Step 4:** `tsc` + `npm test` + lint hijau → commit `fix(security): hardening guard admin/API lintas-tenant + regresi test`
+- [x] **Step 1:** Buat daftar audit singkat di komentar file `docs/security-hardening.md` (baru) — hasil per-file (guard lama → baru).
+- [x] **Step 2:** Patch guard sesuai daftar; jaga pesan error konsisten (401/403).
+- [x] **Step 3:** Test regresi cross-tenant (file `src/lib/security-regression.test.ts` menguji abac + satu route sampel per kategori).
+- [x] **Step 4:** `tsc` + `npm test` + lint hijau → commit `fix(security): hardening guard admin/API lintas-tenant + regresi test`
 
 ---
 
@@ -636,9 +640,9 @@ export async function exportInvoicesCsv(params: {...}): Promise<string>; // help
 - Modify: `src/lib/quota.ts` — tambah `checkAddonEntitlement`? (opsional: biarkan quota existing; dokumentasikan bahwa grant addon tidak mengecek entitlement plan — catat sebagai decision)
 - Create test: `src/lib/addonKeys.test.ts` (konsistensi: semua key yang dipakai module = subset ADDON_KEYS)
 
-- [ ] **Step 1:** Failing test konsistensi key (scan module yang memakai key; pastikan terdaftar).
-- [ ] **Step 2:** Implementasi addonKeys + refactor impor.
-- [ ] **Step 3:** `tsc` + test + lint hijau → commit `refactor(addon): konsolidasi konstanta addon keys satu sumber`
+- [x] **Step 1:** Failing test konsistensi key (scan module yang memakai key; pastikan terdaftar).
+- [x] **Step 2:** Implementasi addonKeys + refactor impor.
+- [x] **Step 3:** `tsc` + test + lint hijau → commit `refactor(addon): konsolidasi konstanta addon keys satu sumber`
 
 ---
 
@@ -651,10 +655,10 @@ export async function exportInvoicesCsv(params: {...}): Promise<string>; // help
 - Create: `docs/security-hardening.md` (dari Task 14)
 - Update `docs/superpowers/plans/2026-09-04-platform-owner-superadmin.md` status checklist tiap task (centang selesai)
 
-- [ ] **Step 1:** Update docs API + README + review doc.
-- [ ] **Step 2:** Jalankan verifikasi penuh: `npx tsc --noEmit`, `npm test`, `npm run lint` — semua hijau (catat isu pra-ada terpisah).
-- [ ] **Step 3:** Smoke test lokal kalau bisa (bukan live production tanpa izin): jalankan `npm run dev`? Tidak wajib — cukup unit + typecheck; live test hanya bila user minta.
-- [ ] **Step 4:** Commit `docs: fitur platform owner/superadmin + audit + settings + broadcast + invoice`
+- [x] **Step 1:** Update docs API + README + review doc.
+- [x] **Step 2:** Jalankan verifikasi penuh: `npx tsc --noEmit`, `npm test`, `npm run lint` — semua hijau (catat isu pra-ada terpisah).
+- [x] **Step 3:** Smoke test lokal kalau bisa (bukan live production tanpa izin): jalankan `npm run dev`? Tidak wajib — cukup unit + typecheck; live test hanya bila user minta.
+- [x] **Step 4:** Commit `docs: fitur platform owner/superadmin + audit + settings + broadcast + invoice`
 
 ---
 
