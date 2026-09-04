@@ -98,6 +98,15 @@ export const FILTER_FIELDS: FieldDefinition[] = [
     // Edited membawa `hasMedia` eksplisit; received membawa objek `media`.
     resolve: (d) => d.hasMedia === true || d.media != null,
   },
+  // v0.23: kind filter — individu, grup, channel, status, broadcast, unknown.
+  // Membedakan channel (newsletter) dari chat 1:1 yang `isGroup` tidak bisa.
+  {
+    field: "kind",
+    kind: "enum",
+    operators: ENUM_OPERATORS,
+    enumValues: ["individual", "group", "channel", "status", "broadcast", "unknown"] as const,
+    resolve: (d) => str(d.kind),
+  },
 ];
 
 // Event yang membawa konten pesan — satu-satunya yang dikenai filter.

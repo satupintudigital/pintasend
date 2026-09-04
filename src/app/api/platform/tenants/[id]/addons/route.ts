@@ -3,7 +3,7 @@ import { setTenantAddon } from "@/lib/platform";
 
 // Addon tenant (grant/revoke) — khusus platform_admin.
 // Body: { key: string, active: boolean }. Key di-whitelist di sini.
-const ADDON_KEYS = ["random_delay"] as const;
+const ADDON_KEYS = ["random_delay", "remove_watermark"] as const;
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();

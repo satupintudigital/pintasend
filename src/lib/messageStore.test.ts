@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   applyMessageDeliveryStatus,
+  insertMessageLog,
   isMessageDeliveryStatus,
   mergeMessageReaction,
   setMessageReactions,
@@ -27,6 +28,36 @@ beforeEach(() => {
 });
 
 afterEach(() => vi.restoreAllMocks());
+
+describe("insertMessageLog — kolom watermark", () => {
+  it("INSERT menyertakan kolom watermark (default false)", async () => {
+    queryMock.mockResolvedValueOnce([]);
+    await insertMessageLog({
+      tenantId: "t1",
+      direction: "outgoing",
+      chatId: "62812@c.us",
+      body: "Halo",
+    });
+
+    const [sql, params] = queryMock.mock.calls[0];
+    expect(sql).toContain("watermark");
+    expect(params[15]).toBe(false);
+  });
+
+  it("watermark true diteruskan ke kolom", async () => {
+    queryMock.mockResolvedValueOnce([]);
+    await insertMessageLog({
+      tenantId: "t1",
+      direction: "outgoing",
+      chatId: "62812@c.us",
+      body: "Halo",
+      watermark: true,
+    });
+
+    const [, params] = queryMock.mock.calls[0];
+    expect(params[15]).toBe(true);
+  });
+});
 
 describe("isMessageDeliveryStatus", () => {
   it("mengenali delivered / read / failed", () => {

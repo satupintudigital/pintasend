@@ -13,9 +13,30 @@ interface TenantDetail {
   planName: string | null;
   delayEnabled: boolean;
   delayAddonActive: boolean;
+  watermarkAddonActive: boolean;
+  messageRetentionDays: number;
   devices: number;
   users: number;
   messages: number;
+}
+
+interface RetentionRequestRow {
+  id: string;
+  requestedBy: string;
+  reason: string;
+  retentionDays: number;
+  status: string;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  createdAt: string;
+}
+
+interface RetentionInfo {
+  tenantId: string;
+  retentionDays: number;
+  defaultRetentionDays: number;
+  maxRetentionDays: number;
+  requests: RetentionRequestRow[];
 }
 
 interface UserRow {
@@ -66,7 +87,19 @@ export function TenantDetailPanel({ tenantId, initial }: TenantDetailPanelProps)
   const [statusLoading, setStatusLoading] = useState(false);
   const [planLoading, setPlanLoading] = useState(false);
   const [delayLoading, setDelayLoading] = useState(false);
+  const [watermarkLoading, setWatermarkLoading] = useState(false);
   const [actionError, setActionError] = useState("");
+
+  // Retensi pesan (perpanjangan atas permintaan tertulis tenant)
+  const [retention, setRetention] = useState<RetentionInfo | null>(null);
+  const [retentionLoading, setRetentionLoading] = useState(false);
+  const [retentionError, setRetentionError] = useState("");
+  const [retentionSuccess, setRetentionSuccess] = useState("");
+  const [rRequestedBy, setRRequestedBy] = useState("");
+  const [rReason, setRReason] = useState("");
+  const [rDays, setRDays] = useState("60");
+  const [rSubmitLoading, setRSubmitLoading] = useState(false);
+  const [rProcessId, setRProcessId] = useState<string | null>(null);
 
   // Form tambah user
   const [uName, setUName] = useState("");
@@ -154,23 +187,28 @@ export function TenantDetailPanel({ tenantId, initial }: TenantDetailPanelProps)
     }
   }
 
-  async function toggleAddon(active: boolean) {
-    setDelayLoading(true);
+  async function toggleAddon(
+    key: "random_delay" | "remove_watermark",
+    field: "delayAddonActive" | "watermarkAddonActive",
+    active: boolean,
+  ) {
+    const setLoading = key === "random_delay" ? setDelayLoading : setWatermarkLoading;
+    setLoading(true);
     setActionError("");
     try {
       const res = await fetch(`/api/platform/tenants/${tenantId}/addons`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "random_delay", active }),
+        body: JSON.stringify({ key, active }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Gagal mengubah addon");
-      setTenant((t) => ({ ...t, delayAddonActive: active }));
+      setTenant((t) => ({ ...t, [field]: active }));
       router.refresh();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Terjadi kesalahan");
     } finally {
-      setDelayLoading(false);
+      setLoading(false);
     }
   }
 
@@ -226,6 +264,83 @@ export function TenantDetailPanel({ tenantId, initial }: TenantDetailPanelProps)
       setPwError(e instanceof Error ? e.message : "Terjadi kesalahan");
     } finally {
       setPwUserId(null);
+    }
+  }
+
+  async function loadRetention() {
+    setRetentionLoading(true);
+    setRetentionError("");
+    try {
+      const res = await fetch(`/api/platform/tenants/${tenantId}/retention`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Gagal memuat data retensi");
+      setRetention(data);
+    } catch (e) {
+      setRetentionError(e instanceof Error ? e.message : "Terjadi kesalahan");
+    } finally {
+      setRetentionLoading(false);
+    }
+  }
+
+  async function createRetentionRequest(e: React.FormEvent) {
+    e.preventDefault();
+    setRetentionError("");
+    setRetentionSuccess("");
+    setRSubmitLoading(true);
+    try {
+      const res = await fetch(`/api/platform/tenants/${tenantId}/retention`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestedBy: rRequestedBy.trim(),
+          reason: rReason.trim(),
+          retentionDays: Number(rDays),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Gagal mencatat permintaan");
+      setRetentionSuccess("Permintaan tercatat (status pending) — menunggu persetujuan.");
+      setRRequestedBy("");
+      setRReason("");
+      setRDays("60");
+      await loadRetention();
+      router.refresh();
+    } catch (e) {
+      setRetentionError(e instanceof Error ? e.message : "Terjadi kesalahan");
+    } finally {
+      setRSubmitLoading(false);
+    }
+  }
+
+  async function processRetentionRequest(requestId: string, action: "approve" | "reject") {
+    if (action === "approve") {
+      const okConfirm = window.confirm(
+        "Setujui perpanjangan retensi? Nilai retensi tenant langsung diperbarui.",
+      );
+      if (!okConfirm) return;
+    }
+    setRProcessId(requestId);
+    setRetentionError("");
+    setRetentionSuccess("");
+    try {
+      const res = await fetch(`/api/platform/tenants/${tenantId}/retention/${requestId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Gagal memproses permintaan");
+      setRetentionSuccess(
+        action === "approve"
+          ? "Permintaan disetujui — retensi tenant diperbarui."
+          : "Permintaan ditolak — retensi tenant tidak berubah.",
+      );
+      await loadRetention();
+      router.refresh();
+    } catch (e) {
+      setRetentionError(e instanceof Error ? e.message : "Terjadi kesalahan");
+    } finally {
+      setRProcessId(null);
     }
   }
 
@@ -384,7 +499,7 @@ export function TenantDetailPanel({ tenantId, initial }: TenantDetailPanelProps)
           <button
             type="button"
             disabled={delayLoading}
-            onClick={() => toggleAddon(!tenant.delayAddonActive)}
+            onClick={() => toggleAddon("random_delay", "delayAddonActive", !tenant.delayAddonActive)}
             className={`ml-auto rounded-full border px-4 py-2 text-sm font-semibold transition-all active:scale-[0.97] disabled:opacity-50 ${
               tenant.delayAddonActive
                 ? "border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20"
@@ -398,6 +513,242 @@ export function TenantDetailPanel({ tenantId, initial }: TenantDetailPanelProps)
                 : "Berikan addon (random delay)"}
           </button>
         </div>
+      </div>
+
+      {/* Hapus Watermark (pesan keluar WhatsApp) */}
+      <div className="rounded-2xl border border-line bg-surface p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
+              Hapus Watermark
+            </p>
+            <p className="mt-1 max-w-[52ch] text-sm leading-relaxed text-fg-muted">
+              Footnote iklan platform otomatis ditambahkan di akhir setiap pesan
+              keluar melalui Wavio (teks maupun caption media) — media promosi
+              kami. Dengan addon ini, footnote dihapus dari semua pesan tenant.
+            </p>
+          </div>
+          <span
+            className={`rounded-full border px-3 py-1 text-xs font-medium ${
+              tenant.watermarkAddonActive
+                ? "border-accent/25 bg-accent/10 text-accent-bright"
+                : "border-line-soft bg-surface-2 text-fg-faint"
+            }`}
+          >
+            {tenant.watermarkAddonActive
+              ? "Addon aktif — tanpa footnote"
+              : "Watermark aktif di tiap pesan"}
+          </span>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-4">
+          <button
+            type="button"
+            disabled={watermarkLoading}
+            onClick={() => toggleAddon("remove_watermark", "watermarkAddonActive", !tenant.watermarkAddonActive)}
+            className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all active:scale-[0.97] disabled:opacity-50 ${
+              tenant.watermarkAddonActive
+                ? "border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                : "border-accent/40 bg-accent/10 text-accent-bright hover:bg-accent/20"
+            }`}
+          >
+            {watermarkLoading
+              ? "Memproses…"
+              : tenant.watermarkAddonActive
+                ? "Cabut addon"
+                : "Berikan addon (hapus watermark)"}
+          </button>
+        </div>
+      </div>
+
+      {/* Retensi Pesan (perpanjangan atas permintaan tertulis tenant) */}
+      <div className="rounded-2xl border border-line bg-surface p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">
+              Retensi Pesan
+            </p>
+            <p className="mt-1 max-w-[52ch] text-sm leading-relaxed text-fg-muted">
+              Pesan &amp; log pengiriman dihapus otomatis setelah jangka waktu ini
+              (kebijakan default 30 hari). Tenant dapat meminta penyimpanan lebih
+              lama secara tertulis — permintaan harus disetujui di sini.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={retentionLoading}
+            onClick={loadRetention}
+            className="rounded-full border border-line px-4 py-2 text-sm font-semibold text-fg-muted transition-all hover:border-accent/50 hover:text-fg active:scale-[0.97] disabled:opacity-50"
+          >
+            {retentionLoading ? "Memuat…" : "Muat data retensi"}
+          </button>
+        </div>
+
+        {retentionError && <p className="mt-3 text-sm text-red-400">{retentionError}</p>}
+        {retentionSuccess && (
+          <p className="mt-3 flex items-start gap-2 text-sm text-accent-bright">
+            <CheckCircle size={15} className="mt-0.5 shrink-0" weight="fill" />
+            {retentionSuccess}
+          </p>
+        )}
+
+        {retention && (
+          <>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div className="rounded-xl border border-line-soft bg-surface-2 p-4">
+                <p className="text-xs font-medium text-fg-muted">Retensi efektif</p>
+                <p className="bk-tabular mt-1 font-display text-2xl font-semibold">
+                  {retention.retentionDays} hari
+                </p>
+              </div>
+              <div className="rounded-xl border border-line-soft bg-surface-2 p-4">
+                <p className="text-xs font-medium text-fg-muted">Default kebijakan</p>
+                <p className="bk-tabular mt-1 font-display text-2xl font-semibold">
+                  {retention.defaultRetentionDays} hari
+                </p>
+              </div>
+              <div className="rounded-xl border border-line-soft bg-surface-2 p-4">
+                <p className="text-xs font-medium text-fg-muted">Maks. perpanjangan</p>
+                <p className="bk-tabular mt-1 font-display text-2xl font-semibold">
+                  {retention.maxRetentionDays} hari
+                </p>
+              </div>
+            </div>
+
+            {/* Form permintaan perpanjangan (instruksi tertulis) */}
+            <form
+              onSubmit={createRetentionRequest}
+              className="mt-5 grid gap-3 rounded-xl border border-line-soft bg-surface-2 p-4 md:grid-cols-[1fr_120px_auto]"
+            >
+              <div>
+                <label htmlFor="r-requested-by" className="mb-1 block text-xs font-medium text-fg-muted">
+                  Pemohon (nama/email tenant)
+                </label>
+                <input
+                  id="r-requested-by"
+                  value={rRequestedBy}
+                  onChange={(e) => setRRequestedBy(e.target.value)}
+                  className={fieldClass}
+                  placeholder="mis. owner@toko.example.com"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="r-days" className="mb-1 block text-xs font-medium text-fg-muted">
+                  Hari
+                </label>
+                <input
+                  id="r-days"
+                  type="number"
+                  min={retention.defaultRetentionDays}
+                  max={retention.maxRetentionDays}
+                  value={rDays}
+                  onChange={(e) => setRDays(e.target.value)}
+                  className={fieldClass}
+                  required
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  type="submit"
+                  disabled={rSubmitLoading}
+                  className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-accent-ink transition-all hover:bg-accent-bright active:scale-[0.97] disabled:opacity-50"
+                >
+                  {rSubmitLoading ? "Menyimpan…" : (
+                    <>
+                      Catat permintaan
+                      <ArrowRight size={14} weight="bold" />
+                    </>
+                  )}
+                </button>
+              </div>
+              <div className="md:col-span-3">
+                <label htmlFor="r-reason" className="mb-1 block text-xs font-medium text-fg-muted">
+                  Instruksi tertulis / alasan (referensi surat, email, atau kontrak)
+                </label>
+                <textarea
+                  id="r-reason"
+                  value={rReason}
+                  onChange={(e) => setRReason(e.target.value)}
+                  className={fieldClass}
+                  rows={2}
+                  placeholder="mis. Arsip layanan pelanggan 6 bulan sesuai kontrak No. …"
+                  required
+                />
+              </div>
+            </form>
+
+            {/* Daftar permintaan */}
+            <div className="mt-5 overflow-hidden rounded-xl border border-line-soft">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-line-soft text-xs uppercase tracking-wider text-fg-faint">
+                    <th className="px-4 py-2.5">Pemohon</th>
+                    <th className="px-4 py-2.5">Alasan</th>
+                    <th className="px-4 py-2.5">Hari</th>
+                    <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {retention.requests.map((r) => (
+                    <tr key={r.id} className="border-b border-line-soft/60 last:border-0">
+                      <td className="px-4 py-2.5">
+                        <p className="font-medium text-fg">{r.requestedBy}</p>
+                        <p className="font-mono text-xs text-fg-faint">{r.createdAt.slice(0, 10)}</p>
+                      </td>
+                      <td className="max-w-[26ch] px-4 py-2.5 text-fg-muted">{r.reason}</td>
+                      <td className="bk-tabular px-4 py-2.5 text-fg">{r.retentionDays}</td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                            r.status === "approved"
+                              ? "border-accent/25 bg-accent/10 text-accent-bright"
+                              : r.status === "rejected"
+                                ? "border-red-500/25 bg-red-500/10 text-red-400"
+                                : "border-line bg-surface-2 text-fg-muted"
+                          }`}
+                        >
+                          {r.status}
+                          {r.approvedBy ? ` · ${r.approvedBy}` : ""}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        {r.status === "pending" && (
+                          <div className="flex justify-end gap-2">
+                            <button
+                              type="button"
+                              disabled={rProcessId === r.id}
+                              onClick={() => processRetentionRequest(r.id, "approve")}
+                              className="rounded-full border border-accent/40 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent-bright transition-colors hover:bg-accent/20 disabled:opacity-50"
+                            >
+                              {rProcessId === r.id ? "Memproses…" : "Setujui"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={rProcessId === r.id}
+                              onClick={() => processRetentionRequest(r.id, "reject")}
+                              className="rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-50"
+                            >
+                              {rProcessId === r.id ? "Memproses…" : "Tolak"}
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {retention.requests.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-6 text-center text-sm text-fg-faint">
+                        Belum ada permintaan perpanjangan retensi.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Users */}

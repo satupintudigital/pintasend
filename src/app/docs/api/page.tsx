@@ -10,12 +10,33 @@ export const metadata: Metadata = {
 
 const endpoints = [
   { method: "POST" as const, path: "/v1/messages", desc: "Kirim pesan teks & media WhatsApp (dukung @mention & reply)" },
+  { method: "POST" as const, path: "/v1/messages/location", desc: "Kirim pesan lokasi (koordinat + deskripsi)" },
+  { method: "POST" as const, path: "/v1/messages/contact", desc: "Kirim kartu kontak (nama + nomor)" },
+  { method: "POST" as const, path: "/v1/messages/poll", desc: "Kirim poll WhatsApp (2–12 pilihan)" },
+  { method: "POST" as const, path: "/v1/messages/react", desc: "Beri / hapus reaksi emoji pada pesan" },
+  { method: "POST" as const, path: "/v1/messages/send-bulk", desc: "Broadcast ke banyak penerima (async batch, kuota per penerima)" },
+  { method: "GET" as const, path: "/v1/messages/batch/:batchId", desc: "Status batch broadcast (progress & hasil)" },
+  { method: "GET" as const, path: "/v1/messages/:chatId/history", desc: "Baca riwayat chat langsung dari WhatsApp" },
   { method: "POST" as const, path: "/v1/messages/send-template", desc: "Kirim template pesan yang disimpan (dengan variabel)" },
   { method: "POST" as const, path: "/v1/contacts/:number/block", desc: "Blokir kontak (moderasi spam)" },
   { method: "DELETE" as const, path: "/v1/contacts/:number/block", desc: "Buka blokir kontak" },
   { method: "POST" as const, path: "/v1/chats/read", desc: "Tandai chat/pesan dibaca (read receipts)" },
   { method: "GET" as const, path: "/v1/contacts/check/:number", desc: "Cek apakah nomor terdaftar di WhatsApp" },
   { method: "GET" as const, path: "/v1/groups", desc: "Daftar grup WhatsApp pada device" },
+  { method: "GET" as const, path: "/v1/addons/remove-watermark", desc: "Status addon Hapus Watermark (footnote iklan)" },
+  { method: "POST" as const, path: "/v1/addons/remove-watermark", desc: "Aktifkan / nonaktifkan sendiri addon Hapus Watermark" },
+  { method: "POST" as const, path: "/v1/retention-requests", desc: "Ajukan perpanjangan retensi pesan (menunggu persetujuan platform)" },
+  { method: "GET" as const, path: "/v1/retention-requests", desc: "Retensi efektif + riwayat permintaan perpanjangan" },
+  { method: "GET" as const, path: "/v1/contacts", desc: "Daftar kontak audiens campaign (modul Campaign)" },
+  { method: "POST" as const, path: "/v1/contacts", desc: "Tambah/sunting kontak tunggal atau impor massal CSV" },
+  { method: "PATCH" as const, path: "/v1/contacts/:id", desc: "Sunting kontak (nama, tag, opt-out, catatan)" },
+  { method: "DELETE" as const, path: "/v1/contacts/:id", desc: "Hapus kontak audiens" },
+  { method: "GET" as const, path: "/v1/campaigns", desc: "Daftar campaign + statistik (modul Campaign)" },
+  { method: "POST" as const, path: "/v1/campaigns", desc: "Buat draft campaign blast (template + audiens + jadwal)" },
+  { method: "GET" as const, path: "/v1/campaigns/:id", desc: "Detail campaign + progress per penerima" },
+  { method: "POST" as const, path: "/v1/campaigns/:id/start", desc: "Mulai / lanjutkan campaign (draft/paused)" },
+  { method: "POST" as const, path: "/v1/campaigns/:id/pause", desc: "Jeda campaign yang berjalan" },
+  { method: "POST" as const, path: "/v1/campaigns/:id/cancel", desc: "Batalkan campaign (sisa pending di-skip)" },
   { method: "GET" as const, path: "/api/health", desc: "Status layanan (publik)" },
 ];
 
@@ -250,9 +271,29 @@ export default function DocsApi() {
   "ok": true,
   "deviceId": "01j5…",
   "to": "6281234567890@c.us",
-  "messageId": "3EB0F2A1…"
+  "messageId": "3EB0F2A1…",
+  "watermark": true
 }`}
               />
+            </div>
+
+            <div className="mt-4">
+              <Callout type="info" title="Footnote iklan (watermark)">
+                <p>
+                  Setiap pesan keluar otomatis disisipkan{" "}
+                  <strong>footnote iklan platform</strong> di akhir teks/caption
+                  (kecuali media <code className="font-mono">sticker</code> yang tidak
+                  mendukung caption). Respons sukses menyertakan{" "}
+                  <code className="font-mono">&quot;watermark&quot;: true</code> saat footnote
+                  aktif. Footnote <strong>dihapus</strong> bila tenant memiliki{" "}
+                  <strong>addon Hapus Watermark</strong> (diatur platform admin) —
+                  respons saat itu tidak menyertakan field{" "}
+                  <code className="font-mono">watermark</code>. Status ini juga{" "}
+                  <strong>dicatat di riwayat pesan</strong> (badge{" "}
+                  <code className="font-mono">watermark</code> di Dashboard →
+                  Riwayat Pesan) agar terlihat pesan mana yang memuat footnote.
+                </p>
+              </Callout>
             </div>
 
             <h3 className="mt-6 text-sm font-semibold text-fg">Contoh error</h3>
@@ -391,6 +432,62 @@ export default function DocsApi() {
             </ul>
           </section>
 
+          {/* Self-service addon Hapus Watermark */}
+          <section>
+            <Anchor id="hapus-watermark">GET/POST /v1/addons/remove-watermark — Hapus Watermark (self-service)</Anchor>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Kelola sendiri addon <strong>Hapus Watermark</strong> tanpa perlu
+              menghubungi admin. Saat aktif, footnote iklan platform{" "}
+              <strong>tidak</strong> disisipkan ke pesan keluar tenant (lihat{" "}
+              <a href="#kirim-pesan" className="text-accent-bright underline decoration-accent/30 underline-offset-2">
+                POST /v1/messages
+              </a>
+              ).
+            </p>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`# Status addon saat ini
+curl -X GET "https://wavio.satupintudigital.co.id/v1/addons/remove-watermark" \\\\
+  -H "Authorization: Bearer $WAVIO_KEY"
+
+# Aktifkan (hapus watermark dari pesan keluar)
+curl -X POST "https://wavio.satupintudigital.co.id/v1/addons/remove-watermark" \\\\
+  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+  -H "Content-Type: application/json" \\\\
+  -d '{"active": true}'
+
+# Nonaktifkan (footnote kembali aktif)
+curl -X POST "https://wavio.satupintudigital.co.id/v1/addons/remove-watermark" \\\\
+  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+  -H "Content-Type: application/json" \\\\
+  -d '{"active": false}'`}
+              />
+            </div>
+            <h3 className="mt-6 text-sm font-semibold text-fg">Contoh respons</h3>
+            <div className="mt-3">
+              <CodeBlock
+                lang="json"
+                code={`HTTP/1.1 200 OK
+
+{
+  "ok": true,
+  "addon": "remove_watermark",
+  "active": true,
+  "watermark": false
+}`}
+              />
+            </div>
+            <p className="mt-3 text-sm text-fg-muted">
+              <code className="font-mono">active: true</code> → addon aktif, pesan
+              keluar <strong>tanpa</strong> footnote ({" "}
+              <code className="font-mono">watermark: false</code>).{" "}
+              <code className="font-mono">active: false</code> → footnote kembali
+              disisipkan. Operasi bersifat idempoten — memanggil dengan nilai yang
+              sama tidak menimbulkan efek ganda.
+            </p>
+          </section>
+
           {/* GET /v1/contacts/check/:number */}
           <section>
             <Anchor id="cek-nomor">GET /v1/contacts/check/:number — Cek nomor</Anchor>
@@ -523,6 +620,296 @@ curl -X GET "https://wavio.satupintudigital.co.id/v1/groups?deviceId=01j5…&lim
               placeholder. Kirim template menghitung kuota pesan bulanan (1 pesan) dan
               tercatat di riwayat dengan tipe <code className="font-mono">template</code>.
             </p>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              <strong>Watermark footnote</strong> juga berlaku di jalur template: template
+              standar menyimpan placeholder{" "}
+              <code className="font-mono">{"{{watermark}}"}</code> di akhir footer, dan Wavio
+              otomatis mengisinya dengan footnote iklan platform (dipisah baris baru) —
+              atau string kosong bila tenant punya addon{" "}
+              <code className="font-mono">remove_watermark</code>. Respons sukses menyertakan{" "}
+              <code className="font-mono">{"\"watermark\": true"}</code> saat footnote disisipkan;
+              statusnya juga tercatat di riwayat (kolom watermark). Jangan mengisi{" "}
+              <code className="font-mono">vars.watermark</code> sendiri — nilai Anda akan
+              ditimpa oleh keputusan watermark platform.
+            </p>
+          </section>
+
+          {/* Pesan kaya: location/contact/poll */}
+          <section>
+            <Anchor id="pesan-kaya">Pesan kaya — lokasi, kontak, poll</Anchor>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Tiga jenis pesan khusus selain teks &amp; media:{" "}
+              <strong>lokasi</strong>, <strong>kartu kontak</strong>, dan{" "}
+              <strong>poll WhatsApp</strong>. Masing-masing endpoint sendiri dengan
+              skema field khusus; semua memakai device{" "}
+              <code className="font-mono">ready</code> (atau{" "}
+              <code className="font-mono">deviceId</code> eksplisit) dan menghitung
+              kuota pesan bulanan (1 pesan per kirim).
+            </p>
+
+            <h3 className="mt-6 text-sm font-semibold text-fg">Location</h3>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages/location \\\\
+  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+  -H "Content-Type: application/json" \\\\
+  -d '{"to":"6281234567890","latitude":-6.2088,"longitude":106.8456,"description":"Toko kami","address":"Jl. Sudirman 1"}'`}
+              />
+            </div>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
+              <li>
+                <code className="font-mono">latitude</code> /{" "}
+                <code className="font-mono">longitude</code> — wajib, angka desimal
+                (lintang −90…90, bujur −180…180).
+              </li>
+              <li>
+                <code className="font-mono">description</code> /{" "}
+                <code className="font-mono">address</code> — opsional (maks 1.024
+                karakter), <code className="font-mono">replyTo</code> juga didukung.
+              </li>
+            </ul>
+
+            <h3 className="mt-6 text-sm font-semibold text-fg">Contact (kartu kontak)</h3>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages/contact \\\\
+  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+  -H "Content-Type: application/json" \\\\
+  -d '{"to":"6281234567890","contactName":"CS NalaNiaga","contactNumber":"628111222333"}'`}
+              />
+            </div>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
+              <li>
+                <code className="font-mono">contactName</code> — wajib, maks 255
+                karakter.
+              </li>
+              <li>
+                <code className="font-mono">contactNumber</code> — wajib, maks 30
+                karakter.
+              </li>
+            </ul>
+
+            <h3 className="mt-6 text-sm font-semibold text-fg">Poll</h3>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages/poll \\\\
+  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+  -H "Content-Type: application/json" \\\\
+  -d '{"to":"120363024123456789@g.us","name":"Pilih menu hari ini?","options":["Nasi Goreng","Mie Ayam","Sate"],"allowMultipleAnswers":false}'`}
+              />
+            </div>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
+              <li>
+                <code className="font-mono">name</code> — pertanyaan poll, wajib, maks
+                255 karakter.
+              </li>
+              <li>
+                <code className="font-mono">options</code> — wajib, 2–12 pilihan, tiap
+                pilihan maks 100 karakter.
+              </li>
+              <li>
+                <code className="font-mono">allowMultipleAnswers</code> — opsional
+                (default <code className="font-mono">false</code> = pilihan tunggal).
+              </li>
+            </ul>
+          </section>
+
+          {/* Reaksi emoji */}
+          <section>
+            <Anchor id="reaksi">POST /v1/messages/react — Reaksi emoji</Anchor>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Memberi <strong>reaksi emoji</strong> pada pesan. Kirim{" "}
+              <code className="font-mono">emoji</code> kosong ({""}
+              <code className="font-mono">{"\"\""}</code>) untuk <strong>menghapus</strong>{" "}
+              reaksi. <code className="font-mono">messageId</code> adalah id pesan dari
+              webhook atau respons kirim. Reaksi <strong>tidak</strong> menghitung kuota
+              pesan bulanan.
+            </p>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages/react \\\\
+  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+  -H "Content-Type: application/json" \\\\
+  -d '{"chatId":"6281234567890","messageId":"3EB0F2A1…","emoji":"👍"}'`}
+              />
+            </div>
+          </section>
+
+          {/* Send-bulk */}
+          <section>
+            <Anchor id="kirim-bulk">POST /v1/messages/send-bulk — Broadcast</Anchor>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Mengirim pesan ke <strong>banyak penerima</strong> sekaligus. Batch diproses{" "}
+              <strong>asinkron</strong> oleh gateway (respons 200 = batch diterima, bukan
+              terkirim) dengan jeda antar pesan agar aman dari deteksi spam.{" "}
+              <strong>Kuota bulanan dihitung per penerima</strong> — kirim ke 100 nomor =
+              100 pesan kuota.
+            </p>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages/send-bulk \\\\
+  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+  -H "Content-Type: application/json" \\\\
+  -d '{
+  "messages": [
+    {"to":"6281234567890","type":"text","content":{"text":"Halo {nama}, pesanan Anda sudah dikirim"},"variables":{"nama":"Budi"}},
+    {"to":"6281199998888","type":"text","content":{"text":"Halo {nama}, pesanan Anda sudah dikirim"},"variables":{"nama":"Sari"}}
+  ],
+  "delayBetweenMessages": 3000,
+  "randomizeDelay": true,
+  "stopOnError": false
+}'`}
+              />
+            </div>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
+              <li>
+                <code className="font-mono">messages</code> — wajib, 1–100 item. Tiap
+                item: <code className="font-mono">to</code> (nomor/JID),{" "}
+                <code className="font-mono">type</code> ({" "}
+                <code className="font-mono">text|image|video|audio|document</code>),{" "}
+                <code className="font-mono">content</code> (sesuai tipe; untuk text ={" "}
+                <code className="font-mono">{"{\"text\":…}"}</code>), dan{" "}
+                <code className="font-mono">variables</code> opsional untuk substitusi
+                <code className="font-mono">{"{{placeholder}}"}</code>.
+              </li>
+              <li>
+                <code className="font-mono">delayBetweenMessages</code> — 1000–60000 ms
+                (default 3000). <code className="font-mono">randomizeDelay</code> (default
+                true) menambah 0–2 dtk acak; <code className="font-mono">stopOnError</code>{" "}
+                (default false) menghentikan batch saat ada error.
+              </li>
+              <li>
+                Respons sukses menyertakan{" "}
+                <code className="font-mono">batchId</code> — lacak progres via{" "}
+                <code className="font-mono">GET /v1/messages/batch/:batchId</code>.
+              </li>
+            </ul>
+
+            <h3 className="mt-6 text-sm font-semibold text-fg">Status batch</h3>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`curl -X GET "https://wavio.satupintudigital.co.id/v1/messages/batch/batch-1" \\\\
+  -H "Authorization: Bearer $WAVIO_KEY"`}
+              />
+            </div>
+            <p className="mt-2 text-sm text-fg-muted">
+              Respons: <code className="font-mono">{"{\"batch\": {\"batchId\", \"status\", \"progress\", \"results\"}}"}</code>
+              — <code className="font-mono">status</code> berubah dari{" "}
+              <code className="font-mono">processing</code> →{" "}
+              <code className="font-mono">completed</code> /{" "}
+              <code className="font-mono">failed</code> /{" "}
+              <code className="font-mono">cancelled</code>.
+            </p>
+          </section>
+
+          {/* Modul Campaign */}
+          <section>
+            <Anchor id="modul-campaign">Modul Campaign — Blast Massal Bertahap</Anchor>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Campaign adalah broadcast skala besar (ratusan–ribuan penerima) yang
+              dieksekusi <strong>bertahap oleh dispatcher</strong> dengan jeda acak
+              antar pesan. Berbeda dengan <code className="font-mono">send-bulk</code>{" "}
+              (satu batch ≤100), campaign menyimpan audiens sebagai kontak dan
+              menghormati <strong>opt-out</strong>. Fitur berbayar — butuh addon{" "}
+              <code className="font-mono">campaign</code>.
+            </p>
+
+            <h3 className="mt-6 text-sm font-semibold text-fg">1. Kelola kontak</h3>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`# Impor massal dari CSV (kolom: nomor, nama, tags)
+curl -X POST https://wavio.satupintudigital.co.id/v1/contacts \\\\
+  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+  -H "Content-Type: application/json" \\\\
+  --data-binary '{"csv":"nomor,nama,tags\\\\n081234567890,Budi,vip;pelanggan"}'
+
+# Daftar kontak (filter q, tag, optedOut + pagination)
+curl -X GET "https://wavio.satupintudigital.co.id/v1/contacts?tag=vip&page=1" \\\\
+  -H "Authorization: Bearer $WAVIO_KEY"`}
+              />
+            </div>
+
+            <h3 className="mt-6 text-sm font-semibold text-fg">2. Buat & jalankan campaign</h3>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/campaigns \\\\
+  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+  -H "Content-Type: application/json" \\\\
+  -d '{
+  "name": "Promo Agustus",
+  "messageBody": "Hai {{nama}}! Promo spesial untukmu hari ini.",
+  "audienceTag": "vip",
+  "mediaType": "image",
+  "mediaUrl": "https://cdn.example.com/promo.jpg",
+  "minDelaySec": 5,
+  "maxDelaySec": 15,
+  "scheduledAt": "2026-08-22T09:00:00+07:00"
+}'
+
+# Mulai (draft → running/scheduled), jeda, lanjutkan, atau batalkan
+curl -X POST https://wavio.satupintudigital.co.id/v1/campaigns/<id>/start \\\\
+  -H "Authorization: Bearer $WAVIO_KEY"`}
+              />
+            </div>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
+              <li>
+                Variabel template: <code className="font-mono">{"{{nama}}"}</code>,{" "}
+                <code className="font-mono">{"{{nomor}}"}</code>,{" "}
+                <code className="font-mono">{"{{tanggal}}"}</code> — token tanpa nilai
+                dibiarkan apa adanya.
+              </li>
+              <li>
+                Dispatcher mengirim batch kecil per menit dengan jeda acak{" "}
+                <code className="font-mono">[minDelaySec..maxDelaySec]</code>; ada cap
+                harian per device & auto-pause bila device dibatasi WhatsApp.
+              </li>
+              <li>
+                Kuota bulanan dihitung <strong>per penerima</strong>; kuota habis di
+                tengah jalan → sisa penerima berstatus <code className="font-mono">skipped</code>.
+              </li>
+              <li>
+                Selesai → event webhook{" "}
+                <code className="font-mono">campaign.completed</code> dikirim ke URL
+                webhook tenant (subscribe via Dashboard → Webhook).
+              </li>
+            </ul>
+          </section>
+
+          {/* Baca riwayat chat */}
+          <section>
+            <Anchor id="baca-riwayat">GET /v1/messages/:chatId/history — Baca riwayat chat</Anchor>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Membaca <strong>riwayat pesan</strong> sebuah chat dari penyimpanan
+              gateway — berguna untuk mengambil pesan yang tiba sebelum device
+              terhubung atau menyinkronkan percakapan penuh.{" "}
+              <code className="font-mono">chatId</code> di path bisa nomor atau JID
+              (URL-encoded: <code className="font-mono">62812…%40c.us</code>).
+            </p>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`curl -X GET "https://wavio.satupintudigital.co.id/v1/messages/6281234567890/history?limit=50&offset=0" \\\\
+  -H "Authorization: Bearer $WAVIO_KEY"`}
+              />
+            </div>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
+              <li>
+                <code className="font-mono">limit</code> — 1–100 (default 50);{" "}
+                <code className="font-mono">offset</code> — lompati N pesan pertama
+                (paginasi).
+              </li>
+              <li>
+                Ini operasi <strong>baca</strong> — tidak menghitung kuota pesan.
+              </li>
+            </ul>
           </section>
 
           {/* Block/unblock kontak */}
@@ -743,6 +1130,57 @@ User-Agent: Wavio-Webhook/1.0`}
                 </p>
               </Callout>
             </div>
+          </section>
+
+          {/* Permintaan perpanjangan retensi */}
+          <section>
+            <Anchor id="retensi-pesan">POST /v1/retention-requests — Perpanjangan retensi</Anchor>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Secara default, pesan dan log pengiriman disimpan maksimal{" "}
+              <strong>30 hari</strong> (sesuai kebijakan retensi Wavio). Jika bisnismu
+              membutuhkan penyimpanan lebih lama (mis. karena kewajiban arsip atau
+              kontrak layanan), ajukan permintaan melalui endpoint ini — permintaan
+              tercatat sebagai <strong>instruksi tertulis</strong> dan menunggu
+              persetujuan platform sebelum diterapkan.
+            </p>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/retention-requests \\\\
+  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+  -H "Content-Type: application/json" \\\\
+  -d '{"reason":"Arsip layanan pelanggan 6 bulan sesuai kontrak No. 123","retentionDays":180}'`}
+              />
+            </div>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
+              <li>
+                <code className="font-mono">reason</code> — wajib; instruksi
+                tertulis/alasan perpanjangan (maks 1.000 karakter).
+              </li>
+              <li>
+                <code className="font-mono">retentionDays</code> — wajib; angka{" "}
+                <strong>30–365</strong>.
+              </li>
+              <li>
+                Hanya <strong>satu permintaan pending</strong> per tenant — ajukan lagi
+                setelah permintaan sebelumnya diproses (409 bila masih ada yang
+                menunggu).
+              </li>
+            </ul>
+            <h3 className="mt-6 text-sm font-semibold text-fg">Cek status</h3>
+            <div className="mt-3">
+              <CodeBlock
+                lang="bash"
+                code={`curl -X GET https://wavio.satupintudigital.co.id/v1/retention-requests \\\\
+  -H "Authorization: Bearer $WAVIO_KEY"`}
+              />
+            </div>
+            <p className="mt-2 text-sm text-fg-muted">
+              Respons:{" "}
+              <code className="font-mono">{"{\"retentionDays\", \"defaultRetentionDays\", \"requests\": [{\"status\": \"pending|approved|rejected\"}]}"}</code>
+              — <code className="font-mono">retentionDays</code> adalah nilai yang
+              berlaku saat ini (berubah hanya setelah permintaan disetujui platform).
+            </p>
           </section>
 
           {/* X-Request-Id */}

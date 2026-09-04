@@ -33,7 +33,7 @@ function call(
 ): Promise<Response> {
   return fn(
     new Request("http://x/v1/contacts/6281234567890/block", { method, headers }),
-    { params: Promise.resolve({ number: "6281234567890" }) },
+    { params: Promise.resolve({ id: "6281234567890" }) },
   );
 }
 

@@ -31,7 +31,14 @@
       "bucket_name": "wavio-media"
     }
   ],
+  "workers_dev": true,
   "observability": {
     "enabled": true
-  }
+  },
+  "routes": [
+    {
+      "pattern": "wavio.satupintudigital.co.id/*",
+      "zone_id": "6f8aaf32330e6cd0ae3a7d6e75f29363"
+    }
+  ]
 }

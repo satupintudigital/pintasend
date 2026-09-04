@@ -4,12 +4,14 @@
 // OpenWA → catat log. Route hanya verifikasi API key lalu delegasi ke sini.
 
 import { normalizeChatId } from "./chat";
+import { queryD1One } from "./d1";
 import { queryOne } from "./db";
 import { openwa, OpenwaError, publicOpenwaError, type OpenwaSendResult } from "./openwa";
 import { checkRateLimit } from "./rate-limit";
-import { checkMessageQuota } from "./quota";
 import { insertMessageLog } from "./messageStore";
 import { logEvent } from "./requestLogger";
+import { getWatermarkFootnote } from "./watermark";
+import { getTenantConfig } from "./tenantConfig";
 
 export interface SendTemplateContext {
   tenantId: string;
@@ -35,6 +37,31 @@ export type SendTemplateResult =
 
 const MAX_TEMPLATE_NAME = 100;
 const MAX_VARS = 50;
+
+interface TemplateBinding {
+  physicalTemplateName: string;
+  status: string;
+  canonicalVersion: number;
+}
+
+async function resolveTemplateName(
+  tenantId: string,
+  deviceId: string,
+  canonicalName: string,
+): Promise<{ ok: true; name: string } | { ok: false; status: 409; error: string }> {
+  const binding = await queryOne<TemplateBinding>(
+    'SELECT b."physicalTemplateName", b.status, b."canonicalVersion" FROM "TenantWhatsAppTemplateDevice" b JOIN "TenantWhatsAppTemplate" t ON t.id = b."templateId" WHERE b."tenantId" = $1 AND b."deviceId" = $2 AND t."canonicalName" = $3 ORDER BY b."canonicalVersion" DESC LIMIT 1',
+    [tenantId, deviceId, canonicalName],
+  );
+  // Legacy/manual OpenWA templates remain usable when no canonical catalog row
+  // exists. Once a canonical binding exists, never silently send an older
+  // physical version while sync is pending or failed.
+  if (!binding) return { ok: true, name: canonicalName };
+  if (binding.status !== "synced") {
+    return { ok: false, status: 409, error: "Template belum tersinkron ke device ini" };
+  }
+  return { ok: true, name: binding.physicalTemplateName };
+}
 
 export async function executeSendTemplate(
   input: SendTemplateInput,
@@ -90,29 +117,32 @@ export async function executeSendTemplate(
     };
   }
 
-  // 4. Kuota pesan bulan berjalan — template tetap menghitung kuota (1 pesan).
-  const quota = await checkMessageQuota(ctx.tenantId);
-  if (!quota.ok) {
+  // 4. Config tenant (KV cache — 0 Neon queries).
+  const cfg = await getTenantConfig(ctx.tenantId);
+
+  // 4b. Kuota pesan bulan berjalan — template tetap menghitung kuota (1 pesan).
+  const maxMsg = cfg.plan.maxMessagesPerMonth;
+  if (maxMsg !== null && cfg.messageCount >= maxMsg) {
     logEvent("warn", "send_template_quota_exceeded", ctx.requestId, {
       tenantId: ctx.tenantId,
-      used: quota.used,
-      max: quota.max,
+      used: cfg.messageCount,
+      max: maxMsg,
     });
     return {
       ok: false,
       status: 429,
-      error: `Kuota pesan bulan ini tercapai (${quota.used}/${quota.max}). Coba lagi bulan depan atau hubungi admin untuk upgrade plan.`,
+      error: `Kuota pesan bulan ini tercapai (${cfg.messageCount}/${maxMsg}). Coba lagi bulan depan atau hubungi admin untuk upgrade plan.`,
     };
   }
 
-  // 5. Pilih device: deviceId tertentu, atau device ready pertama milik tenant.
+  // 5. Pilih device — D1 (0 Neon queries).
   const device = input.deviceId
-    ? await queryOne<{ id: string; label: string; openwaSessionId: string; status: string }>(
-        'SELECT id, label, "openwaSessionId", status FROM "Device" WHERE id = $1 AND "tenantId" = $2',
+    ? await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
+        'SELECT id, label, openwaSessionId, status FROM Device WHERE id = ? AND tenantId = ?',
         [input.deviceId, ctx.tenantId],
       )
-    : await queryOne<{ id: string; label: string; openwaSessionId: string; status: string }>(
-        'SELECT id, label, "openwaSessionId", status FROM "Device" WHERE "tenantId" = $1 AND status = $2 ORDER BY "updatedAt" DESC LIMIT 1',
+    : await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
+        'SELECT id, label, openwaSessionId, status FROM Device WHERE tenantId = ? AND status = ? ORDER BY updatedAt DESC LIMIT 1',
         [ctx.tenantId, "ready"],
       );
 
@@ -129,12 +159,33 @@ export async function executeSendTemplate(
     return { ok: false, status: 409, error: `Device tidak siap (status: ${device.status})` };
   }
 
-  // 6. Kirim template via OpenWA + catat log keluar (best-effort).
+  // 6. Canonical template → physical immutable template OpenWA. Resolver hanya
+  //    membaca binding milik tenant+device; nama fisik tidak pernah keluar ke
+  //    client. Template legacy tanpa catalog tetap kompatibel.
+  const resolved = await resolveTemplateName(ctx.tenantId, device.id, templateName);
+  if (!resolved.ok) return resolved;
+  const physicalTemplateName = resolved.name;
+
+  // 7. Watermark footnote (media iklan platform) — template OpenWA menyimpan
+  //     placeholder `{{watermark}}` di akhir footer (lihat NALA_TEMPLATES),
+  //     sehingga vars.watermark selalu dikirim: footnote saat apply, atau string
+  //     kosong saat tenant punya addon remove_watermark (placeholder ter-render
+  //     bersih tanpa trailing newline). Dibaca dari KV cache (0 Neon queries).
+  const watermark = {
+    apply: !cfg.addons.removeWatermark,
+    footnote: cfg.addons.removeWatermark ? "" : getWatermarkFootnote(),
+  };
+  const vars = {
+    ...(input.vars ?? {}),
+    watermark: watermark.apply ? `\n\n${watermark.footnote}` : "",
+  };
+
+  // 8. Kirim template via OpenWA + catat log keluar (best-effort).
   const sentAt = new Date();
   try {
     const result: OpenwaSendResult = await openwa.sendTemplate(device.openwaSessionId, chatId, {
-      templateName,
-      ...(input.vars ? { vars: input.vars } : {}),
+      templateName: physicalTemplateName,
+      vars,
     });
 
     const messageId = result?.messageId ?? result?.id ?? null;
@@ -153,6 +204,7 @@ export async function executeSendTemplate(
       mediaKey: null,
       triggeredAt: sentAt,
       sentAt,
+      watermark: watermark.apply,
     }).catch((e) =>
       logEvent("error", "send_template_log_failed", ctx.requestId, {
         tenantId: ctx.tenantId,
@@ -166,12 +218,20 @@ export async function executeSendTemplate(
       chatId,
       templateName,
       messageId,
+      ...(watermark.apply ? { watermarkApplied: true } : {}),
     });
 
     return {
       ok: true,
       status: 200,
-      body: { ok: true, deviceId: device.id, to: chatId, messageId, templateName },
+      body: {
+        ok: true,
+        deviceId: device.id,
+        to: chatId,
+        messageId,
+        templateName,
+        ...(watermark.apply ? { watermark: true } : {}),
+      },
     };
   } catch (e) {
     if (e instanceof OpenwaError) {
@@ -190,6 +250,7 @@ export async function executeSendTemplate(
         mediaKey: null,
         triggeredAt: sentAt,
         sentAt,
+        watermark: watermark.apply,
       }).catch((err) =>
         logEvent("error", "send_template_log_failed", ctx.requestId, {
           tenantId: ctx.tenantId,

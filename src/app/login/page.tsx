@@ -101,7 +101,7 @@ function BrandPanel() {
             <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
             <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
             <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-            <span className="ml-2 font-mono text-[10px] text-fg-faint">api.wavio.id</span>
+            <span className="ml-2 font-mono text-[10px] text-fg-faint">wavio.satupintudigital.co.id</span>
           </div>
           <pre className="overflow-x-auto p-4 font-mono text-xs leading-relaxed">
             <code>

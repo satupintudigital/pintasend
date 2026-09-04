@@ -1,0 +1,77 @@
+// Watermark footnote pesan keluar — media iklan platform.
+//
+// Setiap pesan yang dikirim melalui POST /v1/messages (termasuk yang berasal
+// dari integrasi NalaNiaga via gateway Wavio) otomatis disisipkan footnote
+// iklan di akhir teks/caption. Footnote DIHAPUS bila tenant memiliki addon
+// "remove_watermark" aktif (TenantAddon) — fitur berbayar yang di-grant
+// platform admin.
+//
+// Teks footnote bisa di-override per lingkungan via env WAVIO_WATERMARK_FOOTNOTE
+// (mis. kampanye promosi berbeda). Kosong/tidak diset → default bawaan.
+
+import { query } from "@/lib/db";
+
+/** Key addon TenantAddon yang menghapus footnote dari pesan keluar. */
+export const WATERMARK_ADDON_KEY = "remove_watermark";
+
+/** Footnote default (media iklan) - dipakai bila env tidak diset. */
+export const DEFAULT_WATERMARK_FOOTNOTE = "via Wavio - https://wavio.satupintudigital.co.id";
+
+/** Sepasang newline pemisah footnote dari isi pesan (biar rapi di WhatsApp). */
+const FOOTNOTE_SEPARATOR = "\n\n";
+
+/** Teks footnote aktif (env override, fallback default). "" = watermark nonaktif. */
+export function getWatermarkFootnote(env: Record<string, string | undefined> = process.env): string {
+  const raw = env.WAVIO_WATERMARK_FOOTNOTE;
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  return DEFAULT_WATERMARK_FOOTNOTE;
+}
+
+/**
+ * Sisipkan footnote ke akhir teks. Murni (pure) — mudah di-unit-test.
+ * - footnote kosong → teks apa adanya (tanpa perubahan).
+ * - total ≤ maxLength → teks + separator + footnote.
+ * - total > maxLength → teks utama dipangkas (dari belakang, tanpa memotong
+ *   footnote) agar seluruhnya muat; jika teks habis, footnote dipangkas.
+ */
+export function appendFootnote(text: string, footnote: string, maxLength: number): string {
+  const foot = footnote.trim();
+  if (!foot) return text;
+  if (!text) return foot.slice(0, maxLength);
+  const combined = `${text}${FOOTNOTE_SEPARATOR}${foot}`;
+  if (combined.length <= maxLength) return combined;
+
+  // Jaga footnote utuh: pangkas teks utama sampai sisa muat.
+  const keep = Math.max(0, maxLength - FOOTNOTE_SEPARATOR.length - foot.length);
+  const head = text.slice(0, keep).replace(/\s+$/, "");
+  if (head) return `${head}${FOOTNOTE_SEPARATOR}${foot}`;
+  // Teks utama tidak tersisa — kirim footnote saja (dipangkas ke maxLength).
+  return foot.slice(0, maxLength);
+}
+
+/** Cek apakah tenant punya addon remove_watermark yang AKTIF. */
+export async function tenantHasRemoveWatermark(tenantId: string): Promise<boolean> {
+  const rows = await query<{ active: boolean }>(
+    'SELECT active FROM "TenantAddon" WHERE "tenantId" = $1 AND key = $2 AND active = true LIMIT 1',
+    [tenantId, WATERMARK_ADDON_KEY],
+  );
+  return rows.length > 0;
+}
+
+export interface WatermarkDecision {
+  /** true → footnote harus disisipkan ke pesan keluar. */
+  apply: boolean;
+  /** Teks footnote aktif ("" bila nonaktif). */
+  footnote: string;
+}
+
+/**
+ * Keputusan watermark untuk satu kiriman: footnote dipakai bila teks tersedia
+ * DAN tenant belum punya addon remove_watermark.
+ */
+export async function resolveWatermark(tenantId: string): Promise<WatermarkDecision> {
+  const footnote = getWatermarkFootnote();
+  if (!footnote) return { apply: false, footnote: "" };
+  const removed = await tenantHasRemoveWatermark(tenantId);
+  return { apply: !removed, footnote };
+}

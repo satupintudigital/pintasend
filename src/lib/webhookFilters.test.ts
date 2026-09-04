@@ -243,6 +243,7 @@ describe("registry", () => {
       "isGroup",
       "fromMe",
       "hasMedia",
+      "kind",
     ]);
     expect(MESSAGE_TYPES).toContain("text");
     expect(MESSAGE_TYPES).toContain("sticker");

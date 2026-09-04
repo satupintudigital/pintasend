@@ -22,19 +22,125 @@ model Plan {
 }
 
 model Tenant {
+  id                   String   @id @default(uuid(7))
+  name                 String
+  nalaniagaStoreId     String?  @unique
+  planId               String?
+  plan                 Plan?    @relation(fields: [planId], references: [id])
+  planAssignedAt       DateTime?
+  suspendedAt          DateTime?
+  delayEnabled         Boolean  @default(false)
+  messageRetentionDays Int      @default(30) // retensi pesan efektif (hari); >30 hanya via RetentionRequest approved
+  createdAt            DateTime @default(now())
+  users                User[]
+  devices              Device[]
+  messages             MessageLog[]
+  addons               TenantAddon[]
+  retentionRequests    RetentionRequest[]
+  contacts             Contact[]
+  campaigns            Campaign[]
+  webhooks             Webhook[]
+  webhookDeliveries           WebhookDelivery[]
+  apiKeys                     ApiKey[]
+  whatsappTemplates           TenantWhatsAppTemplate[]
+  labels                      Label[]
+}
+
+// ─── TENANT WHATSAPP TEMPLATE SYNC ──────────────────────────────────────────
+
+model TenantWhatsAppTemplate {
+  id             String   @id @default(uuid(7))
+  tenantId       String
+  nalaniagaStoreId String
+  event          String
+  canonicalName  String
+  header         String?
+  body           String
+  footer         String?
+  version        Int      @default(1)
+  checksum       String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt @default(now())
+
+  tenant   Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  devices  TenantWhatsAppTemplateDevice[]
+  jobs     TenantWhatsAppTemplateSyncJob[]
+
+  @@unique([tenantId, event])
+  @@index([nalaniagaStoreId, event])
+  @@index([tenantId, isActive])
+}
+
+model TenantWhatsAppTemplateDevice {
+  id                  String   @id @default(uuid(7))
+  tenantId            String
+  deviceId            String
+  templateId          String
+  physicalTemplateName String
+  physicalTemplateId  String?
+  canonicalVersion    Int
+  checksum            String
+  status              String   @default("pending")
+  attempts            Int      @default(0)
+  nextAttemptAt       DateTime @default(now())
+  lastError           String?
+  syncedAt            DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt @default(now())
+
+  device   Device                 @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  template TenantWhatsAppTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, templateId])
+  @@index([tenantId, status, nextAttemptAt])
+  @@index([templateId, canonicalVersion])
+}
+
+model TenantWhatsAppTemplateSyncJob {
   id               String   @id @default(uuid(7))
-  name             String
-  nalaniagaStoreId String?  @unique
-  planId           String?
-  plan             Plan?    @relation(fields: [planId], references: [id])
-  planAssignedAt   DateTime?
-  suspendedAt      DateTime?
-  delayEnabled     Boolean  @default(false)
+  tenantId         String
+  templateId       String
+  deviceId         String
+  canonicalVersion Int
+  checksum         String
+  status           String   @default("pending")
+  attempts         Int      @default(0)
+  nextAttemptAt    DateTime @default(now())
+  lastError        String?
+  lockedAt         DateTime?
+  syncedAt         DateTime?
   createdAt        DateTime @default(now())
-  users            User[]
-  devices          Device[]
-  messages         MessageLog[]
-  addons           TenantAddon[]
+  updatedAt        DateTime @updatedAt @default(now())
+
+  template TenantWhatsAppTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  device   Device                 @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, templateId, canonicalVersion, checksum])
+  @@index([status, nextAttemptAt])
+  @@index([tenantId, deviceId, status])
+}
+
+// Instruksi tertulis perpanjangan retensi dari tenant (DPA §5.7).
+// "requestedBy" = pemohon pihak tenant; status pending → approved/rejected
+// oleh platform admin (approvedBy/approvedAt) — bukti dasar hukum perpanjangan.
+model RetentionRequest {
+  id             String    @id @default(uuid(7))
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requestedBy    String
+  reason         String
+  retentionDays  Int
+  status         String    @default("pending") // pending | approved | rejected
+  approvedBy     String?
+  approvedAt     DateTime?
+  rejectedBy     String?
+  rejectedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt @default(now())
+
+  @@index([tenantId, status])
+  @@index([status])
 }
 
 model TenantAddon {
@@ -72,6 +178,8 @@ model Device {
   status            String   @default("created")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt @default(now())
+  templateBindings  TenantWhatsAppTemplateDevice[]
+  templateSyncJobs  TenantWhatsAppTemplateSyncJob[]
 }
 
 model Webhook {
@@ -132,6 +240,7 @@ model MessageLog {
   triggeredAt DateTime? // waktu trigger kirim (sebelum delay) — pesan keluar
   sentAt      DateTime? // waktu kirim ke OpenWA (setelah delay) — pesan keluar
   reaction    String? // JSON map senderId → emoji (message.reaction)
+  watermark   Boolean  @default(false) // true = footnote iklan platform disisipkan
   createdAt   DateTime @default(now())
 
   @@index([tenantId, createdAt(sort: Desc)])
@@ -147,4 +256,114 @@ model ApiKey {
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
   revokedAt  DateTime?
+}
+
+// Kontak audiens campaign (per tenant). `chatId` JID WhatsApp; opt-out
+// dihormati dispatcher (recipient dengan kontak optedOut → status skipped).
+model Contact {
+  id        String   @id @default(uuid(7))
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  chatId    String // "62812…@c.us"
+  name      String?
+  tags      String   @default("[]") // JSON array of strings — filter audiens campaign
+  optedOut  Boolean  @default(false)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  @@unique([tenantId, chatId])
+  @@index([tenantId, optedOut])
+}
+
+// Campaign blast pesan massal. Template body mendukung variabel {{nama}} dll.
+// Status: draft → scheduled/running → paused → completed | failed | cancelled.
+// Dispatch dilakukan worker cron (workers/campaign-dispatch) — bukan request
+// Workers (batas eksekusi), pola antrean sama dengan WebhookDelivery.
+model Campaign {
+  id              String    @id @default(uuid(7))
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deviceId        String?
+  deviceLabel     String? // snapshot label saat start (device bisa terhapus belakangan)
+  name            String
+  status          String    @default("draft") // draft|scheduled|running|paused|completed|failed|cancelled
+  messageBody     String // template teks; juga dipakai sebagai caption media
+  mediaType       String? // image|video|audio|document (null = text saja)
+  mediaUrl        String?
+  filename        String?
+  audienceTag     String? // null = semua kontak non opt-out; else filter tag
+  minDelaySec     Int       @default(5) // jeda minimum antar pesan (detik)
+  maxDelaySec     Int       @default(15) // jeda maksimum (acak di antara keduanya)
+  scheduledAt     DateTime? // null = mulai segera saat start
+  startedAt       DateTime?
+  completedAt     DateTime?
+  failReason      String?
+  totalRecipients Int       @default(0)
+  sentCount       Int       @default(0)
+  failedCount     Int       @default(0)
+  skippedCount    Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt @default(now())
+
+  recipients       CampaignRecipient[]
+
+  @@index([tenantId, status])
+  @@index([status, scheduledAt])
+}
+
+// Baris penerima campaign — unit kerja dispatcher. Snapshot nama & chatId agar
+// perubahan/penghapusan kontak tidak mengubah riwayat campaign berjalan.
+model CampaignRecipient {
+  id         String    @id @default(uuid(7))
+  campaignId String
+  campaign   Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId  String?
+  chatId     String
+  name       String?
+  status     String    @default("pending") // pending|sending|sent|failed|skipped ('sending' = diklaim dispatcher, recovery >10 menit → pending)
+  error      String?
+  messageId  String?
+  sentAt     DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt @default(now()) // staleness claim dispatcher (recovery >10 menit)
+
+  @@index([campaignId, status])
+}
+
+// ─── LABELS (Wavio-local + OpenWA sync) ───────────────────────────────────
+// Label lokal untuk CRM/campaign filtering + sinkronisasi optional ke
+// OpenWA labels (visible di WhatsApp dashboard).
+// Dual-layer: Wavio = source of truth untuk nama/warna;
+//             OpenWA = source of truth untuk label-chat association.
+
+model Label {
+  id              String   @id @default(uuid(7))
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name            String
+  color           String   @default("#6366f1") // hex color untuk dashboard
+  openwaLabelId   String?  // synced OpenWA label ID (null = local-only)
+  openwaSyncedAt  DateTime? // timestamp sync terakhir
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt @default(now())
+
+  contacts        LabelContact[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive])
+}
+
+model LabelContact {
+  id          String   @id @default(uuid(7))
+  tenantId    String
+  labelId     String
+  label       Label    @relation(fields: [labelId], references: [id], onDelete: Cascade)
+  chatId      String   // JID: "62812...@c.us"
+  createdAt   DateTime @default(now())
+
+  @@unique([labelId, chatId])
+  @@index([tenantId, chatId])
+  @@index([labelId])
 }

@@ -22,6 +22,13 @@ records DNS di Cloudflare → verifikasi → (disarankan) DMARC.
 
   `EMAIL_FROM` harus dari domain yang sudah diverifikasi (langkah 3).
 
+  ⚠ **Dua jenis key berbeda**: `scripts/test-email.ts` & kode kirim (`src/lib/email.ts`)
+  cukup key dengan permission **Sending access**. Sementara `scripts/resend-domain.ts`
+  (buat/status/verify domain) butuh key dengan permission **Domain access** — key
+  send-only akan gagal 401 `restricted_api_key` saat memanggil `/domains`. Bila
+  `RESEND_API_KEY` di `.env` send-only, jalankan `resend-domain.ts` dengan key domain
+  terpisah: `RESEND_API_KEY=re_... npx tsx scripts/resend-domain.ts status`.
+
 ## 2. Komponen kode (sudah ada)
 
 | File | Fungsi |

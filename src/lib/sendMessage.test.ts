@@ -1,11 +1,11 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { executeSendMessage } from "./sendMessage";
 import { openwa, OpenwaError } from "./openwa";
-import { queryOne } from "./db";
-import { checkMessageQuota } from "./quota";
+import { queryD1One } from "./d1";
 import { checkRateLimit } from "./rate-limit";
-import { getTenantDelayInfo, sleep } from "./delay";
 import { insertMessageLog } from "./messageStore";
+import { sleep } from "./delay";
+import { getTenantConfig } from "./tenantConfig";
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
 // Fake KV WAVIO_CACHE — state bertahan antar panggilan (persist dalam test),
@@ -17,18 +17,18 @@ const fakeKv = {
     fakeKv.store.set(k, v);
   }),
 };
-vi.mock("@/lib/cf", () => ({
+vi.mock("./cf", () => ({
   getBinding: vi.fn(async (name: string) => {
     if (name === "WAVIO_CACHE") return fakeKv;
     throw new Error(`binding ${name} tidak ada`);
   }),
 }));
 
-vi.mock("@/lib/db", () => ({
+vi.mock("./db", () => ({
   query: vi.fn(),
   queryOne: vi.fn(),
 }));
-vi.mock("@/lib/openwa", () => {
+vi.mock("./openwa", () => {
   class MockOpenwaError extends Error {
     status: number;
     constructor(status: number, message: string) {
@@ -45,15 +45,15 @@ vi.mock("@/lib/openwa", () => {
       e instanceof MockOpenwaError ? "Gateway WhatsApp sedang bermasalah. Coba lagi nanti." : String(e),
   };
 });
-vi.mock("@/lib/quota", () => ({ checkMessageQuota: vi.fn() }));
-vi.mock("@/lib/rate-limit", () => ({ checkRateLimit: vi.fn() }));
-vi.mock("@/lib/delay", () => ({
-  getTenantDelayInfo: vi.fn(),
+vi.mock("./d1", () => ({ queryD1One: vi.fn() }));
+vi.mock("./tenantConfig", () => ({ getTenantConfig: vi.fn() }));
+vi.mock("./rate-limit", () => ({ checkRateLimit: vi.fn() }));
+vi.mock("./delay", () => ({
   randomDelayMs: vi.fn(() => 5000),
   sleep: vi.fn(),
 }));
-vi.mock("@/lib/messageStore", () => ({ insertMessageLog: vi.fn(async () => {}) }));
-vi.mock("@/lib/r2", () => ({ putMediaObject: vi.fn(async () => {}) }));
+vi.mock("./messageStore", () => ({ insertMessageLog: vi.fn(async () => {}) }));
+vi.mock("./r2", () => ({ putMediaObject: vi.fn(async () => {}) }));
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const ctx = { tenantId: "t1", keyId: "k1", requestId: "req-test-1" };
@@ -79,10 +79,15 @@ function readyDevice(over: Partial<{ id: string; label: string; openwaSessionId:
 }
 
 const defaultMocks = () => {
-  vi.mocked(queryOne).mockResolvedValue(readyDevice());
-  vi.mocked(checkMessageQuota).mockResolvedValue({ ok: true, used: 0, max: 100 });
+  vi.mocked(queryD1One).mockResolvedValue(readyDevice());
+  vi.mocked(getTenantConfig).mockResolvedValue({
+    plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+    addons: { removeWatermark: true, randomDelay: false, campaign: false },
+    features: { delayEnabled: false },
+    messageCount: 0,
+    ts: Date.now(),
+  });
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true });
-  vi.mocked(getTenantDelayInfo).mockResolvedValue({ enabled: false, entitled: false, active: false });
   vi.mocked(openwa.sendText).mockResolvedValue({ messageId: "m1", status: "sent" });
 };
 
@@ -98,17 +103,17 @@ describe("executeSendMessage — kirim teks sukses", () => {
     const result = await executeSendMessage(jsonReq({ to: "081234567890", text: "Halo" }), ctx);
 
     expect(result).toMatchObject({ ok: true, status: 200, body: { ok: true, to: "6281234567890@c.us", messageId: "m1" } });
-    expect(openwa.sendText).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", "Halo");
+        expect(openwa.sendText).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", "Halo");
     expect(insertMessageLog).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: "t1", deviceId: "dev1", direction: "outgoing", status: "sent", messageId: "m1" }),
     );
   });
 
   it("memakai deviceId bila diberikan", async () => {
-    vi.mocked(queryOne).mockResolvedValue(readyDevice({ id: "dev2", openwaSessionId: "owa-2" }));
+    vi.mocked(queryD1One).mockResolvedValue(readyDevice({ id: "dev2", openwaSessionId: "owa-2" }));
     await executeSendMessage(jsonReq({ to: "6281234567890", text: "x", deviceId: "dev2" }), ctx);
 
-    expect(queryOne).toHaveBeenCalledWith(expect.stringContaining("WHERE id = $1"), ["dev2", "t1"]);
+    expect(queryD1One).toHaveBeenCalledWith(expect.stringContaining("WHERE id = ?"), ["dev2", "t1"]);
     expect(openwa.sendText).toHaveBeenCalledWith("owa-2", "6281234567890@c.us", "x");
   });
 });
@@ -130,25 +135,25 @@ describe("executeSendMessage — validasi & error", () => {
   });
 
   it("tanpa device ready → 409", async () => {
-    vi.mocked(queryOne).mockResolvedValue(undefined);
+    vi.mocked(queryD1One).mockResolvedValue(undefined);
     const result = await executeSendMessage(jsonReq({ to: "6281234567890", text: "x" }), ctx);
     expect(result).toMatchObject({ ok: false, status: 409 });
   });
 
   it("deviceId tidak ditemukan → 404", async () => {
-    vi.mocked(queryOne).mockResolvedValue(undefined);
+    vi.mocked(queryD1One).mockResolvedValue(undefined);
     const result = await executeSendMessage(jsonReq({ to: "6281234567890", text: "x", deviceId: "nope" }), ctx);
     expect(result).toMatchObject({ ok: false, status: 404 });
   });
 
   it("device tidak siap (status disconnected) → 409", async () => {
-    vi.mocked(queryOne).mockResolvedValue(readyDevice({ status: "disconnected" }));
+    vi.mocked(queryD1One).mockResolvedValue(readyDevice({ status: "disconnected" }));
     const result = await executeSendMessage(jsonReq({ to: "6281234567890", text: "x" }), ctx);
     expect(result).toMatchObject({ ok: false, status: 409 });
   });
 
   it("kuota pesan habis → 429", async () => {
-    vi.mocked(checkMessageQuota).mockResolvedValue({ ok: false, used: 100, max: 100 });
+    vi.mocked(getTenantConfig).mockResolvedValue({ plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: 100, includesDelay: false }, addons: { removeWatermark: false, randomDelay: false, campaign: false }, features: { delayEnabled: false }, messageCount: 100, ts: Date.now() });
     const result = await executeSendMessage(jsonReq({ to: "6281234567890", text: "x" }), ctx);
     expect(result).toMatchObject({ ok: false, status: 429 });
   });
@@ -289,7 +294,7 @@ describe("executeSendMessage — idempotency", () => {
     }
     // Tidak ada kirim kedua ke OpenWA & tidak menghabiskan kuota/rate limit.
     expect(openwa.sendText).toHaveBeenCalledTimes(1);
-    expect(checkMessageQuota).toHaveBeenCalledTimes(1);
+    expect(getTenantConfig).toHaveBeenCalledTimes(1);
     expect(checkRateLimit).toHaveBeenCalledTimes(1);
   });
 
@@ -324,9 +329,127 @@ describe("executeSendMessage — idempotency", () => {
   });
 });
 
+describe("executeSendMessage — watermark footnote (iklan platform)", () => {
+  const FOOT = "via Wavio - https://wavio.satupintudigital.co.id";
+
+  it("tanpa addon remove_watermark → footnote disisipkan ke teks + watermark:true", async () => {
+    vi.mocked(getTenantConfig).mockResolvedValue({
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      addons: { removeWatermark: false, randomDelay: false, campaign: false },
+      features: { delayEnabled: false },
+      messageCount: 0,
+      ts: Date.now(),
+    });
+    const result = await executeSendMessage(jsonReq({ to: "081234567890", text: "Halo" }), ctx);
+
+    expect(result).toMatchObject({ ok: true, status: 200, body: { watermark: true } });
+    expect(openwa.sendText).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", `Halo\n\n${FOOT}`);
+    expect(insertMessageLog).toHaveBeenCalledWith(expect.objectContaining({ watermark: true }));
+  });
+
+  it("addon remove_watermark aktif → tanpa footnote & tanpa field watermark", async () => {
+    vi.mocked(getTenantConfig).mockResolvedValue({
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      addons: { removeWatermark: true, randomDelay: false, campaign: false },
+      features: { delayEnabled: false },
+      messageCount: 0,
+      ts: Date.now(),
+    });
+    const result = await executeSendMessage(jsonReq({ to: "081234567890", text: "Halo" }), ctx);
+
+    expect(result).toMatchObject({ ok: true, status: 200 });
+    if (result.ok) expect(result.body.watermark).toBeUndefined();
+    expect(openwa.sendText).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", "Halo");
+    expect(insertMessageLog).toHaveBeenCalledWith(expect.objectContaining({ watermark: false }));
+  });
+
+  it("media dengan caption → footnote disisipkan ke caption", async () => {
+    vi.mocked(getTenantConfig).mockResolvedValue({
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      addons: { removeWatermark: false, randomDelay: false, campaign: false },
+      features: { delayEnabled: false },
+      messageCount: 0,
+      ts: Date.now(),
+    });
+    vi.mocked(openwa.sendMedia).mockResolvedValue({ messageId: "m2" });
+    const result = await executeSendMessage(
+      jsonReq({ to: "6281234567890", mediaType: "image", mediaUrl: "https://cdn.example.com/a.jpg", text: "caption" }),
+      ctx,
+    );
+
+    expect(result).toMatchObject({ ok: true, status: 200, body: { watermark: true } });
+    expect(openwa.sendMedia).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", "image", {
+      url: "https://cdn.example.com/a.jpg",
+      caption: `caption\n\n${FOOT}`,
+    });
+  });
+
+  it("media tanpa caption → footnote menjadi caption", async () => {
+    vi.mocked(getTenantConfig).mockResolvedValue({
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      addons: { removeWatermark: false, randomDelay: false, campaign: false },
+      features: { delayEnabled: false },
+      messageCount: 0,
+      ts: Date.now(),
+    });
+    vi.mocked(openwa.sendMedia).mockResolvedValue({ messageId: "m2" });
+    const result = await executeSendMessage(
+      jsonReq({ to: "6281234567890", mediaType: "image", mediaUrl: "https://cdn.example.com/a.jpg" }),
+      ctx,
+    );
+
+    expect(result).toMatchObject({ ok: true, status: 200 });
+    expect(openwa.sendMedia).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", "image", {
+      url: "https://cdn.example.com/a.jpg",
+      caption: FOOT,
+    });
+  });
+
+  it("sticker → footnote TIDAK disisipkan (tanpa caption)", async () => {
+    vi.mocked(getTenantConfig).mockResolvedValue({
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      addons: { removeWatermark: false, randomDelay: false, campaign: false },
+      features: { delayEnabled: false },
+      messageCount: 0,
+      ts: Date.now(),
+    });
+    vi.mocked(openwa.sendMedia).mockResolvedValue({ messageId: "m2" });
+    const result = await executeSendMessage(
+      jsonReq({ to: "6281234567890", mediaType: "sticker", mediaUrl: "https://cdn.example.com/s.webp" }),
+      ctx,
+    );
+
+    expect(result).toMatchObject({ ok: true, status: 200 });
+    expect(openwa.sendMedia).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", "sticker", {
+      url: "https://cdn.example.com/s.webp",
+    });
+  });
+
+  it("teks panjang (≤ 4096) → dipangkas agar footnote tetap muat (total ≤ 4096)", async () => {
+    vi.mocked(getTenantConfig).mockResolvedValue({
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      addons: { removeWatermark: false, randomDelay: false, campaign: false },
+      features: { delayEnabled: false },
+      messageCount: 0,
+      ts: Date.now(),
+    });
+    await executeSendMessage(jsonReq({ to: "6281234567890", text: "x".repeat(4095) }), ctx);
+
+    const [, , sent] = vi.mocked(openwa.sendText).mock.calls[0];
+    expect(sent).toHaveLength(4096);
+    expect(sent.endsWith("\n\nvia Wavio - https://wavio.satupintudigital.co.id")).toBe(true);
+  });
+});
+
 describe("executeSendMessage — delay anti-spam", () => {
   it("delay aktif → sleep dipanggil & delayMs disertakan", async () => {
-    vi.mocked(getTenantDelayInfo).mockResolvedValue({ enabled: true, entitled: true, active: true });
+    vi.mocked(getTenantConfig).mockResolvedValue({
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: true },
+      addons: { removeWatermark: false, randomDelay: false, campaign: false },
+      features: { delayEnabled: true },
+      messageCount: 0,
+      ts: Date.now(),
+    });
     const result = await executeSendMessage(jsonReq({ to: "6281234567890", text: "x" }), ctx);
 
     expect(sleep).toHaveBeenCalledWith(5000);

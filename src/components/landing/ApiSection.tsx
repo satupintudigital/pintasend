@@ -7,9 +7,9 @@ import { Tokens, type Token } from "@/components/landing/Code";
 
 const endpoints = [
   { method: "POST", path: "/v1/messages", desc: "Kirim pesan teks atau media" },
-  { method: "GET", path: "/v1/devices", desc: "Daftar device yang tersambung" },
-  { method: "GET", path: "/v1/messages", desc: "Riwayat pesan masuk dan keluar" },
-  { method: "POST", path: "/v1/webhooks", desc: "Daftarkan webhook untuk event realtime" },
+  { method: "GET", path: "/v1/groups", desc: "Daftar grup pada device" },
+  { method: "GET", path: "/v1/contacts", desc: "Daftar kontak audiens" },
+  { method: "POST", path: "/v1/campaigns", desc: "Buat campaign broadcast" },
 ];
 
 const methodClass = (method: string) =>
@@ -28,7 +28,7 @@ const samples: Sample[] = [
   {
     id: "kirim",
     label: "Kirim pesan",
-    raw: `curl -X POST https://api.wavio.id/v1/messages \\
+    raw: `curl -X POST https://wavio.satupintudigital.co.id/v1/messages \\
   -H "Authorization: Bearer $WAVIO_KEY" \\
   -d '{"to":"6281234567890","text":"Pesanan #1234 sudah dikirim"}'`,
     tokens: [
@@ -36,7 +36,7 @@ const samples: Sample[] = [
       ["plain", " "],
       ["f", "-X POST"],
       ["plain", " "],
-      ["s", "https://api.wavio.id/v1/messages"],
+      ["s", "https://wavio.satupintudigital.co.id/v1/messages"],
       ["plain", " \\\n  "],
       ["f", "-H"],
       ["plain", " "],

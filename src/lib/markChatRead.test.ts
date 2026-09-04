@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { executeMarkChatRead } from "./markChatRead";
-import { queryOne } from "./db";
+import { queryD1One } from "./d1";
 import { openwa, OpenwaError } from "./openwa";
 import { checkRateLimit } from "./rate-limit";
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
-vi.mock("./db", () => ({ queryOne: vi.fn() }));
+vi.mock("./d1", () => ({ queryD1One: vi.fn() }));
+vi.mock("./tenantConfig", () => ({ getTenantConfig: vi.fn() }));
 vi.mock("./openwa", () => {
   class MockOpenwaError extends Error {
     status: number;
@@ -32,7 +33,7 @@ function readyDevice(over: Partial<{ id: string; label: string; openwaSessionId:
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(queryOne).mockResolvedValue(readyDevice());
+  vi.mocked(queryD1One).mockResolvedValue(readyDevice());
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true });
   vi.mocked(openwa.markChatRead).mockResolvedValue({ success: true });
 });
@@ -64,7 +65,7 @@ describe("executeMarkChatRead — sukses", () => {
   });
 
   it("memakai deviceId bila diberikan", async () => {
-    vi.mocked(queryOne).mockResolvedValue(readyDevice({ id: "dev2", openwaSessionId: "owa-2" }));
+    vi.mocked(queryD1One).mockResolvedValue(readyDevice({ id: "dev2", openwaSessionId: "owa-2" }));
     await executeMarkChatRead({ chatId: "6281234567890", deviceId: "dev2" }, ctx);
     expect(openwa.markChatRead).toHaveBeenCalledWith("owa-2", "6281234567890@c.us", undefined);
   });
@@ -91,7 +92,7 @@ describe("executeMarkChatRead — validasi & error", () => {
   });
 
   it("tanpa device ready → 409", async () => {
-    vi.mocked(queryOne).mockResolvedValue(undefined);
+    vi.mocked(queryD1One).mockResolvedValue(undefined);
     const result = await executeMarkChatRead({ chatId: "6281234567890" }, ctx);
     expect(result).toMatchObject({ ok: false, status: 409 });
   });

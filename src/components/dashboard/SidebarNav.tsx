@@ -7,6 +7,8 @@ import {
   Devices,
   House,
   Key,
+  Megaphone,
+  Users,
   WebhooksLogo,
 } from "@phosphor-icons/react";
 
@@ -23,15 +25,27 @@ const ownerItems = [
   { href: "/dashboard/webhook", label: "Webhook", icon: WebhooksLogo },
 ];
 
+// Modul WA Campaign — hanya tampil bila tenant punya addon 'campaign' aktif.
+const campaignItems = [
+  { href: "/dashboard/kontak", label: "Kontak", icon: Users },
+  { href: "/dashboard/campaign", label: "Campaign", icon: Megaphone },
+];
+
 export function SidebarNav({
   horizontal = false,
   canManageUsers = false,
+  hasCampaign = false,
 }: {
   horizontal?: boolean;
   canManageUsers?: boolean;
+  hasCampaign?: boolean;
 }) {
   const pathname = usePathname();
-  const visible = canManageUsers ? [...items, ...ownerItems] : items;
+  const visible = [
+    ...items,
+    ...(hasCampaign ? campaignItems : []),
+    ...(canManageUsers ? ownerItems : []),
+  ];
 
   const linkClass = (active: boolean) =>
     `flex items-center gap-2.5 rounded-lg px-3 text-sm transition-colors ${horizontal ? "py-3" : "py-2.5"} ${

@@ -14,8 +14,8 @@
 //   4. Satu baris error tidak menghentikan batch (per-baris try/catch).
 //
 // Trigger:
-//   - Cron (wrangler.jsonc triggers.crons) — otomatis tiap menit.
 //   - HTTP POST manual: ?token=<DELIVERY_TOKEN> (on-demand / testing).
+//   - Tidak ada cron supaya Neon dapat scale-to-zero.
 //
 // Secret: DATABASE_URL (Neon), DELIVERY_TOKEN (proteksi trigger manual).
 import { Client } from "@neondatabase/serverless";
@@ -52,10 +52,7 @@ async function deliverOnce(url, body, signature, event) {
 }
 
 const worker = {
-  async scheduled(_controller, env, ctx) {
-    ctx.waitUntil(runDelivery(env));
-  },
-
+  // Delivery worker sengaja on-demand agar Neon dapat scale-to-zero.
   async fetch(request, env) {
     try {
       if (request.method !== "POST") {

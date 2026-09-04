@@ -1,0 +1,13 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "template-sync-wavio",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "OPENWA_BASE_URL": "https://owa.nalaniaga.id"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

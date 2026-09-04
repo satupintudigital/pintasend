@@ -5,6 +5,8 @@ import { openwa, openwaWebhookSecret } from "./openwa";
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
 vi.mock("./db", () => ({ query: vi.fn(), queryOne: vi.fn() }));
+vi.mock("./d1", () => ({ queryD1One: vi.fn() }));
+vi.mock("./tenantConfig", () => ({ getTenantConfig: vi.fn() }));
 vi.mock("./d1", () => ({ queryD1: vi.fn() }));
 vi.mock("./uuidv7", () => ({ uuidv7: () => "uuid-1" }));
 vi.mock("./deviceCache", () => ({ deleteCachedDeviceList: vi.fn() }));

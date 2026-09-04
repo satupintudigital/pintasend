@@ -8,13 +8,17 @@ import { getRequestId, logEvent } from "@/lib/requestLogger";
 // Route THIN (SRP): verifikasi API key → delegasi logika bisnis ke
 // `src/lib/blockContact.ts` (normalisasi, rate limit per key, pilih device,
 // block/unblock via OpenWA) → map hasil ke Response.
+//
+// Segment dinamis diberi nama `id` (sama dgn /v1/contacts/[id]) — Next.js
+// melarang dua slug beda nama di level yang sama. Nilai path tetap nomor
+// kontak (docs: /v1/contacts/:number/block); URL publik tidak berubah.
 
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ number: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const requestId = getRequestId(req);
-  const { number } = await params;
+  const { id: number } = await params;
 
   const authz = req.headers.get("authorization") ?? "";
   const raw = authz.startsWith("Bearer ") ? authz.slice(7).trim() : "";
@@ -60,10 +64,10 @@ export async function POST(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: Promise<{ number: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const requestId = getRequestId(req);
-  const { number } = await params;
+  const { id: number } = await params;
 
   const authz = req.headers.get("authorization") ?? "";
   const raw = authz.startsWith("Bearer ") ? authz.slice(7).trim() : "";

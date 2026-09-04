@@ -116,7 +116,7 @@ describe("markWebhookDelivery — update status outbox", () => {
   });
 });
 
-describe("claimPendingDeliveries — batch utk worker cron", () => {
+describe("claimPendingDeliveries — batch utk worker on-demand", () => {
   it("select pending yang sudah waktunya (nextAttemptAt <= now)", async () => {
     queryMock.mockResolvedValue([{ id: "d1", attempts: 1 }]);
     const rows = await claimPendingDeliveries(10);

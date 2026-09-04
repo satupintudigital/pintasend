@@ -11,13 +11,16 @@ import {
   FileText,
   Image,
   MagnifyingGlass,
+  Megaphone,
   MusicNote,
+  PaperPlaneTilt,
   Smiley,
   VideoCamera,
   Warning,
   X,
 } from "@phosphor-icons/react";
 import { classifyMedia, MEDIA_KIND_LABEL, type MediaKind } from "@/lib/mediaInfo";
+import { SendTemplateModal } from "@/components/dashboard/SendTemplateModal";
 
 export interface MessageRow {
   id: string;
@@ -32,6 +35,7 @@ export interface MessageRow {
   mediaUrl: string | null;
   mimetype: string | null;
   reaction: string | null;
+  watermark: boolean;
   triggeredAt: string | null;
   sentAt: string | null;
   createdAt: string;
@@ -157,6 +161,7 @@ function reactionSummary(reaction: string | null): { emoji: string; count: numbe
 }
 
 export function MessageHistoryPanel() {
+  const [sendOpen, setSendOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [direction, setDirection] = useState<DirectionFilter>("");
@@ -165,6 +170,8 @@ export function MessageHistoryPanel() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  // Dibump setelah kirim template → memaksa effect refetch riwayat.
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Debounce pencarian → reset ke halaman 1. (loading di-set di onChange —
   // pola sama seperti PenggunaList, hindari setState sync dalam effect.)
@@ -218,7 +225,7 @@ export function MessageHistoryPanel() {
       clearTimeout(t);
       abortRef.current?.abort();
     };
-  }, [fetchMessages]);
+  }, [fetchMessages, refreshKey]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -236,9 +243,18 @@ export function MessageHistoryPanel() {
             </p>
           </div>
         </div>
-        <span className="rounded-full border border-line-soft bg-surface-2 px-3 py-1 font-mono text-xs text-fg-muted">
-          {total} pesan
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSendOpen(true)}
+            className="inline-flex h-10 items-center gap-2 rounded-full bg-accent px-4 text-sm font-semibold text-accent-ink shadow-[0_0_28px_-10px_rgba(16,185,129,0.9)] transition-all hover:bg-accent-bright active:scale-[0.97]"
+          >
+            <PaperPlaneTilt size={15} weight="bold" />
+            Kirim Template
+          </button>
+          <span className="rounded-full border border-line-soft bg-surface-2 px-3 py-1 font-mono text-xs text-fg-muted">
+            {total} pesan
+          </span>
+        </div>
       </div>
 
       {/* Pencarian + filter arah */}
@@ -387,6 +403,15 @@ export function MessageHistoryPanel() {
                           delay {delaySec.toFixed(1)} dtk
                         </span>
                       )}
+                      {m.watermark && (
+                        <span
+                          className="flex items-center gap-1 rounded-full border border-line-soft bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-fg-faint"
+                          title="Footnote iklan platform disisipkan di akhir pesan ini"
+                        >
+                          <Megaphone size={11} weight="fill" />
+                          watermark
+                        </span>
+                      )}
                       {reactions && (
                         <span
                           className="flex items-center gap-1 rounded-full border border-pink-500/25 bg-pink-500/10 px-2 py-0.5"
@@ -499,10 +524,22 @@ export function MessageHistoryPanel() {
 
       <p className="mt-5 rounded-xl border border-line-soft bg-surface-2/60 px-4 py-3 text-xs leading-relaxed text-fg-faint">
         Riwayat disimpan di basis data utama (Neon) untuk setiap pesan masuk via webhook dan keluar
-        via <code className="font-mono">POST /v1/messages</code>. Pesan media ditandai badge jenisnya;
-        gambar menampilkan thumbnail saat dikirim lewat URL publik. Pencarian memakai{" "}
-        <code className="font-mono">ILIKE</code> pada isi pesan &amp; nomor.
+        via API. Pesan media ditandai badge jenisnya; gambar menampilkan thumbnail saat dikirim
+        lewat URL publik. Pencarian memakai <code className="font-mono">ILIKE</code> pada isi
+        pesan &amp; nomor.
       </p>
+
+      <SendTemplateModal
+        key={sendOpen ? "open" : "closed"}
+        open={sendOpen}
+        onClose={() => setSendOpen(false)}
+        onSent={() => {
+          // Muat ulang riwayat agar pesan template yang baru terkirim langsung tampil.
+          setPage(1);
+          setLoading(true);
+          setRefreshKey((k) => k + 1);
+        }}
+      />
     </div>
   );
 }

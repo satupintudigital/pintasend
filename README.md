@@ -51,13 +51,34 @@ npm run dev            # http://localhost:3000
 | Endpoint | Fungsi |
 |---|---|
 | `POST /v1/messages` | Kirim teks/media — dukung `mentions` (@ di grup) & `replyTo` (balasan) |
+| `POST /v1/messages/location` | Kirim pesan lokasi (koordinat + deskripsi) |
+| `POST /v1/messages/contact` | Kirim kartu kontak (nama + nomor) |
+| `POST /v1/messages/poll` | Kirim poll WhatsApp (2–12 pilihan) |
+| `POST /v1/messages/react` | Beri / hapus reaksi emoji pada pesan |
+| `POST /v1/messages/send-bulk` | Broadcast ke banyak penerima (async, kuota per penerima) |
+| `GET /v1/messages/batch/:batchId` | Status batch broadcast (progress & hasil) |
+| `GET /v1/messages/:chatId/history` | Baca riwayat chat langsung dari WhatsApp |
 | `POST /v1/messages/send-template` | Kirim template tersimpan dengan `vars` |
 | `POST`/`DELETE /v1/contacts/:number/block` | Blokir / buka blokir kontak |
 | `POST /v1/chats/read` | Tandai chat/pesan dibaca |
 | `GET /v1/contacts/check/:number` | Cek nomor terdaftar WhatsApp |
 | `GET /v1/groups` | Daftar grup device |
+| `GET`/`POST /v1/contacts` | Kontak audiens campaign — daftar / upsert tunggal / impor CSV |
+| `PATCH`/`DELETE /v1/contacts/:id` | Sunting / hapus kontak audiens |
+| `GET`/`POST /v1/campaigns` | Daftar & buat draft campaign blast (modul Campaign) |
+| `GET /v1/campaigns/:id` | Detail campaign + progress per penerima |
+| `POST /v1/campaigns/:id/start\|pause\|resume\|cancel` | Transisi status campaign |
 
 Referensi lengkap: `src/app/docs/api/page.tsx` (halaman `/docs/api`).
+
+## Modul Campaign (WA Blast)
+
+Blast massal ratusan–ribuan penerima, digate `TenantAddon` key `campaign`:
+
+- **Kontak audiens** — tabel `Contact` per tenant (chatId unik, tag JSON, opt-out); impor CSV di `/dashboard/kontak`.
+- **Campaign** — template `{{nama}}/{{nomor}}/{{tanggal}}`, media opsional (URL publik), filter audiens by tag, jadwal, jeda acak antar pesan; UI di `/dashboard/campaign`.
+- **Dispatcher** — `workers/campaign-dispatch` (HTTP on-demand): claim batch pending → kirim via OpenWA berjeda acak → cap harian per device → auto-pause saat device restriction/kuota habis → finalisasi + event webhook `campaign.completed` (via outbox `WebhookDelivery`).
+- **Skema & migrasi:** `prisma/migrations/2026-08-21-campaign.sql` (apply: `node prisma/apply-migration.mjs prisma/migrations/2026-08-21-campaign.sql`).
 
 ## Integrasi NalaNiaga (Fase 4 — gateway SSO)
 
@@ -79,6 +100,25 @@ node prisma/apply-schema.mjs   # menerapkan SQL ke DATABASE_URL
 ## Env & secret
 
 `.env` (lokal) dan `wrangler secret put` (Worker): `DATABASE_URL`, `AUTH_SECRET`, `OPENWA_BASE_URL` (`https://owa.nalaniaga.id`), `OPENWA_ADMIN_KEY`, `RESEND_API_KEY` + `EMAIL_FROM` (email via Resend, sender `Wavio <noreply@wavio.satupintudigital.co.id>`).
+
+## Sinkronisasi template NalaNiaga → Wavio → OpenWA
+
+NalaNiaga adalah sumber canonical template. Publish dari dashboard NalaNiaga menyimpan perubahan secara lokal, memasukkannya ke outbox, lalu mengirim snapshot bertanda HMAC ke endpoint internal Wavio. Wavio mem-fan-out satu job per device dan worker `template-sync-wavio` membuat template OpenWA immutable (`nala_<event>_v<version>`) menggunakan operasi list/create saja.
+
+- Endpoint internal: `POST /internal/nalaniaga/template-sync` (HMAC timestamp + nonce; bukan API tenant).
+- Worker: `workers/template-sync` dipanggil via HTTP on-demand; offline device di-retry dengan backoff dan tidak menghentikan device lain. Tidak ada cron agar Neon dapat scale-to-zero.
+- Pengiriman memakai nama canonical; Wavio menyelesaikan binding physical secara internal dan menerapkan watermark tepat satu kali.
+- Set secret route Wavio pada deployment app: `WAVIO_TEMPLATE_SYNC_SECRET`.
+- Set secret worker: `DATABASE_URL`, `OPENWA_ADMIN_KEY`, `TEMPLATE_SYNC_TOKEN`; URL OpenWA non-rahasia berada di `workers/template-sync/wrangler.jsonc`.
+- Deploy worker secara terpisah: `npx wrangler deploy --config workers/template-sync/wrangler.jsonc`.
+
+Jangan mengisi secret template sync di `NEXT_PUBLIC_*`, dan jangan menjalankan worker memakai database/schema yang berbeda dari Wavio app.
+
+## Kebijakan Neon scale-to-zero
+
+Semua worker yang memakai Neon (`template-sync`, `campaign-dispatch`, `webhook-delivery`, `d1-resync`, dan `message-retention`) sengaja tidak memiliki `triggers.crons` maupun handler `scheduled`. Masing-masing hanya berjalan ketika endpoint HTTP `POST` bertoken dipanggil, sehingga tidak ada invocation berkala yang membangunkan Neon saat idle.
+
+Perubahan ini berlaku setelah setiap worker di-deploy ulang dengan file `workers/*/wrangler.jsonc` terbaru. Campaign dispatch, template sync, retry webhook, resync D1, dan retention harus dipicu on-demand melalui endpoint worker masing-masing; bila otomatisasi tetap diperlukan, gunakan scheduler eksternal yang hanya memanggil worker ketika memang ada pekerjaan.
 
 ## Email (Resend)
 

@@ -13,16 +13,17 @@
 //   - kirim ke OpenWA + catat log    → openwa + insertMessageLog
 
 import { normalizeChatId, normalizePhoneNumber } from "./chat";
-import { queryOne } from "./db";
+import { queryD1One } from "./d1";
 import { openwa, OpenwaError, publicOpenwaError, type OpenwaSendResult } from "./openwa";
 import { insertMessageLog } from "./messageStore";
-import { parseMediaPayload, type MediaPayload } from "./media";
+import { parseMediaPayload, MEDIA_LIMITS, type MediaPayload } from "./media";
+import { appendFootnote, getWatermarkFootnote } from "./watermark";
 import { MultipartError, parseMultipartForm, sanitizeFilename, type MultipartForm } from "./multipart";
 import { putMediaObject } from "./r2";
 import { uuidv7 } from "./uuidv7";
 import { checkRateLimit } from "./rate-limit";
-import { checkMessageQuota } from "./quota";
-import { getTenantDelayInfo, randomDelayMs, sleep } from "./delay";
+import { getTenantConfig } from "./tenantConfig";
+import { randomDelayMs, sleep } from "./delay";
 import { logEvent } from "./requestLogger";
 import {
   getIdempotencyRecord,
@@ -261,18 +262,21 @@ export async function executeSendMessage(
     return { ok: false, status: 429, error: "Terlalu banyak permintaan. Coba lagi nanti.", retryAfterSec: rl.retryAfterSec };
   }
 
-  // 5. Kuota pesan bulan berjalan (WIB) — hard block sebelum memproses body.
-  const quota = await checkMessageQuota(ctx.tenantId);
-  if (!quota.ok) {
+  // 5. Config tenant (KV cache — 0 Neon queries).
+  const cfg = await getTenantConfig(ctx.tenantId);
+
+  // 5b. Kuota pesan bulan berjalan (WIB) — hard block sebelum memproses body.
+  const maxMsg = cfg.plan.maxMessagesPerMonth;
+  if (maxMsg !== null && cfg.messageCount >= maxMsg) {
     logEvent("warn", "send_quota_exceeded", ctx.requestId, {
       tenantId: ctx.tenantId,
-      used: quota.used,
-      max: quota.max,
+      used: cfg.messageCount,
+      max: maxMsg,
     });
     return {
       ok: false,
       status: 429,
-      error: `Kuota pesan bulan ini tercapai (${quota.used}/${quota.max}). Coba lagi bulan depan atau hubungi admin untuk upgrade plan.`,
+      error: `Kuota pesan bulan ini tercapai (${cfg.messageCount}/${maxMsg}). Coba lagi bulan depan atau hubungi admin untuk upgrade plan.`,
     };
   }
 
@@ -301,14 +305,14 @@ export async function executeSendMessage(
     };
   }
 
-  // 7. Pilih device: sesuai deviceId, atau device ready pertama milik tenant.
+  // 7. Pilih device — D1 (0 Neon queries).
   const device = deviceId
-    ? await queryOne<{ id: string; label: string; openwaSessionId: string; status: string }>(
-        'SELECT id, label, "openwaSessionId", status FROM "Device" WHERE id = $1 AND "tenantId" = $2',
+    ? await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
+        'SELECT id, label, openwaSessionId, status FROM Device WHERE id = ? AND tenantId = ?',
         [deviceId, ctx.tenantId],
       )
-    : await queryOne<{ id: string; label: string; openwaSessionId: string; status: string }>(
-        'SELECT id, label, "openwaSessionId", status FROM "Device" WHERE "tenantId" = $1 AND status = $2 ORDER BY "updatedAt" DESC LIMIT 1',
+    : await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
+        'SELECT id, label, openwaSessionId, status FROM Device WHERE tenantId = ? AND status = ? ORDER BY updatedAt DESC LIMIT 1',
         [ctx.tenantId, "ready"],
       );
 
@@ -345,15 +349,37 @@ export async function executeSendMessage(
     }
   }
 
+  // 7b. Watermark footnote (media iklan platform) — disisipkan ke teks/caption
+  //     setiap pesan keluar, KECUALI tenant punya addon remove_watermark aktif.
+  //     Dibaca dari KV cache (0 Neon queries).
+  const watermark = {
+    apply: !cfg.addons.removeWatermark,
+    footnote: cfg.addons.removeWatermark ? "" : getWatermarkFootnote(),
+  };
+  const finalText = media
+    ? text
+    : watermark.apply
+      ? appendFootnote(text, watermark.footnote, MAX_TEXT_LENGTH)
+      : text;
+  let finalCaption: string | undefined;
+  if (media) {
+    finalCaption = media.caption;
+    // Sticker tidak mendukung caption di WhatsApp — footnote dilewati.
+    if (watermark.apply && media.mediaType !== "sticker") {
+      finalCaption = appendFootnote(finalCaption ?? "", watermark.footnote, MEDIA_LIMITS.captionMax);
+    }
+  }
+
   // Label untuk riwayat: caption media, filename, atau tipe; teks biasa apa adanya.
-  const logBody = media ? (media.caption ?? media.filename ?? "") : text;
+  const logBody = media ? (finalCaption ?? media.filename ?? "") : finalText;
   const logType = media ? media.mediaType : "text";
 
   // 9. Random delay anti-spam (fitur per tenant, 3–10 dtk acak).
-  const delayInfo = await getTenantDelayInfo(ctx.tenantId);
+  //     Dibaca dari KV cache (0 Neon queries).
+  const delayActive = cfg.features.delayEnabled && (cfg.plan.includesDelay || cfg.addons.randomDelay);
   const triggeredAt = new Date();
   let delayMs: number | null = null;
-  if (delayInfo.active) {
+  if (delayActive) {
     delayMs = randomDelayMs();
     await sleep(delayMs);
   }
@@ -372,12 +398,12 @@ export async function executeSendMessage(
           ...(media.url ? { url: media.url } : {}),
           ...(media.base64 ? { base64: media.base64, mimetype: media.mimetype } : {}),
           ...(media.filename ? { filename: media.filename } : {}),
-          ...(media.caption ? { caption: media.caption } : {}),
+          ...(finalCaption ? { caption: finalCaption } : {}),
           ...sendOptions,
         })
       : hasOptions
-        ? await openwa.sendText(device.openwaSessionId, chatId, text, sendOptions)
-        : await openwa.sendText(device.openwaSessionId, chatId, text);
+        ? await openwa.sendText(device.openwaSessionId, chatId, finalText, sendOptions)
+        : await openwa.sendText(device.openwaSessionId, chatId, finalText);
 
     // Catat pesan KELUAR (best-effort; kegagalan log tidak memengaruhi respons).
     const messageId = result?.messageId ?? result?.id ?? null;
@@ -396,6 +422,7 @@ export async function executeSendMessage(
       mediaKey,
       triggeredAt,
       sentAt,
+      watermark: watermark.apply,
     }).catch((e) =>
       logEvent("error", "send_log_failed", ctx.requestId, { tenantId: ctx.tenantId, detail: String(e) }),
     );
@@ -405,6 +432,7 @@ export async function executeSendMessage(
       deviceId: device.id,
       to: chatId,
       messageId,
+      ...(watermark.apply ? { watermark: true } : {}),
       ...(delayMs !== null ? { delayMs } : {}),
       ...(media ? { mediaType: media.mediaType } : {}),
       ...(mediaKey ? { stored: "r2" } : {}),
@@ -415,6 +443,7 @@ export async function executeSendMessage(
       deviceId: device.id,
       chatId,
       messageId,
+      ...(watermark.apply ? { watermarkApplied: true } : {}),
       ...(delayMs !== null ? { delayMs } : {}),
       ...(media ? { mediaType: media.mediaType } : {}),
     });
@@ -449,6 +478,7 @@ export async function executeSendMessage(
         mediaKey,
         triggeredAt,
         sentAt,
+        watermark: watermark.apply,
       }).catch((err) =>
         logEvent("error", "send_log_failed", ctx.requestId, { tenantId: ctx.tenantId, detail: String(err) }),
       );

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { tenantHasCampaignAddon } from "@/lib/campaigns";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
 import { SidebarNav } from "@/components/dashboard/SidebarNav";
 import { Logo } from "@/components/Logo";
@@ -14,6 +15,10 @@ export default async function DashboardLayout({
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const hasCampaign = session.user.tenantId
+    ? await tenantHasCampaignAddon(session.user.tenantId).catch(() => false)
+    : false;
+
   const name = session.user.name ?? session.user.email;
   const initial = (name ?? "?").charAt(0).toUpperCase();
 
@@ -23,7 +28,7 @@ export default async function DashboardLayout({
         {/* Sidebar — desktop */}
         <aside className="sticky top-0 hidden h-[100dvh] w-60 shrink-0 flex-col border-r border-line-soft p-5 md:flex">
           <Brand />
-          <SidebarNav canManageUsers={session.user.role === "owner"} />
+          <SidebarNav canManageUsers={session.user.role === "owner"} hasCampaign={hasCampaign} />
           <div className="mt-auto space-y-4 border-t border-line-soft pt-5">
             <div className="flex items-center gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-accent/25 bg-accent/10 font-display text-sm font-semibold text-accent-bright">
@@ -44,7 +49,7 @@ export default async function DashboardLayout({
             <Brand />
             <SignOutButton compact />
           </div>
-          <SidebarNav horizontal canManageUsers={session.user.role === "owner"} />
+          <SidebarNav horizontal canManageUsers={session.user.role === "owner"} hasCampaign={hasCampaign} />
         </div>
 
         <main className="min-w-0 flex-1 p-6 md:p-10">

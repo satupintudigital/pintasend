@@ -1,11 +1,12 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { executeListGroups } from "./listGroups";
-import { queryOne } from "./db";
+import { queryD1One } from "./d1";
 import { openwa, OpenwaError } from "./openwa";
 import { checkRateLimit } from "./rate-limit";
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
-vi.mock("./db", () => ({ queryOne: vi.fn() }));
+vi.mock("./d1", () => ({ queryD1One: vi.fn() }));
+vi.mock("./tenantConfig", () => ({ getTenantConfig: vi.fn() }));
 vi.mock("./openwa", () => {
   class MockOpenwaError extends Error {
     status: number;
@@ -37,7 +38,7 @@ const groupFixtures = [
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(queryOne).mockResolvedValue(readyDevice());
+  vi.mocked(queryD1One).mockResolvedValue(readyDevice());
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true });
   vi.mocked(openwa.listGroups).mockResolvedValue(groupFixtures);
 });
@@ -57,10 +58,10 @@ describe("executeListGroups — sukses", () => {
   });
 
   it("memakai deviceId bila diberikan", async () => {
-    vi.mocked(queryOne).mockResolvedValue(readyDevice({ id: "dev2", openwaSessionId: "owa-2" }));
+    vi.mocked(queryD1One).mockResolvedValue(readyDevice({ id: "dev2", openwaSessionId: "owa-2" }));
     await executeListGroups({ deviceId: "dev2" }, ctx);
 
-    expect(queryOne).toHaveBeenCalledWith(expect.stringContaining("WHERE id = $1"), ["dev2", "t1"]);
+    expect(queryD1One).toHaveBeenCalledWith(expect.stringContaining("WHERE id = ?"), ["dev2", "t1"]);
     expect(openwa.listGroups).toHaveBeenCalledWith("owa-2", undefined, undefined);
   });
 
@@ -78,20 +79,20 @@ describe("executeListGroups — sukses", () => {
 
 describe("executeListGroups — validasi & error", () => {
   it("tanpa device ready → 409", async () => {
-    vi.mocked(queryOne).mockResolvedValue(undefined);
+    vi.mocked(queryD1One).mockResolvedValue(undefined);
     const result = await executeListGroups({}, ctx);
     expect(result).toMatchObject({ ok: false, status: 409 });
     expect(openwa.listGroups).not.toHaveBeenCalled();
   });
 
   it("deviceId tidak ditemukan → 404", async () => {
-    vi.mocked(queryOne).mockResolvedValue(undefined);
+    vi.mocked(queryD1One).mockResolvedValue(undefined);
     const result = await executeListGroups({ deviceId: "nope" }, ctx);
     expect(result).toMatchObject({ ok: false, status: 404 });
   });
 
   it("device tidak siap → 409", async () => {
-    vi.mocked(queryOne).mockResolvedValue(readyDevice({ status: "disconnected" }));
+    vi.mocked(queryD1One).mockResolvedValue(readyDevice({ status: "disconnected" }));
     const result = await executeListGroups({}, ctx);
     expect(result).toMatchObject({ ok: false, status: 409 });
   });

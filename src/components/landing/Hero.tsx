@@ -25,7 +25,7 @@ const codeTokens: Token[] = [
   ["plain", " "],
   ["f", "-X POST"],
   ["plain", " "],
-  ["s", "https://api.wavio.id/v1/messages"],
+  ["s", "https://wavio.satupintudigital.co.id/v1/messages"],
   ["plain", " \\\n  "],
   ["f", "-H"],
   ["plain", " "],

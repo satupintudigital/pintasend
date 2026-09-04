@@ -1,13 +1,16 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { executeSendTemplate } from "./sendTemplate";
+import { queryD1One } from "./d1";
 import { queryOne } from "./db";
 import { openwa, OpenwaError } from "./openwa";
 import { checkRateLimit } from "./rate-limit";
-import { checkMessageQuota } from "./quota";
 import { insertMessageLog } from "./messageStore";
+import { getTenantConfig } from "./tenantConfig";
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
+vi.mock("./d1", () => ({ queryD1One: vi.fn() }));
 vi.mock("./db", () => ({ queryOne: vi.fn() }));
+vi.mock("./tenantConfig", () => ({ getTenantConfig: vi.fn() }));
 vi.mock("./openwa", () => {
   class MockOpenwaError extends Error {
     status: number;
@@ -25,7 +28,7 @@ vi.mock("./openwa", () => {
   };
 });
 vi.mock("./rate-limit", () => ({ checkRateLimit: vi.fn() }));
-vi.mock("./quota", () => ({ checkMessageQuota: vi.fn() }));
+
 vi.mock("./messageStore", () => ({ insertMessageLog: vi.fn(async () => {}) }));
 
 const ctx = { tenantId: "t1", keyId: "k1", requestId: "req-tpl-1" };
@@ -36,42 +39,104 @@ function readyDevice(over: Partial<{ id: string; label: string; openwaSessionId:
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(queryOne).mockResolvedValue(readyDevice());
+  vi.mocked(queryD1One).mockResolvedValue(readyDevice());
+  vi.mocked(queryOne).mockResolvedValue(undefined);
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true });
-  vi.mocked(checkMessageQuota).mockResolvedValue({ ok: true, used: 0, max: 100 });
   vi.mocked(openwa.sendTemplate).mockResolvedValue({ messageId: "m-tpl-1", status: "sent" });
+  vi.mocked(getTenantConfig).mockResolvedValue({
+    plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+    addons: { removeWatermark: false, randomDelay: false, campaign: false },
+    features: { delayEnabled: false },
+    messageCount: 0,
+    ts: Date.now(),
+  });
 });
 
 afterEach(() => vi.restoreAllMocks());
 
 describe("executeSendTemplate — sukses", () => {
-  it("templateName + vars → normalisasi chatId & kirim via OpenWA + catat log", async () => {
+  it("templateName + vars → normalisasi chatId & kirim via OpenWA (vars + watermark) + catat log", async () => {
     const result = await executeSendTemplate(
       { to: "081234567890", templateName: "pesanan_baru", vars: { orderId: "1234" } },
       ctx,
     );
 
-    expect(result).toMatchObject({ ok: true, status: 200, body: { ok: true, to: "6281234567890@c.us", messageId: "m-tpl-1" } });
+    expect(result).toMatchObject({
+      ok: true,
+      status: 200,
+      body: { ok: true, to: "6281234567890@c.us", messageId: "m-tpl-1", templateName: "pesanan_baru", watermark: true },
+    });
     expect(openwa.sendTemplate).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", {
       templateName: "pesanan_baru",
-      vars: { orderId: "1234" },
+      vars: {
+        orderId: "1234",
+        watermark: "\n\nvia Wavio - https://wavio.satupintudigital.co.id",
+      },
     });
     expect(insertMessageLog).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: "t1", deviceId: "dev1", direction: "outgoing", type: "template", status: "sent" }),
+      expect.objectContaining({
+        tenantId: "t1",
+        deviceId: "dev1",
+        direction: "outgoing",
+        type: "template",
+        status: "sent",
+        watermark: true,
+      }),
     );
   });
 
-  it("vars opsional (kosong) → tanpa vars", async () => {
+  it("vars opsional (kosong) → vars hanya berisi watermark", async () => {
     await executeSendTemplate({ to: "6281234567890", templateName: "sapaan_pelanggan" }, ctx);
     expect(openwa.sendTemplate).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", {
       templateName: "sapaan_pelanggan",
+      vars: { watermark: expect.stringContaining("https://wavio.satupintudigital.co.id") },
     });
   });
 
   it("memakai deviceId bila diberikan", async () => {
-    vi.mocked(queryOne).mockResolvedValue(readyDevice({ id: "dev2", openwaSessionId: "owa-2" }));
+    vi.mocked(queryD1One).mockResolvedValue(readyDevice({ id: "dev2", openwaSessionId: "owa-2" }));
     await executeSendTemplate({ to: "6281234567890", templateName: "x", deviceId: "dev2" }, ctx);
-    expect(openwa.sendTemplate).toHaveBeenCalledWith("owa-2", "6281234567890@c.us", { templateName: "x" });
+    expect(openwa.sendTemplate).toHaveBeenCalledWith("owa-2", "6281234567890@c.us", {
+      templateName: "x",
+      vars: { watermark: expect.stringContaining("https://wavio.satupintudigital.co.id") },
+    });
+  });
+
+  it("addon remove_watermark aktif → vars.watermark kosong, respons tanpa field watermark, log false", async () => {
+    vi.mocked(getTenantConfig).mockResolvedValue({
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      addons: { removeWatermark: true, randomDelay: false, campaign: false },
+      features: { delayEnabled: false },
+      messageCount: 0,
+      ts: Date.now(),
+    });
+    const result = await executeSendTemplate({ to: "6281234567890", templateName: "pesanan_baru" }, ctx);
+
+    expect(openwa.sendTemplate).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", {
+      templateName: "pesanan_baru",
+      vars: { watermark: "" },
+    });
+    expect(result).toMatchObject({ ok: true, status: 200, body: { ok: true } });
+    if (result.ok) expect(result.body.watermark).toBeUndefined();
+    expect(insertMessageLog).toHaveBeenCalledWith(expect.objectContaining({ watermark: false }));
+  });
+});
+
+describe("executeSendTemplate — canonical physical binding", () => {
+  it("canonical name di-resolve ke physical immutable template aktif", async () => {
+    vi.mocked(queryOne).mockResolvedValue({ physicalTemplateName: "nala_pesanan_baru_v4", status: "synced", canonicalVersion: 4 });
+    await executeSendTemplate({ to: "6281234567890", templateName: "pesanan_baru" }, ctx);
+    expect(openwa.sendTemplate).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", {
+      templateName: "nala_pesanan_baru_v4",
+      vars: { watermark: expect.stringContaining("https://wavio.satupintudigital.co.id") },
+    });
+  });
+
+  it("binding pending → 409 dan tidak mengirim template lama", async () => {
+    vi.mocked(queryOne).mockResolvedValue({ physicalTemplateName: "nala_pesanan_baru_v4", status: "pending", canonicalVersion: 4 });
+    const result = await executeSendTemplate({ to: "6281234567890", templateName: "pesanan_baru" }, ctx);
+    expect(result).toMatchObject({ ok: false, status: 409 });
+    expect(openwa.sendTemplate).not.toHaveBeenCalled();
   });
 });
 
@@ -97,13 +162,19 @@ describe("executeSendTemplate — validasi & error", () => {
   });
 
   it("tanpa device ready → 409", async () => {
-    vi.mocked(queryOne).mockResolvedValue(undefined);
+    vi.mocked(queryD1One).mockResolvedValue(undefined);
     const result = await executeSendTemplate({ to: "6281234567890", templateName: "x" }, ctx);
     expect(result).toMatchObject({ ok: false, status: 409 });
   });
 
   it("kuota pesan habis → 429", async () => {
-    vi.mocked(checkMessageQuota).mockResolvedValue({ ok: false, used: 100, max: 100 });
+    vi.mocked(getTenantConfig).mockResolvedValue({
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: 100, includesDelay: false },
+      addons: { removeWatermark: false, randomDelay: false, campaign: false },
+      features: { delayEnabled: false },
+      messageCount: 100,
+      ts: Date.now(),
+    });
     const result = await executeSendTemplate({ to: "6281234567890", templateName: "x" }, ctx);
     expect(result).toMatchObject({ ok: false, status: 429 });
   });

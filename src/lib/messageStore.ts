@@ -35,13 +35,15 @@ export interface MessageLogInput {
   mediaKey?: string | null;
   triggeredAt?: Date | string | null;
   sentAt?: Date | string | null;
+  /** true = footnote iklan platform disisipkan ke pesan keluar (lihat watermark.ts). */
+  watermark?: boolean | null;
 }
 
 /** Catat satu pesan (masuk/keluar) — best-effort oleh pemanggil. */
 export async function insertMessageLog(input: MessageLogInput): Promise<void> {
   await query(
-    'INSERT INTO "MessageLog" (id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey", "triggeredAt", "sentAt") ' +
-      "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)",
+    'INSERT INTO "MessageLog" (id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey", "triggeredAt", "sentAt", watermark) ' +
+      "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)",
     [
       uuidv7(),
       input.tenantId,
@@ -58,6 +60,7 @@ export async function insertMessageLog(input: MessageLogInput): Promise<void> {
       input.mediaKey ?? null,
       input.triggeredAt ? new Date(input.triggeredAt) : null,
       input.sentAt ? new Date(input.sentAt) : null,
+      input.watermark ?? false,
     ],
   );
 }
@@ -193,6 +196,7 @@ export interface MessageLogRow {
   mimetype: string | null;
   mediaKey: string | null;
   reaction: string | null;
+  watermark: boolean;
   triggeredAt: string | null;
   sentAt: string | null;
   createdAt: string;
@@ -206,7 +210,7 @@ export interface ListMessagesParams {
   limit?: number;
 }
 
-const MESSAGE_COLUMNS = `id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey", reaction, "triggeredAt", "sentAt", "createdAt"`;
+const MESSAGE_COLUMNS = `id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey", reaction, watermark, "triggeredAt", "sentAt", "createdAt"`;
 
 /** Daftar riwayat pesan tenant — pencarian (body/chatId) + filter arah + pagination. */
 export async function listMessagesPaginated(

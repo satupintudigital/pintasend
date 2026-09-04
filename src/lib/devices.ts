@@ -2,6 +2,8 @@ import { query, queryOne } from "@/lib/db";
 import { queryD1 } from "@/lib/d1";
 import { uuidv7 } from "@/lib/uuidv7";
 import { openwa, openwaWebhookSecret, OPENWA_WEBHOOK_EVENTS } from "@/lib/openwa";
+import { seedTemplatesForSession } from "@/lib/templates";
+import { createTemplateSyncDb, enqueueActiveTemplateSyncForDevice } from "@/lib/templateSync";
 import { deleteCachedDeviceList } from "@/lib/deviceCache";
 
 export interface DeviceRow {
@@ -56,6 +58,14 @@ export async function createDeviceAndStart(
   const sessionName = `wavio-${deviceId.replace(/-/g, "").slice(0, 12)}`;
 
   const owa = await openwa.createSession(sessionName);
+
+  // Seed template standar NalaNiaga ke session baru — best-effort: kegagalan
+  // seeding TIDAK menggagalkan pembuatan device (dashboard tetap bisa dipakai;
+  // template bisa di-seed ulang lewat halaman templates nanti).
+  await seedTemplatesForSession(owa.id).catch((e) =>
+    console.error(`devices: seed template session ${owa.id} gagal:`, String(e)),
+  );
+
   let openwaWebhookId: string | null = null;
   try {
     const wh = await openwa.registerWebhook(owa.id, {
@@ -84,6 +94,14 @@ export async function createDeviceAndStart(
     await openwa.deleteSession(owa.id).catch(() => {});
     throw dbErr;
   }
+
+  // Canonical templates are owned by NalaNiaga and may already exist for this
+  // tenant. Queue them after the device row exists; a transient DB failure is
+  // deliberately best-effort because the on-demand worker can retry later.
+  await enqueueActiveTemplateSyncForDevice(createTemplateSyncDb(), { tenantId, deviceId }).catch((e) =>
+    console.error("devices: enqueue canonical templates gagal:", e),
+  );
+
   await cloneDeviceToD1({
     id: deviceId,
     tenantId,

@@ -44,6 +44,7 @@ const EVENT_OPTIONS = [
   { value: "session.restriction", label: "session.restriction", desc: "Akun dibatasi WhatsApp (time-lock / TOS block)" },
   { value: "message.sent", label: "message.sent", desc: "Pesan keluar berhasil terkirim dari device" },
   { value: "message.revoked", label: "message.revoked", desc: "Pesan dihapus/ditarik (unsend)" },
+  { value: "campaign.completed", label: "campaign.completed", desc: "Campaign blast selesai dieksekusi (modul Campaign)" },
 ];
 
 // ── Smart filters editor (mirror src/lib/webhookFilters.ts) ────────────────

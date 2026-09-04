@@ -12,8 +12,8 @@
 // merusak source of truth — jangan pernah.
 //
 // Trigger:
-//   - Cron (wrangler.jsonc triggers.crons) — otomatis berkala.
-//   - HTTP POST manual: ?token=<RESYNC_TOKEN> (untuk on-demand / testing).
+//   - HTTP POST manual: ?token=<RESYNC_TOKEN> (on-demand / testing).
+//   - Tidak ada cron supaya Neon dapat scale-to-zero.
 //
 // Secret: DATABASE_URL (Neon), RESYNC_TOKEN (proteksi trigger manual).
 //
@@ -64,16 +64,15 @@ const TABLE_SPECS = [
       iso(k.lastUsedAt),
       iso(k.revokedAt),
     ],
-  },
-  {
+  },  {
     stat: "device",
     neonTable: "Device",
     d1Table: "Device",
     neonColumns:
       'id, "tenantId", label, "openwaSessionId", "openwaWebhookId", phone, status, restriction, "createdAt", "updatedAt"',
-    d1Columns:
-      "(id, tenantId, label, openwaSessionId, openwaWebhookId, phone, status, restriction, createdAt, updatedAt)",
+    d1Columns: "(id, tenantId, label, openwaSessionId, openwaWebhookId, phone, status, restriction, createdAt, updatedAt)",
     d1Values: "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    hasUpdatedAt: true,
     map: (d) => [
       d.id,
       d.tenantId,
@@ -95,6 +94,7 @@ const TABLE_SPECS = [
       'id, "tenantId", url, secret, events, filters, active, "createdAt", "updatedAt"',
     d1Columns: "(id, tenantId, url, secret, events, filters, active, createdAt, updatedAt)",
     d1Values: "(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    hasUpdatedAt: true,
     map: (w) => [
       w.id,
       w.tenantId,
@@ -119,10 +119,7 @@ const TABLE_SPECS = [
 ];
 
 const worker = {
-  async scheduled(_controller, env, ctx) {
-    ctx.waitUntil(runResync(env));
-  },
-
+  // Resync sengaja on-demand agar tidak membangunkan Neon secara berkala.
   async fetch(request, env) {
     try {
       if (request.method !== "POST") {
@@ -189,16 +186,37 @@ async function runResync(env) {
 async function syncTable(client, d1, spec, stats) {
   const prefix = `${spec.stat}:`;
 
-  const { rows } = await client.query(
-    `SELECT ${spec.neonColumns} FROM "${spec.neonTable}" ORDER BY "createdAt"`,
-  );
-  stats[`${prefix}scanned`] = rows.length;
+  // Strategi sync:
+  // - Tabel dengan updatedAt (Device, Webhook): incremental —
+  //   SELECT id (untuk reconciliasi) + SELECT full WHERE updatedAt > 1 jam.
+  // - Tabel tanpa updatedAt (Tenant, User, ApiKey): full scan (tabel kecil).
+  let upsertRows;
+  let neonIdRows;
+
+  if (spec.hasUpdatedAt) {
+    const [idResult, dataResult] = await Promise.all([
+      client.query(`SELECT id FROM "${spec.neonTable}"`),
+      client.query(
+        `SELECT ${spec.neonColumns} FROM "${spec.neonTable}" WHERE "updatedAt" > (now() - interval '1 hour')`,
+      ),
+    ]);
+    neonIdRows = idResult.rows;
+    upsertRows = dataResult.rows;
+    stats[`${prefix}totalIds`] = neonIdRows.length;
+  } else {
+    const { rows } = await client.query(
+      `SELECT ${spec.neonColumns} FROM "${spec.neonTable}" ORDER BY "createdAt"`,
+    );
+    upsertRows = rows;
+    neonIdRows = rows;
+  }
+  stats[`${prefix}scanned`] = upsertRows.length;
 
   let upserted = 0;
   let removed = 0;
   let failed = 0;
 
-  for (const row of rows) {
+  for (const row of upsertRows) {
     try {
       await d1
         .prepare(
@@ -218,7 +236,7 @@ async function syncTable(client, d1, spec, stats) {
   // Reconcile terbalik: hapus baris D1 yang sudah tidak ada di Neon.
   try {
     const d1Rows = await d1.prepare(`SELECT id FROM ${spec.d1Table}`).all();
-    const neonIds = new Set(rows.map((r) => String(r.id)));
+    const neonIds = new Set(neonIdRows.map((r) => String(r.id)));
     for (const row of d1Rows.results ?? []) {
       if (!neonIds.has(String(row.id))) {
         await d1.prepare(`DELETE FROM ${spec.d1Table} WHERE id = ?`).bind(row.id).run();

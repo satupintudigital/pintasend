@@ -59,6 +59,8 @@ export interface TenantDetailRow {
   planName: string | null;
   delayEnabled: boolean;
   delayAddonActive: boolean;
+  watermarkAddonActive: boolean;
+  messageRetentionDays: number;
   devices: number;
   users: number;
   messages: number;
@@ -67,9 +69,11 @@ export interface TenantDetailRow {
 export async function getTenantDetail(id: string): Promise<TenantDetailRow | null> {
   const rows = await query<TenantDetailRow>(
     `SELECT t.id, t.name, t."createdAt", t."suspendedAt", t."planId", p.name AS "planName",
-            t."delayEnabled",
+            t."delayEnabled", t."messageRetentionDays",
             EXISTS(SELECT 1 FROM "TenantAddon" a
                    WHERE a."tenantId" = t.id AND a.key = 'random_delay' AND a.active) AS "delayAddonActive",
+            EXISTS(SELECT 1 FROM "TenantAddon" a
+                   WHERE a."tenantId" = t.id AND a.key = 'remove_watermark' AND a.active) AS "watermarkAddonActive",
             (SELECT COUNT(*)::int FROM "Device" d WHERE d."tenantId" = t.id) AS devices,
             (SELECT COUNT(*)::int FROM "User" u WHERE u."tenantId" = t.id) AS users,
             (SELECT COUNT(*)::int FROM "MessageLog" m WHERE m."tenantId" = t.id) AS messages

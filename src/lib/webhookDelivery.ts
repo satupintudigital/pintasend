@@ -9,7 +9,7 @@
 //   2. Ingest mencoba deliver SEKALI (sinkron, timeout 5 dtk) — latency tetap
 //      rendah untuk kasus normal.
 //   3. Jika gagal → baris tetap pending dengan `nextAttemptAt` = backoff.
-//   4. Worker cron (`workers/webhook-delivery`) mengambil batch pending yang
+//   4. Worker HTTP on-demand (`workers/webhook-delivery`) mengambil batch pending yang
 //      sudah waktunya, deliver ulang, update status. Setelah DELIVERY_MAX_ATTEMPTS
 //      gagal → status `failed` (dead-letter, sengaja dipertahankan utk debugging).
 //
@@ -126,7 +126,7 @@ export async function markWebhookDelivery(id: string, input: MarkDeliveryInput):
   );
 }
 
-/** Ambil batch pending yang sudah waktunya — dipakai worker cron. */
+/** Ambil batch pending yang sudah waktunya — dipakai worker HTTP on-demand. */
 export async function claimPendingDeliveries(limit = 10): Promise<WebhookDeliveryRow[]> {
   return query<WebhookDeliveryRow>(
     `SELECT ${DELIVERY_COLUMNS} FROM "WebhookDelivery" ` +

@@ -3,7 +3,7 @@
 // pilih device ready → panggil OpenWA (sessions/:id/chats/read) → map hasil.
 
 import { normalizeChatId } from "./chat";
-import { queryOne } from "./db";
+import { queryD1One } from "./d1";
 import { openwa, OpenwaError, publicOpenwaError } from "./openwa";
 import { checkRateLimit } from "./rate-limit";
 import { logEvent } from "./requestLogger";
@@ -71,12 +71,12 @@ export async function executeMarkChatRead(
 
   // 4. Pilih device: deviceId tertentu, atau device ready pertama milik tenant.
   const device = input.deviceId
-    ? await queryOne<{ id: string; label: string; openwaSessionId: string; status: string }>(
-        'SELECT id, label, "openwaSessionId", status FROM "Device" WHERE id = $1 AND "tenantId" = $2',
+    ? await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
+        'SELECT id, label, openwaSessionId, status FROM Device WHERE id = ? AND tenantId = ?',
         [input.deviceId, ctx.tenantId],
       )
-    : await queryOne<{ id: string; label: string; openwaSessionId: string; status: string }>(
-        'SELECT id, label, "openwaSessionId", status FROM "Device" WHERE "tenantId" = $1 AND status = $2 ORDER BY "updatedAt" DESC LIMIT 1',
+    : await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
+        'SELECT id, label, openwaSessionId, status FROM Device WHERE tenantId = ? AND status = ? ORDER BY updatedAt DESC LIMIT 1',
         [ctx.tenantId, "ready"],
       );
 

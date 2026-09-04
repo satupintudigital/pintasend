@@ -55,6 +55,17 @@ export interface OpenwaWebhook {
   updatedAt: string;
 }
 
+// Template pesan dari GET/POST /api/sessions/:id/templates (TemplateResponseDto).
+export interface OpenwaTemplate {
+  id: string;
+  name: string;
+  header: string | null;
+  body: string;
+  footer: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Ringkasan grup dari GET /api/sessions/:id/groups (proyeksi narrow OpenWA).
 // `id` = JID grup (120363…@g.us); `linkedParentJID` = parent community (null bila
 // standalone). `participantsCount`/`isAdmin` opsional — hanya ada bila engine
@@ -160,6 +171,153 @@ export const openwa = {
         ...(messageIds?.length ? { messageIds } : {}),
       }),
     }),
+  // Daftar template terdaftar untuk satu session (dropdown form dashboard).
+  // Respons: array TemplateResponseDto ({ id, name, header, body, footer, ... }).
+  listTemplates: (sessionId: string) =>
+    request<OpenwaTemplate[]>(`/api/sessions/${sessionId}/templates`),
+  // Buat template baru untuk session (seed otomatis saat device dibuat).
+  // name unik per session — konflik → 409 (OpenwaError).
+  createTemplate: (
+    sessionId: string,
+    body: { name: string; header?: string | null; body: string; footer?: string | null },
+  ) =>
+    request<OpenwaTemplate>(`/api/sessions/${sessionId}/templates`, {
+      method: "POST",
+      body: JSON.stringify({
+        name: body.name,
+        body: body.body,
+        ...(body.header ? { header: body.header } : {}),
+        ...(body.footer ? { footer: body.footer } : {}),
+      }),
+    }),
+  // Kirim pesan lokasi (SendLocationDto): { chatId, latitude, longitude,
+  // description?, address?, quotedMessageId? }.
+  sendLocation: (
+    sessionId: string,
+    chatId: string,
+    body: {
+      latitude: number;
+      longitude: number;
+      description?: string;
+      address?: string;
+      replyTo?: string;
+    },
+  ) =>
+    request<OpenwaSendResult>(`/api/sessions/${sessionId}/messages/send-location`, {
+      method: "POST",
+      body: JSON.stringify({
+        chatId,
+        latitude: body.latitude,
+        longitude: body.longitude,
+        ...(body.description ? { description: body.description } : {}),
+        ...(body.address ? { address: body.address } : {}),
+        ...(body.replyTo ? { quotedMessageId: body.replyTo } : {}),
+      }),
+    }),
+  // Kirim kartu kontak (SendContactDto): { chatId, contactName, contactNumber,
+  // quotedMessageId? }.
+  sendContact: (
+    sessionId: string,
+    chatId: string,
+    body: { contactName: string; contactNumber: string; replyTo?: string },
+  ) =>
+    request<OpenwaSendResult>(`/api/sessions/${sessionId}/messages/send-contact`, {
+      method: "POST",
+      body: JSON.stringify({
+        chatId,
+        contactName: body.contactName,
+        contactNumber: body.contactNumber,
+        ...(body.replyTo ? { quotedMessageId: body.replyTo } : {}),
+      }),
+    }),
+  // Kirim poll WhatsApp (SendPollDto): { chatId, name, options[2-12],
+  // allowMultipleAnswers?, quotedMessageId? }.
+  sendPoll: (
+    sessionId: string,
+    chatId: string,
+    body: {
+      name: string;
+      options: string[];
+      allowMultipleAnswers?: boolean;
+      replyTo?: string;
+    },
+  ) =>
+    request<OpenwaSendResult>(`/api/sessions/${sessionId}/messages/send-poll`, {
+      method: "POST",
+      body: JSON.stringify({
+        chatId,
+        name: body.name,
+        options: body.options,
+        ...(body.allowMultipleAnswers !== undefined ? { allowMultipleAnswers: body.allowMultipleAnswers } : {}),
+        ...(body.replyTo ? { quotedMessageId: body.replyTo } : {}),
+      }),
+    }),
+  // Tambah/hapus reaksi emoji ke pesan (ReactMessageDto). emoji kosong ("") =
+  // hapus reaksi — kontrak endpoint OpenWA.
+  react: (sessionId: string, chatId: string, messageId: string, emoji: string) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/messages/react`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, messageId, emoji }),
+    }),
+  // Kirim broadcast async (SendBulkMessageDto). Respons 202: { batchId, status,
+  // totalMessages, estimatedCompletionTime, statusUrl }. Pesan diproses bertahap
+  // dengan delay; hasil per pesan dibaca via getBatchStatus.
+  sendBulk: (
+    sessionId: string,
+    body: {
+      messages: {
+        chatId: string;
+        type: "text" | "image" | "video" | "audio" | "document";
+        content: Record<string, unknown>;
+        variables?: Record<string, string>;
+      }[];
+      options?: {
+        delayBetweenMessages?: number;
+        randomizeDelay?: boolean;
+        stopOnError?: boolean;
+      };
+    },
+  ) =>
+    request<{
+      batchId: string;
+      status: string;
+      totalMessages: number;
+      estimatedCompletionTime: string;
+      statusUrl: string;
+    }>(`/api/sessions/${sessionId}/messages/send-bulk`, {
+      method: "POST",
+      body: JSON.stringify({
+        messages: body.messages,
+        ...(body.options && Object.keys(body.options).length ? { options: body.options } : {}),
+      }),
+    }),
+  // Status batch broadcast (BatchStatusResponseDto): { batchId, status,
+  // progress, results, startedAt, completedAt }.
+  getBatchStatus: (sessionId: string, batchId: string) =>
+    request<{ batchId: string; status: string; progress?: unknown; results?: unknown; startedAt?: string; completedAt?: string }>(
+      `/api/sessions/${sessionId}/messages/batch/${encodeURIComponent(batchId)}`,
+    ),
+  // Baca riwayat pesan dari DB lokal OpenWA (MessageListResponseDto: { messages })
+  // — didukung SEMUA engine (tidak seperti GET .../history engine-based yang 501
+  // di Baileys). Query: chatId (JID), limit, offset.
+  // v0.23: `after` = keyset cursor (id pesan terakhir) — lebih stabil dari offset
+  //         karena tidak melewatkan/gandakan pesan saat ada pesan baru.
+  //         `inlineMedia` = false → omit media base64 (hemat bandwidth).
+  listMessages: (
+    sessionId: string,
+    chatId: string,
+    options?: { limit?: number; offset?: number; after?: string; inlineMedia?: boolean },
+  ) => {
+    const params = new URLSearchParams();
+    params.set("chatId", chatId);
+    if (options?.limit !== undefined) params.set("limit", String(options.limit));
+    if (options?.offset !== undefined) params.set("offset", String(options.offset));
+    if (options?.after !== undefined) params.set("after", options.after);
+    if (options?.inlineMedia !== undefined) params.set("inlineMedia", String(options.inlineMedia));
+    return request<{ messages?: unknown[] }>(
+      `/api/sessions/${sessionId}/messages?${params.toString()}`,
+    );
+  },
   // Kirim template yang sudah disimpan di OpenWA (SendTemplateMessageDto).
   // templateName = nama template; vars disubstitusi ke token {{placeholder}}.
   sendTemplate: (
@@ -258,6 +416,257 @@ export const openwa = {
     }),
   deleteWebhook: (sessionId: string, webhookId: string) =>
     request<unknown>(`/api/sessions/${sessionId}/webhooks/${webhookId}`, { method: "DELETE" }),
+
+  // ── v0.23: Message Operations ─────────────────────────────────────────────
+  // Edit text of a sent message (keeps original id).
+  editMessage: (
+    sessionId: string,
+    chatId: string,
+    messageId: string,
+    body: { text: string; mentions?: string[] },
+  ) =>
+    request<OpenwaSendResult>(`/api/sessions/${sessionId}/messages/edit`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, messageId, ...body }),
+    }),
+  // Delete/revoke a message (forEveryone = true = revoke for all).
+  deleteMessage: (
+    sessionId: string,
+    chatId: string,
+    messageId: string,
+    forEveryone = true,
+  ) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/messages/delete`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, messageId, forEveryone }),
+    }),
+  // Forward a message from one chat to another.
+  forwardMessage: (
+    sessionId: string,
+    fromChatId: string,
+    toChatId: string,
+    messageId: string,
+  ) =>
+    request<OpenwaSendResult>(`/api/sessions/${sessionId}/messages/forward`, {
+      method: "POST",
+      body: JSON.stringify({ fromChatId, toChatId, messageId }),
+    }),
+  // Reply to a message (quoting a prior one).
+  replyMessage: (
+    sessionId: string,
+    chatId: string,
+    quotedMessageId: string,
+    body: { text: string; mentions?: string[] },
+  ) =>
+    request<OpenwaSendResult>(`/api/sessions/${sessionId}/messages/reply`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, quotedMessageId, ...body }),
+    }),
+  // Pin a message (duration: 86400=24h, 604800=7d, 2592000=30d).
+  pinMessage: (
+    sessionId: string,
+    chatId: string,
+    messageId: string,
+    durationSeconds = 86400,
+  ) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/messages/pin`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, messageId, durationSeconds }),
+    }),
+  // Unpin a message.
+  unpinMessage: (sessionId: string, chatId: string, messageId: string) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/messages/unpin`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, messageId }),
+    }),
+  // Star or unstar a message.
+  starMessage: (sessionId: string, chatId: string, messageId: string, star: boolean) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/messages/star`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, messageId, star }),
+    }),
+  // Get reactions for a message, grouped by emoji.
+  getReactions: (sessionId: string, chatId: string, messageId: string) =>
+    request<Record<string, string[]>>(
+      `/api/sessions/${sessionId}/messages/${encodeURIComponent(chatId)}/${encodeURIComponent(messageId)}/reactions`,
+    ),
+  // Download a message's stored media (returns raw response for streaming).
+  getMedia: (sessionId: string, chatId: string, messageId: string) =>
+    fetch(
+      `${config().baseUrl}/api/sessions/${sessionId}/messages/${encodeURIComponent(chatId)}/${encodeURIComponent(messageId)}/media`,
+      { headers: { "X-API-Key": config().apiKey } },
+    ),
+
+  // ── v0.23: Chats Management ───────────────────────────────────────────────
+  // List active chats (with kind, archived, pinned, muted).
+  listChats: (
+    sessionId: string,
+    options?: { limit?: number; offset?: number },
+  ) => {
+    const params = new URLSearchParams();
+    if (options?.limit !== undefined) params.set("limit", String(options.limit));
+    if (options?.offset !== undefined) params.set("offset", String(options.offset));
+    const qs = params.toString();
+    return request<unknown[]>(`/api/sessions/${sessionId}/chats${qs ? `?${qs}` : ""}`);
+  },
+  // Archive or unarchive a chat.
+  archiveChat: (sessionId: string, chatId: string, archive: boolean) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/chats/archive`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, archive }),
+    }),
+  // Mute a chat until epoch-ms, or unmute (muteUntil = null).
+  muteChat: (sessionId: string, chatId: string, muteUntil?: number | null) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/chats/mute`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, ...(muteUntil !== undefined ? { muteUntil } : {}) }),
+    }),
+  // Pin or unpin a chat.
+  pinChat: (sessionId: string, chatId: string, pin: boolean) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/chats/pin`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, pin }),
+    }),
+  // Delete a chat from the chat list.
+  deleteChat: (sessionId: string, chatId: string) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/chats/delete`, {
+      method: "POST",
+      body: JSON.stringify({ chatId }),
+    }),
+  // Send typing/recording/paused presence indicator.
+  sendTyping: (sessionId: string, chatId: string, state: "typing" | "recording" | "paused") =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/chats/typing`, {
+      method: "POST",
+      body: JSON.stringify({ chatId, state }),
+    }),
+  // Delete all messages in a chat.
+  deleteChatMessages: (sessionId: string, chatId: string) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/chats/${encodeURIComponent(chatId)}/messages`, {
+      method: "DELETE",
+    }),
+
+  // ── v0.23: Labels ─────────────────────────────────────────────────────────
+  // List all labels for a session.
+  listLabels: (sessionId: string) =>
+    request<{ id: string; name: string; color: string }[]>(
+      `/api/sessions/${sessionId}/labels`,
+    ),
+  // Create a new label.
+  createLabel: (sessionId: string, name: string, color?: string) =>
+    request<{ id: string; name: string; color: string }>(
+      `/api/sessions/${sessionId}/labels`,
+      { method: "POST", body: JSON.stringify({ name, ...(color ? { color } : {}) }) },
+    ),
+  // Update a label.
+  updateLabel: (sessionId: string, labelId: string, body: { name?: string; color?: string }) =>
+    request<{ id: string; name: string; color: string }>(
+      `/api/sessions/${sessionId}/labels/${labelId}`,
+      { method: "PUT", body: JSON.stringify(body) },
+    ),
+  // Delete a label.
+  deleteLabel: (sessionId: string, labelId: string) =>
+    request<unknown>(`/api/sessions/${sessionId}/labels/${labelId}`, { method: "DELETE" }),
+  // Add a chat to a label.
+  addChatToLabel: (sessionId: string, labelId: string, chatId: string) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/labels/${labelId}/chats`, {
+      method: "POST",
+      body: JSON.stringify({ chatId }),
+    }),
+  // Remove a chat from a label.
+  removeChatFromLabel: (sessionId: string, labelId: string, chatId: string) =>
+    request<{ success: boolean }>(
+      `/api/sessions/${sessionId}/labels/${labelId}/chats/${encodeURIComponent(chatId)}`,
+      { method: "DELETE" },
+    ),
+  // List chats assigned to a label.
+  listChatsByLabel: (sessionId: string, labelId: string) =>
+    request<{ chatId: string }[]>(
+      `/api/sessions/${sessionId}/labels/${labelId}/chats`,
+    ),
+
+  // ── v0.23: Session Config ─────────────────────────────────────────────────
+  // Get session tunable config.
+  getConfig: (sessionId: string) =>
+    request<{ autoRejectCalls: boolean; maxReconnectAttempts: number | null; reconnectBaseDelay: number }>(
+      `/api/sessions/${sessionId}/config`,
+    ),
+  // Patch session config (partial update).
+  patchConfig: (
+    sessionId: string,
+    body: { autoRejectCalls?: boolean; maxReconnectAttempts?: number | null; reconnectBaseDelay?: number },
+  ) =>
+    request<{ autoRejectCalls: boolean; maxReconnectAttempts: number | null; reconnectBaseDelay: number }>(
+      `/api/sessions/${sessionId}/config`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    ),
+  // Request pairing code (alternative to QR).
+  requestPairingCode: (sessionId: string, phoneNumber: string) =>
+    request<{ pairingCode: string; status: string }>(
+      `/api/sessions/${sessionId}/pairing-code`,
+      { method: "POST", body: JSON.stringify({ phoneNumber }) },
+    ),
+
+  // ── v0.23: Profile ────────────────────────────────────────────────────────
+  // Get profile info (name, about, phone).
+  getProfile: (sessionId: string) =>
+    request<{ name: string; about: string; phone: string }>(
+      `/api/sessions/${sessionId}/profile`,
+    ),
+  // Patch profile (name and/or about).
+  patchProfile: (sessionId: string, body: { name?: string; about?: string }) =>
+    request<{ name: string; about: string }>(
+      `/api/sessions/${sessionId}/profile`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    ),
+  // Get profile picture (returns raw Response for streaming).
+  getProfilePicture: (sessionId: string) =>
+    fetch(
+      `${config().baseUrl}/api/sessions/${sessionId}/profile/picture`,
+      { headers: { "X-API-Key": config().apiKey } },
+    ),
+  // Set profile picture (image as base64).
+  setProfilePicture: (sessionId: string, imageBase64: string, mimetype: string) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/profile/picture`, {
+      method: "POST",
+      body: JSON.stringify({ image: imageBase64, mimetype }),
+    }),
+  // Delete profile picture.
+  deleteProfilePicture: (sessionId: string) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/profile/picture`, {
+      method: "DELETE",
+    }),
+
+  // ── v0.23: Presence ───────────────────────────────────────────────────────
+  // Set own global presence (online/offline).
+  setOwnPresence: (sessionId: string, available: boolean) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/presence`, {
+      method: "PUT",
+      body: JSON.stringify({ available }),
+    }),
+  // Subscribe to presence updates for a chat (Baileys only).
+  subscribePresence: (sessionId: string, chatId: string) =>
+    request<{ success: boolean }>(`/api/sessions/${sessionId}/presence/subscribe`, {
+      method: "POST",
+      body: JSON.stringify({ chatId }),
+    }),
+  // Get last presence report for a chat.
+  getPresence: (sessionId: string, chatId: string) =>
+    request<{ chatId: string; participants: { id: string; state: string; lastSeen?: number }[]; observedAt: string } | null>(
+      `/api/sessions/${sessionId}/presence/${encodeURIComponent(chatId)}`,
+    ),
+
+  // ── v0.23: Channels ───────────────────────────────────────────────────────
+  // List WhatsApp channels.
+  listChannels: (sessionId: string) =>
+    request<{ id: string; name: string; description?: string; subscriberCount?: number }[]>(
+      `/api/sessions/${sessionId}/channels`,
+    ),
+  // Create a new channel.
+  createChannel: (sessionId: string, body: { name: string; description?: string }) =>
+    request<{ id: string; name: string }>(
+      `/api/sessions/${sessionId}/channels`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
 };
 
 export const OPENWA_WEBHOOK_EVENTS = [

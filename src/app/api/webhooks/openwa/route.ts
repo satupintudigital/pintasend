@@ -11,7 +11,7 @@
 //      tidak disubscribe → ack 200 (OpenWA tidak perlu retry).
 //   5. Tulis event ke OUTBOX (WebhookDelivery, status pending) lalu coba
 //      deliver SEKALI secara sinkron (timeout 5 dtk). Gagal → baris tetap
-//      pending + nextAttemptAt = backoff; worker cron (workers/webhook-delivery)
+//      pending + nextAttemptAt = backoff; worker HTTP on-demand (workers/webhook-delivery)
 //      menuntaskan retry (+30s, +5m, lalu dead-letter). Selalu balas 2xx agar
 //      OpenWA tidak retry (retry OpenWA = event duplikat — retry ditangani
 //      outbox). Detail: src/lib/webhookDelivery.ts.
@@ -365,9 +365,9 @@ export async function POST(req: Request) {
 
   // 5. OUTBOX: tulis baris pending dulu (durable), lalu coba deliver SEKALI.
   //    - INSERT ke Neon cepat & tidak bergantung pada ketersediaan client.
-  //    - Attempt pertama sinkron (timeout 5 dtk) → latency rendah utk kasus normal.
-  //    - Gagal → baris tetap pending + nextAttemptAt = backoff; worker cron
-  //      (workers/webhook-delivery) mengambil alih retry sampai MAX_ATTEMPTS.
+  //    - Attempt pertama sinkron (timeout 5 dtk) → latency rendah utk kasus normal.//     - Gagal → baris tetap pending + nextAttemptAt = backoff; worker HTTP on-demand
+//       (workers/webhook-delivery) mengambil alih retry sampai MAX_ATTEMPTS.
+
   //    - Selalu balas 2xx setelah INSERT sukses agar OpenWA TIDAK retry
   //      (retry OpenWA = event duplikat; retry sudah ditangani outbox).
   let deliveryId: string | null = null;

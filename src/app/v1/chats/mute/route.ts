@@ -1,0 +1,51 @@
+import { verifyApiKey } from "@/lib/authStore";
+import { executeMuteChat } from "@/lib/muteChat";
+import { getRequestId, logEvent } from "@/lib/requestLogger";
+
+// API publik: mute/unmute chat.
+
+export async function POST(req: Request) {
+  const requestId = getRequestId(req);
+
+  const authz = req.headers.get("authorization") ?? "";
+  const raw = authz.startsWith("Bearer ") ? authz.slice(7).trim() : "";
+  const verified = await verifyApiKey(raw);
+  if (!verified) {
+    logEvent("warn", "api_key_auth", requestId, { ok: false });
+    return Response.json(
+      { error: "API key tidak valid atau telah dicabut" },
+      { status: 401, headers: { "x-request-id": requestId } },
+    );
+  }
+  logEvent("info", "api_key_auth", requestId, { ok: true, tenantId: verified.tenantId, keyId: verified.keyId });
+
+  let body: { chatId?: unknown; muteUntil?: unknown; deviceId?: unknown };
+  try {
+    body = (await req.json()) as typeof body;
+  } catch {
+    return Response.json({ error: "Body harus berupa JSON" }, { status: 400, headers: { "x-request-id": requestId } });
+  }
+
+  const chatId = typeof body?.chatId === "string" ? body.chatId.trim() : "";
+  const muteUntil = typeof body?.muteUntil === "number" ? body.muteUntil : null;
+  const deviceId = typeof body?.deviceId === "string" && body.deviceId.trim() ? body.deviceId.trim() : undefined;
+
+  const result = await executeMuteChat(
+    { chatId, muteUntil, deviceId },
+    { tenantId: verified.tenantId, keyId: verified.keyId, requestId },
+  );
+
+  if (!result.ok) {
+    return Response.json(
+      { error: result.error },
+      {
+        status: result.status,
+        headers: {
+          "x-request-id": requestId,
+          ...(result.retryAfterSec ? { "Retry-After": String(result.retryAfterSec) } : {}),
+        },
+      },
+    );
+  }
+  return Response.json(result.body, { status: result.status, headers: { "x-request-id": requestId } });
+}

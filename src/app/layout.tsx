@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Manrope, JetBrains_Mono } from "next/font/google";
+import { Suspense } from "react";
+import { PostHogProvider, PostHogPageView } from "@/components/PostHogProvider";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -67,14 +69,19 @@ export default function RootLayout({
       className={`${spaceGrotesk.variable} ${manrope.variable} ${jetbrainsMono.variable}`}
     >
       <body className="bg-ink text-fg antialiased">
-        <a
-          href="#main"
-          className="sr-only z-[100] rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
-        >
-          Lewati ke konten utama
-        </a>
-        <div aria-hidden className="bk-grain" />
-        {children}
+        <Suspense fallback={null}>
+          <PostHogProvider>
+            <PostHogPageView />
+            <a
+              href="#main"
+              className="sr-only z-[100] rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+            >
+              Lewati ke konten utama
+            </a>
+            <div aria-hidden className="bk-grain" />
+            {children}
+          </PostHogProvider>
+        </Suspense>
       </body>
     </html>
   );
