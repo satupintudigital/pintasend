@@ -164,6 +164,11 @@ export function csvEscape(value: string | null | undefined): string {
 export const AUDIT_CSV_HEADER =
   "waktu,actorEmail,actorRole,action,targetType,targetId,tenantId,meta,ip";
 
+/** Serialisasi banyak baris audit → CSV lengkap (header + baris). */
+export function toAuditCsv(rows: AuditLogRow[]): string {
+  return [AUDIT_CSV_HEADER, ...rows.map(auditRowToCsv)].join("\n") + "\n";
+}
+
 /** Serialisasi baris audit → CSV string (helper pure). */
 export function auditRowToCsv(row: AuditLogRow): string {
   return [

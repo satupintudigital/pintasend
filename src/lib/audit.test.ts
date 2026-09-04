@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { recordAudit, listAuditLogs, csvEscape, auditRowToCsv, AUDIT_CSV_HEADER } from "./audit";
+import {
+  recordAudit,
+  listAuditLogs,
+  csvEscape,
+  auditRowToCsv,
+  toAuditCsv,
+  AUDIT_CSV_HEADER,
+} from "./audit";
 import { query } from "@/lib/db";
 
 vi.mock("@/lib/db", () => ({
@@ -90,5 +97,13 @@ describe("CSV helper", () => {
     expect(line.split(",").length).toBe(9);
     expect(AUDIT_CSV_HEADER.split(",").length).toBe(9);
     expect(line).toContain("tenant.suspend");
+  });
+  it("toAuditCsv menyusun header + baris per entri", () => {
+    const csv = toAuditCsv([row(), row({ action: "tenant.activate" })]);
+    const lines = csv.trim().split("\n");
+    expect(lines[0]).toBe(AUDIT_CSV_HEADER);
+    expect(lines.length).toBe(3); // header + 2 baris
+    expect(lines[1]).toContain("tenant.suspend");
+    expect(lines[2]).toContain("tenant.activate");
   });
 });

@@ -2,13 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChartLineUp, House, Stack, UsersThree } from "@phosphor-icons/react";
+import {
+  ChartLineUp,
+  ClipboardText,
+  House,
+  Stack,
+  UsersThree,
+} from "@phosphor-icons/react";
 
 const items = [
   { href: "/platform", label: "Ringkasan", icon: House },
   { href: "/platform/metrics", label: "Metrik", icon: ChartLineUp },
   { href: "/platform/plans", label: "Plan", icon: Stack },
   { href: "/platform/tenants", label: "Tenant", icon: UsersThree },
+  { href: "/platform/audit", label: "Audit", icon: ClipboardText },
 ];
 
 export function PlatformSidebar() {
