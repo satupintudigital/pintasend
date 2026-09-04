@@ -10,12 +10,18 @@ import {
   Megaphone,
   Users,
   WebhooksLogo,
+  Tag,
+  Radio,
+  UserCircle,
 } from "@phosphor-icons/react";
 
 const items = [
   { href: "/dashboard", label: "Beranda", icon: House },
   { href: "/dashboard/devices", label: "Device", icon: Devices },
   { href: "/dashboard/pesan", label: "Riwayat Pesan", icon: ChatCircleText },
+  { href: "/dashboard/labels", label: "Labels", icon: Tag },
+  { href: "/dashboard/channels", label: "Channels", icon: Radio },
+  { href: "/dashboard/profile", label: "Profil", icon: UserCircle },
 ];
 
 // Provisioning tenant kini khusus platform admin (area /platform) — tenant
