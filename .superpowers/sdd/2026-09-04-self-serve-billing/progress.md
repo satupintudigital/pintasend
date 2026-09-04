@@ -19,3 +19,7 @@ Task 6: complete (commits d9b5c22..HEAD, review clean — billingRenewal.ts + sy
 - Routes baru: GET /api/public/catalog (tanpa auth, s-maxage 60), POST /api/billing/orders (guard owner/tenant_admin; first_subscription hanya utk tenant pending + plan subscription + addon berbayar; renewal harus planId = plan tenant aktif; addon & renewal butuh tenant aktif; topup min rupiah catalog; topup pending = aktivasi Espresso dgn planId prepaid), GET /api/billing/orders/[id] (scope tenant, refresh status bila lewat expiresAt), GET /api/billing/my (renewal lazy dulu; plan join Tenant×Plan + balance + orders + pending + deviceCount), POST /api/billing/sync (platform admin; expire + checkStatus Tripay → finalize/mark).
 - Test: +54 (938 total), tsc bersih.
 - Catatan lint pra-ada tidak disentuh.
+
+## Task 9: Callback Tripay — complete
+- src/app/api/billing/tripay/callback/route.ts: webhook tanpa session; verifikasi X-Callback-Signature (HMAC body) via provider.verifyCallback; merchant_ref=order.id → getOrderAnyScope; PAID → finalizePaidOrder (callbackRaw tersimpan); EXPIRED → markOrderExpiredFromGateway; UNPAID/REFUND/FAILED → 200 tanpa aksi; order tak dikenal → 200 (tanpa info leak); 200 setelah proses (Tripay retry non-2xx).
+- Test 6: signature salah → 401; PAID finalize + callbackRaw; PAID order tak dikenal → 200; EXPIRED → mark; UNPAID → tanpa aksi; ganda PAID → 200 2x (idempoten di finalize). +6 (944 total), tsc bersih.
