@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { createApiKey, listApiKeys } from "@/lib/authStore";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { recordAuditFromSession } from "@/lib/audit";
 
 // Kelola API key — halaman pengaturan (owner-only).
 // - GET  → daftar key milik tenant (baca D1, 0 Neon, tanpa keyHash)
@@ -38,6 +39,13 @@ export async function POST(req: Request) {
 
   try {
     const key = await createApiKey({ tenantId, label });
+    await recordAuditFromSession(session, {
+      tenantId,
+      action: "apikey.create",
+      targetType: "apikey",
+      targetId: key.id,
+      meta: { label },
+    });
     return Response.json({ key }, { status: 201 });
   } catch (e) {
     console.error("admin/api-keys POST:", e);

@@ -4,6 +4,7 @@ import { createDeviceAndStart, listDevicesForTenant } from "@/lib/devices";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { checkDeviceQuota } from "@/lib/quota";
 import { getCachedDeviceList, setCachedDeviceList } from "@/lib/deviceCache";
+import { recordAuditFromSession } from "@/lib/audit";
 
 export async function GET() {
   const session = await auth();
@@ -47,6 +48,13 @@ export async function POST(req: Request) {
 
   try {
     const created = await createDeviceAndStart(label, tenantId);
+    await recordAuditFromSession(session, {
+      tenantId,
+      action: "device.create",
+      targetType: "device",
+      targetId: created.id,
+      meta: { label },
+    });
     return Response.json(
       {
         device: {

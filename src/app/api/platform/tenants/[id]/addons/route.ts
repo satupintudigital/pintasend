@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { setTenantAddon } from "@/lib/platform";
+import { recordAuditFromSession } from "@/lib/audit";
 
 // Addon tenant (grant/revoke) — khusus platform_admin.
 // Body: { key: string, active: boolean }. Key di-whitelist di sini.
@@ -28,6 +29,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try {
     const ok = await setTenantAddon(id, key, body.active);
     if (!ok) return Response.json({ error: "Tenant tidak ditemukan" }, { status: 404 });
+    await recordAuditFromSession(session, {
+      tenantId: id,
+      action: "tenant.addon.set",
+      targetType: "tenant",
+      targetId: id,
+      meta: { key, active: body.active },
+    });
     return Response.json({ ok: true, key, active: body.active });
   } catch (e) {
     console.error("platform/tenants/[id]/addons:", e);

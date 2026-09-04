@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { canManageTenantMembers, parsePrincipal, unauthorized, forbidden } from "@/lib/abac";
 import { resetTenantMemberPassword } from "@/lib/tenantMembers";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { recordAuditFromSession } from "@/lib/audit";
 
 // Reset password user tenant — owner & tenant_admin.
 // Sebelumnya route ini meng-update user hanya by id (tanpa scope tenant) —
@@ -38,6 +39,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         { status: result.status ?? 400 },
       );
     }
+    await recordAuditFromSession(session, {
+      tenantId: p.tenantId,
+      action: "user.password.reset",
+      targetType: "user",
+      targetId: id,
+      meta: { by: "tenant_admin" },
+    });
     return Response.json({ ok: true, d1Ok: result.data?.d1Ok });
   } catch (e) {
     console.error("admin/users/[id]/password:", e);

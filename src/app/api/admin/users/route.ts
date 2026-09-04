@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { canManageTenantMembers, parsePrincipal, unauthorized, forbidden, type SessionLike } from "@/lib/abac";
 import { inviteTenantMember, listTenantMembers } from "@/lib/tenantMembers";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { recordAuditFromSession } from "@/lib/audit";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -96,6 +97,13 @@ export async function POST(req: Request) {
         { status: result.status ?? 400 },
       );
     }
+    await recordAuditFromSession(session, {
+      tenantId: p.tenantId,
+      action: "user.create",
+      targetType: "user",
+      targetId: result.data?.id,
+      meta: { email, role },
+    });
     return Response.json({ id: result.data?.id }, { status: 201 });
   } catch (e) {
     console.error("admin/users POST:", e);

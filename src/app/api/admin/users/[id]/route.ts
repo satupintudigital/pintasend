@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { canManageTenantMembers, parsePrincipal, unauthorized, forbidden, type SessionLike } from "@/lib/abac";
 import { removeTenantMember, updateTenantMemberRole } from "@/lib/tenantMembers";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { recordAuditFromSession } from "@/lib/audit";
 
 function requireMemberManager(session: SessionLike | null): Response | null {
   const p = parsePrincipal(session);
@@ -35,6 +36,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         { status: result.status ?? 400 },
       );
     }
+    await recordAuditFromSession(session, {
+      tenantId: p.tenantId,
+      action: "user.role.update",
+      targetType: "user",
+      targetId: id,
+      meta: { role },
+    });
     return Response.json({ ok: true, role, d1Ok: result.data?.d1Ok });
   } catch (e) {
     console.error("admin/users/[id] PATCH:", e);
@@ -61,6 +69,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
         { status: result.status ?? 400 },
       );
     }
+    await recordAuditFromSession(session, {
+      tenantId: p.tenantId,
+      action: "user.remove",
+      targetType: "user",
+      targetId: id,
+    });
     return Response.json({ ok: true, d1Ok: result.data?.d1Ok });
   } catch (e) {
     console.error("admin/users/[id] DELETE:", e);

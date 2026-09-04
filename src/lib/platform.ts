@@ -101,6 +101,15 @@ export async function listPlans(): Promise<PlanRow[]> {
   );
 }
 
+/** Plan aktif tenant saat ini (undefined = tenant tidak ditemukan). */
+export async function getTenantPlanId(tenantId: string): Promise<string | null | undefined> {
+  const rows = await query<{ planId: string | null }>(
+    'SELECT "planId" FROM "Tenant" WHERE id = $1',
+    [tenantId],
+  );
+  return rows[0]?.planId;
+}
+
 // Assign plan ke tenant (null = tanpa plan / tanpa kuota).
 export async function setTenantPlan(tenantId: string, planId: string | null): Promise<boolean> {
   const rows = await query<{ id: string }>(

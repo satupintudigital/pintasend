@@ -411,6 +411,8 @@ export interface UpdatePasswordResult {
   updated: boolean;
   /** Clone password ke D1 sukses (false → login baca D1 akan pakai password lama). */
   d1Ok: boolean;
+  /** Tenant target (RETURNING) — untuk konteks audit platform. */
+  tenantId?: string | null;
 }
 
 // Reset password — write-through: Neon source of truth → clone D1.
@@ -422,11 +424,12 @@ export async function updateUserPassword(
   // tambahan. Catatan: tabel User Neon tidak punya kolom updatedAt (schema
   // Prisma), jadi hanya passwordHash yang di-update di Neon; D1 (yang punya
   // updatedAt) tetap di-set agar replika akurat.
-  const rows = await query<{ id: string }>(
-    'UPDATE "User" SET "passwordHash" = $1 WHERE id = $2 RETURNING id',
+  const rows = await query<{ id: string; tenantId: string | null }>(
+    'UPDATE "User" SET "passwordHash" = $1 WHERE id = $2 RETURNING id, "tenantId"',
     [passwordHash, userId],
   );
-  if (rows.length === 0) return { updated: false, d1Ok: false };
+  if (rows.length === 0) return { updated: false, d1Ok: false, tenantId: null };
+  const targetTenantId = rows[0].tenantId;
 
   try {
     // D1 UPDATE yang tak menyentuh baris TIDAK error — cek meta.changes agar
@@ -436,9 +439,9 @@ export async function updateUserPassword(
       new Date().toISOString(),
       userId,
     ]);
-    return { updated: true, d1Ok: changes > 0 };
+    return { updated: true, d1Ok: changes > 0, tenantId: targetTenantId };
   } catch (e) {
     console.error("authStore: update D1 gagal, D1 stale:", e);
-    return { updated: true, d1Ok: false };
+    return { updated: true, d1Ok: false, tenantId: targetTenantId };
   }
 }

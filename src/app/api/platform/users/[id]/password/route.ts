@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { updateUserPassword } from "@/lib/authStore";
+import { recordAuditFromSession } from "@/lib/audit";
 import bcrypt from "bcryptjs";
 
 // Reset password user — khusus platform_admin. Write-through Neon → D1.
@@ -20,5 +21,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const passwordHash = bcrypt.hashSync(password, 10);
   const result = await updateUserPassword(id, passwordHash);
   if (!result.updated) return Response.json({ error: "User tidak ditemukan" }, { status: 404 });
+  await recordAuditFromSession(session, {
+    tenantId: result.tenantId ?? null,
+    action: "user.password.reset",
+    targetType: "user",
+    targetId: id,
+    meta: { by: "platform" },
+  });
   return Response.json({ ok: true, d1Ok: result.d1Ok });
 }

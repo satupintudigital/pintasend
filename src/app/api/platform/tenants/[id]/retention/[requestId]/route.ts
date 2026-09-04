@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { approveRetentionRequest, rejectRetentionRequest } from "@/lib/retention";
+import { recordAuditFromSession } from "@/lib/audit";
 
 // Proses permintaan perpanjangan retensi — khusus platform_admin.
 // POST { action: "approve" | "reject" }.
@@ -14,7 +15,7 @@ export async function POST(
     return Response.json({ error: "Forbidden — khusus platform admin" }, { status: 403 });
   }
 
-  const { requestId } = await params;
+  const { id, requestId } = await params;
   const body = (await req.json().catch(() => null)) as { action?: unknown } | null;
   const action = body?.action;
   const actor = session.user.email ?? session.user.name ?? "platform_admin";
@@ -34,6 +35,12 @@ export async function POST(
     if (!result.ok) {
       return Response.json({ error: result.reason ?? "Gagal memproses" }, { status: 400 });
     }
+    await recordAuditFromSession(session, {
+      tenantId: id,
+      action: action === "approve" ? "retention.approve" : "retention.reject",
+      targetType: "retention_request",
+      targetId: requestId,
+    });
     return Response.json({ ok: true, action });
   } catch (e) {
     console.error("platform/tenants/[id]/retention/[requestId]:", e);

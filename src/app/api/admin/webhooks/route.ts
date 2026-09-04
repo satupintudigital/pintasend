@@ -10,6 +10,7 @@ import { collectFilterErrors, type WebhookFilters } from "@/lib/webhookFilters";
 import { isSafeWebhookUrl } from "@/lib/ssrf";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { cancelPendingDeliveriesForTenant } from "@/lib/webhookDelivery";
+import { recordAuditFromSession } from "@/lib/audit";
 
 // Konfigurasi webhook tenant — owner-only (API juga menegakkan 403).
 // - GET    → konfigurasi saat ini (secret di-mask, baca D1 = 0 Neon)
@@ -129,6 +130,13 @@ export async function PUT(req: Request) {
 
   try {
     const { id } = await upsertWebhook({ tenantId, url, secret, events, filters, active });
+    await recordAuditFromSession(session, {
+      tenantId,
+      action: "webhook.upsert",
+      targetType: "webhook",
+      targetId: id,
+      meta: { url, events: events.length, active },
+    });
     return Response.json({ ok: true, id });
   } catch (e) {
     console.error("admin/webhooks PUT:", e);
@@ -152,6 +160,14 @@ export async function DELETE() {
       await cancelPendingDeliveriesForTenant(tenantId).catch((e) =>
         console.error("admin/webhooks DELETE: cancel pending outbox gagal:", e),
       );
+    }
+    if (removed) {
+      await recordAuditFromSession(session, {
+        tenantId,
+        action: "webhook.delete",
+        targetType: "webhook",
+        targetId: tenantId,
+      });
     }
     return Response.json({ ok: removed });
   } catch (e) {

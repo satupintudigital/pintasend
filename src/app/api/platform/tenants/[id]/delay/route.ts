@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { setTenantDelayEnabled } from "@/lib/platform";
+import { recordAuditFromSession } from "@/lib/audit";
 
 // Toggle config random delay per tenant — khusus platform_admin.
 // Body: { enabled: boolean }.
@@ -19,6 +20,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   try {
     const ok = await setTenantDelayEnabled(id, body.enabled);
     if (!ok) return Response.json({ error: "Tenant tidak ditemukan" }, { status: 404 });
+    await recordAuditFromSession(session, {
+      tenantId: id,
+      action: "tenant.delay.set",
+      targetType: "tenant",
+      targetId: id,
+      meta: { enabled: body.enabled },
+    });
     return Response.json({ ok: true, enabled: body.enabled });
   } catch (e) {
     console.error("platform/tenants/[id]/delay:", e);

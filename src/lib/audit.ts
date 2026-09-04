@@ -8,6 +8,7 @@
 
 import { query } from "@/lib/db";
 import { uuidv7 } from "@/lib/uuidv7";
+import { parsePrincipal, type SessionLike } from "@/lib/abac";
 
 export interface AuditActor {
   id?: string | null;
@@ -78,6 +79,25 @@ export async function recordAudit(input: AuditEntryInput): Promise<void> {
   } catch (e) {
     console.error("audit: record gagal (diabaikan):", e);
   }
+}
+
+// Variant route-friendly: actor di-derivasi dari session via parsePrincipal.
+// Dipakai instrumentasi 1-baris di route (Task 7) — tenantId tetap diambil dari
+// target route (bukan session) oleh caller.
+export async function recordAuditFromSession(
+  session: SessionLike | null,
+  fields: Omit<AuditEntryInput, "actor">,
+): Promise<void> {
+  const principal = parsePrincipal(session);
+  if (!principal) return;
+  await recordAudit({
+    ...fields,
+    actor: {
+      id: principal.id,
+      email: principal.email ?? principal.id,
+      role: principal.role,
+    },
+  });
 }
 
 function escapeLike(v: string): string {

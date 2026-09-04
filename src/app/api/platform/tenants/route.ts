@@ -7,6 +7,7 @@ import { listTenants } from "@/lib/platform";
 import { sendWelcomeEmail } from "@/lib/email";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { isPlatformAdmin, parsePrincipal, unauthorized, forbidden } from "@/lib/abac";
+import { recordAuditFromSession } from "@/lib/audit";
 import bcrypt from "bcryptjs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -93,6 +94,13 @@ export async function POST(req: Request) {
     // Email welcome (never-throw helper) — kegagalan kirim tidak menggagalkan
     // provisioning; tanpa RESEND_API_KEY otomatis di-skip.
     await sendWelcomeEmail({ email, name });
+    await recordAuditFromSession(session, {
+      tenantId,
+      action: "tenant.create",
+      targetType: "tenant",
+      targetId: tenantId,
+      meta: { email, ownerUserId: id },
+    });
     return Response.json({ id, tenantId }, { status: 201 });
   } catch (e) {
     if (e instanceof EmailAlreadyExistsError) {

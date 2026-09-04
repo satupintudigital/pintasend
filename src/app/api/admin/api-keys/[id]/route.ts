@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { revokeApiKey } from "@/lib/authStore";
+import { recordAuditFromSession } from "@/lib/audit";
 
 // Revoke (cabut) API key — owner-only. Key yang dicabut langsung ditolak
 // verifikasi (auth baca D1, write-through Neon → D1).
@@ -15,6 +16,12 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   try {
     const ok = await revokeApiKey(id, tenantId);
     if (!ok) return Response.json({ error: "API key tidak ditemukan" }, { status: 404 });
+    await recordAuditFromSession(session, {
+      tenantId,
+      action: "apikey.revoke",
+      targetType: "apikey",
+      targetId: id,
+    });
     return Response.json({ ok: true });
   } catch (e) {
     console.error("admin/api-keys DELETE:", e);

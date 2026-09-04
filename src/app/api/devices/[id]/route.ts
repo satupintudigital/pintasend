@@ -16,6 +16,7 @@ import {
   deleteCachedDeviceList,
   shouldReconcileWebhook,
 } from "@/lib/deviceCache";
+import { recordAuditFromSession } from "@/lib/audit";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -105,5 +106,12 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   await deleteDeviceFromD1(id).catch((e) => console.error("devices: delete D1 gagal:", e));
   await deleteCachedDevice(id);
   await deleteCachedDeviceList(tenantId);
+  await recordAuditFromSession(session, {
+    tenantId,
+    action: "device.delete",
+    targetType: "device",
+    targetId: id,
+    meta: { label: device.label },
+  });
   return Response.json({ ok: true });
 }
