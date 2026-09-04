@@ -120,6 +120,15 @@ export async function listOrders(tenantId: string, limit = 20): Promise<OrderRow
   return rows.map(toOrderRow);
 }
 
+/** Semua order pending yang sudah punya gatewayRef — resync status (admin). */
+export async function listPendingGatewayOrders(): Promise<OrderRow[]> {
+  const rows = await query<Record<string, unknown>>(
+    `SELECT ${ORDER_SELECT} FROM "Order" WHERE status = 'pending' AND "gatewayRef" IS NOT NULL ORDER BY "createdAt" ASC`,
+    [],
+  );
+  return rows.map(toOrderRow);
+}
+
 /** Cari order pending yang belum expire untuk kind+ref yang sama. */
 export async function findPendingOrder(opts: {
   tenantId: string;
@@ -235,6 +244,13 @@ export async function createOrder(input: {
     creditMessages = null;
   } else if (input.kind === "topup") {
     if (!creditMessages || creditMessages < 1) throw new Error("CREDIT_INVALID");
+    // Top-up pertama (tenant pending) mengaktifkan tenant + assign plan prepaid
+    // (Espresso). planId hanya valid utk plan kind=prepaid — diverifikasi dari
+    // katalog, bukan dari client.
+    if (input.planId) {
+      const plan = catalog.plans.find((p) => p.id === input.planId);
+      if (!plan || plan.kind !== "prepaid") throw new Error("PLAN_INVALID");
+    }
     const unit = catalog.settings.creditPerMessageRp;
     items.push({ type: "credit", name: `Top-up ${creditMessages} pesan`, quantity: creditMessages, unitPrice: unit });
   } else {
@@ -242,7 +258,10 @@ export async function createOrder(input: {
   }
   amount = items.reduce((sum, it) => sum + it.unitPrice * it.quantity, 0);
 
-  // 3. Idempoten: kembalikan order pending yang masih berlaku.
+  // 3. Idempoten: kembalikan order pending yang masih berlaku. Bila order
+  //    pending ditemukan TANPA gatewayRef (mis. renewal skipGateway dari
+  //    ensureCurrentPeriod) dan pemanggil ingin bayar (skipGateway=false),
+  //    buat payment Tripay dan attach ke order tsb (flow "Bayar Sekarang").
   const existing = await findPendingOrder({
     tenantId: input.tenantId,
     kind: input.kind,
@@ -250,7 +269,25 @@ export async function createOrder(input: {
     addonKey: input.kind === "addon" ? input.addonKey : null,
     now,
   });
-  if (existing) return existing;
+  if (existing) {
+    if (!input.skipGateway && !existing.gatewayRef) {
+      const payment = await createPaymentForOrder(existing, catalog, tenant, input);
+      await query(
+        `UPDATE "Order" SET "gatewayRef" = $2, "payCode" = $3, "checkoutUrl" = $4,
+           "payMethod" = $5, "expiresAt" = $6, "updatedAt" = now()
+         WHERE id = $1`,
+        [existing.id, payment.gatewayRef, payment.payCode, payment.checkoutUrl, payment.payMethod, existing.expiresAt ?? new Date(now.getTime() + catalog.settings.orderExpiryMinutes * 60_000).toISOString()],
+      );
+      return {
+        ...existing,
+        gatewayRef: payment.gatewayRef,
+        payCode: payment.payCode,
+        checkoutUrl: payment.checkoutUrl,
+        payMethod: payment.payMethod,
+      };
+    }
+    return existing;
+  }
 
   // 4. Simpan order (pending).
   const orderId = uuidv7();
@@ -308,20 +345,7 @@ export async function createOrder(input: {
   });
 
   if (!input.skipGateway) {
-    const owner = await queryOne<{ email: string }>(
-      `SELECT email FROM "User" WHERE "tenantId" = $1 AND role = 'owner' ORDER BY "createdAt" ASC LIMIT 1`,
-      [input.tenantId],
-    );
-    const payment = await getPaymentProvider().createPayment({
-      merchantRef: orderId,
-      amount,
-      customerName: tenant.name.slice(0, 100),
-      customerEmail: owner?.email ?? "",
-      items: items.map((it) => ({ name: it.name, price: it.unitPrice, quantity: it.quantity })),
-      method: input.payMethod,
-      returnUrl: input.returnUrl,
-      expiryMinutes: catalog.settings.orderExpiryMinutes,
-    });
+    const payment = await createPaymentForOrder(order, catalog, tenant, input);
     await query(
       `UPDATE "Order" SET "gatewayRef" = $2, "payCode" = $3, "checkoutUrl" = $4,
          "payMethod" = $5, "expiresAt" = $6, "updatedAt" = now()
@@ -338,6 +362,35 @@ export async function createOrder(input: {
   }
 
   return order;
+}
+
+/** Buat payment Tripay untuk sebuah order (baru/existing). */
+async function createPaymentForOrder(
+  order: OrderRow,
+  catalog: PublicCatalog,
+  tenant: { id: string; name: string; activatedAt: string | null },
+  input: {
+    tenantId: string;
+    userId: string;
+    returnUrl: string;
+    payMethod: string;
+    expiryMinutes?: number;
+  },
+): Promise<{"gatewayRef": string; "payCode": string | null; "checkoutUrl": string | null; "payMethod": string; "qrString": string | null}> {
+  const owner = await queryOne<{ email: string }>(
+    `SELECT email FROM "User" WHERE "tenantId" = $1 AND role = 'owner' ORDER BY "createdAt" ASC LIMIT 1`,
+    [input.tenantId],
+  );
+  return getPaymentProvider().createPayment({
+    merchantRef: order.id,
+    amount: order.amount,
+    customerName: tenant.name.slice(0, 100),
+    customerEmail: owner?.email ?? "",
+    items: parseItems(order.itemsJson).map((it) => ({ name: it.name, price: it.unitPrice, quantity: it.quantity })),
+    method: input.payMethod,
+    returnUrl: input.returnUrl,
+    expiryMinutes: catalog.settings.orderExpiryMinutes,
+  });
 }
 
 /** Expire semua order pending yang sudah lewat batas waktu. */
@@ -436,6 +489,33 @@ export async function finalizePaidOrder(
       const end = tenant?.planPeriodEnd ? new Date(tenant.planPeriodEnd) : periodEndForStart(new Date());
       if (order.addonKey) await upsertTenantAddon(order.tenantId, order.addonKey, end);
     } else if (order.kind === "topup") {
+      // Top-up pertama dengan planId prepaid = aktivasi Espresso: assign plan +
+      // activatedAt (guard `activatedAt IS NULL` — race-safe, hanya sekali).
+      if (order.planId) {
+        const tenant = await queryOne<{
+          id: string;
+          name: string;
+          suspendedAt: string | null;
+          activatedAt: string | null;
+        }>('SELECT id, name, "suspendedAt", "activatedAt" FROM "Tenant" WHERE id = $1', [
+          order.tenantId,
+        ]);
+        if (tenant && !tenant.activatedAt) {
+          const activated = await query<{ id: string }>(
+            'UPDATE "Tenant" SET "planId" = $2, "planAssignedAt" = now(), "activatedAt" = now(), "updatedAt" = now() ' +
+              'WHERE id = $1 AND "activatedAt" IS NULL RETURNING id',
+            [order.tenantId, order.planId],
+          );
+          if (activated.length > 0) {
+            await syncTenantD1({
+              id: tenant.id,
+              name: tenant.name,
+              suspendedAt: tenant.suspendedAt,
+              activatedAt: new Date().toISOString(),
+            }).catch(() => undefined);
+          }
+        }
+      }
       if (order.creditMessages && order.creditMessages > 0) {
         await addCredit({ tenantId: order.tenantId, messages: order.creditMessages, orderId: order.id, reason: "topup" });
       }

@@ -7,6 +7,7 @@ import {
   getOrder,
   getOrderAnyScope,
   findPendingOrder,
+  listPendingGatewayOrders,
   periodEndForStart,
   type OrderRow,
 } from "./billing";
@@ -159,11 +160,10 @@ describe("createOrder", () => {
     expect(order.creditMessages).toBe(100);
   });
 
-  it("pending duplikat → kembalikan order lama tanpa membuat Tripay baru", async () => {
+  it("pending duplikat dgn gateway → kembalikan order lama tanpa membuat Tripay baru", async () => {
     q1
       .mockResolvedValueOnce({ id: "tenant-1", name: "PT Contoh", activatedAt: null })
-      .mockResolvedValueOnce(row("ord-lama", { status: "pending" }));
-    q.mockResolvedValueOnce([{ id: "ord-1" }]); // tidak dipakai — tidak boleh INSERT
+      .mockResolvedValueOnce(row("ord-lama", { status: "pending", gatewayRef: "REF-OLD" }));
 
     const order = await createOrder({
       tenantId: "tenant-1",
@@ -178,6 +178,31 @@ describe("createOrder", () => {
     expect(order.id).toBe("ord-lama");
     expect(query).not.toHaveBeenCalled(); // tidak ada INSERT/UPDATE
     expect(provider.createPayment).not.toHaveBeenCalled();
+  });
+
+  it("existing pending renewal tanpa gateway → attach payment (skipGateway=false, gatewayRef null)", async () => {
+    q1
+      .mockResolvedValueOnce({ id: "tenant-1", name: "PT Contoh", activatedAt: "2026-01-01" }) // tenant
+      .mockResolvedValueOnce(row("ord-renew", { kind: "renewal_subscription", gatewayRef: null, payCode: null, checkoutUrl: null })); // findPendingOrder
+    q.mockResolvedValueOnce([{ id: "ord-renew" }]); // UPDATE gateway fields (bukan INSERT)
+
+    const order = await createOrder({
+      tenantId: "tenant-1",
+      userId: "user-1",
+      kind: "renewal_subscription",
+      planId: "plan-latte",
+      items: [{ type: "plan", refId: "plan-latte", name: "Paket Latte", quantity: 1, unitPrice: 150000 }],
+      payMethod: "BRIVA0",
+      returnUrl: "https://wavio.test/checkout",
+      skipGateway: false,
+    });
+
+    expect(order.id).toBe("ord-renew");
+    expect(order.gatewayRef).toBe("REF-GW-1");
+    expect(provider.createPayment).toHaveBeenCalled();
+    const sql = q.mock.calls[0][0] as string;
+    expect(sql).toContain('UPDATE "Order"');
+    expect(sql).not.toContain('INSERT INTO "Order"');
   });
 
   it("skipGateway=true → pending tanpa memanggil provider (gatewayRef null)", async () => {
@@ -214,6 +239,46 @@ describe("createOrder", () => {
         returnUrl: "https://wavio.test/checkout",
       }),
     ).rejects.toThrow();
+  });
+
+  it("topup dgn planId prepaid (aktivasi Espresso) → planId tersimpan di order", async () => {
+    q1
+      .mockResolvedValueOnce({ id: "tenant-1", name: "PT Contoh", activatedAt: null }) // tenant pending
+      .mockResolvedValueOnce(undefined); // findPendingOrder
+    q.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: "ord-tp" }]);
+
+    const order = await createOrder({
+      tenantId: "tenant-1",
+      userId: "user-1",
+      kind: "topup",
+      planId: "plan-espresso",
+      creditMessages: 100,
+      items: [{ type: "credit", name: "Top-up 100 pesan", quantity: 100, unitPrice: 400 }],
+      payMethod: "QRIS2",
+      returnUrl: "https://wavio.test/checkout",
+    });
+
+    expect(order.planId).toBe("plan-espresso");
+    expect(order.amount).toBe(40000);
+    const insertSql = q.mock.calls[0][0] as string;
+    expect(insertSql).toContain('INSERT INTO "Order"');
+    expect(q.mock.calls[0][1]).toContain("plan-espresso");
+  });
+
+  it("topup dgn planId non-prepaid → error PLAN_INVALID", async () => {
+    q1.mockResolvedValueOnce({ id: "tenant-1", name: "PT Contoh", activatedAt: null });
+    await expect(
+      createOrder({
+        tenantId: "tenant-1",
+        userId: "user-1",
+        kind: "topup",
+        planId: "plan-latte", // subscription — tidak valid utk topup
+        creditMessages: 100,
+        items: [],
+        payMethod: "QRIS2",
+        returnUrl: "https://wavio.test/checkout",
+      }),
+    ).rejects.toThrow("PLAN_INVALID");
   });
 });
 
@@ -286,6 +351,52 @@ describe("finalizePaidOrder", () => {
       reason: "topup",
     });
   });
+
+  it("topup pertama dgn planId: tenant pending → aktif + assign plan prepaid + sync D1", async () => {
+    q.mockResolvedValueOnce([
+      row("ord-t2", { kind: "topup", planId: "plan-espresso", creditMessages: 50, tenantId: "tenant-1" }),
+    ]); // claim (calls[0])
+    q1.mockResolvedValueOnce({
+      id: "tenant-1",
+      name: "PT Contoh",
+      suspendedAt: null,
+      activatedAt: null,
+    }); // SELECT tenant
+    q.mockResolvedValueOnce([{ id: "tenant-1" }]); // UPDATE aktivasi (calls[1])
+
+    const res = await finalizePaidOrder("ord-t2", { paidAt: now.toISOString() });
+    expect(res.ok).toBe(true);
+    const actSql = q.mock.calls[1][0] as string;
+    expect(actSql).toContain('UPDATE "Tenant"');
+    expect(actSql).toContain('"activatedAt" IS NULL');
+    expect(q.mock.calls[1][1]).toContain("plan-espresso");
+    expect(syncTenantD1).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "tenant-1", activatedAt: expect.any(String) }),
+    );
+    expect(addCredit).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: "tenant-1", messages: 50 }),
+    );
+  });
+
+  it("topup dgn planId tapi tenant sudah aktif → tidak assign ulang plan", async () => {
+    q.mockResolvedValueOnce([
+      row("ord-t3", { kind: "topup", planId: "plan-espresso", creditMessages: 50, tenantId: "tenant-1" }),
+    ]); // claim
+    q1.mockResolvedValueOnce({
+      id: "tenant-1",
+      name: "PT Contoh",
+      suspendedAt: null,
+      activatedAt: "2026-01-01T00:00:00Z",
+    }); // SELECT tenant — sudah aktif
+
+    const res = await finalizePaidOrder("ord-t3", { paidAt: now.toISOString() });
+    expect(res.ok).toBe(true);
+    expect(syncTenantD1).not.toHaveBeenCalled();
+    // Hanya claim + addCredit — tidak ada UPDATE Tenant
+    const updateSqls = q.mock.calls.map((c) => String(c[0]));
+    expect(updateSqls.filter((s) => s.includes('UPDATE "Tenant"'))).toHaveLength(0);
+    expect(addCredit).toHaveBeenCalled();
+  });
 });
 
 describe("expire & mark", () => {
@@ -328,6 +439,15 @@ describe("getters", () => {
     const sql = q1.mock.calls[0][0] as string;
     expect(sql).toContain("status = 'pending'");
     expect(sql).toContain('"planId"');
+  });
+
+  it("listPendingGatewayOrders: hanya pending yang punya gatewayRef", async () => {
+    q.mockResolvedValueOnce([row("o1", { status: "pending", gatewayRef: "REF-1" }), row("o2", { gatewayRef: "REF-2" })]);
+    const found = await listPendingGatewayOrders();
+    expect(found.map((o) => o.id)).toEqual(["o1", "o2"]);
+    const sql = q.mock.calls[0][0] as string;
+    expect(sql).toContain("status = 'pending'");
+    expect(sql).toContain('"gatewayRef" IS NOT NULL');
   });
 });
 
