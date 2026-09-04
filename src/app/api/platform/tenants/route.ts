@@ -6,17 +6,15 @@ import {
 import { listTenants } from "@/lib/platform";
 import { sendWelcomeEmail } from "@/lib/email";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import { isPlatformAdmin, parsePrincipal, unauthorized, forbidden } from "@/lib/abac";
 import bcrypt from "bcryptjs";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function forbidden() {
-  return Response.json({ error: "Forbidden — khusus platform admin" }, { status: 403 });
-}
-
 function requirePlatformAdmin(session: { user?: { role?: string } | null } | null) {
-  if (!session?.user) return { error: Response.json({ error: "Unauthorized" }, { status: 401 }) };
-  if (session.user.role !== "platform_admin") return { error: forbidden() };
+  const p = parsePrincipal(session);
+  if (!p) return { error: unauthorized() };
+  if (!isPlatformAdmin(p)) return { error: forbidden("Forbidden — khusus platform admin") };
   return { error: null as Response | null };
 }
 
