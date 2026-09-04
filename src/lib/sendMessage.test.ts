@@ -6,6 +6,7 @@ import { checkRateLimit } from "./rate-limit";
 import { insertMessageLog } from "./messageStore";
 import { sleep } from "./delay";
 import { getTenantConfig } from "./tenantConfig";
+import { prepaidSendGate, spendCredit } from "./credit";
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
 // Fake KV WAVIO_CACHE — state bertahan antar panggilan (persist dalam test),
@@ -47,6 +48,7 @@ vi.mock("./openwa", () => {
 });
 vi.mock("./d1", () => ({ queryD1One: vi.fn() }));
 vi.mock("./tenantConfig", () => ({ getTenantConfig: vi.fn() }));
+vi.mock("./credit", () => ({ prepaidSendGate: vi.fn(), spendCredit: vi.fn() }));
 vi.mock("./rate-limit", () => ({ checkRateLimit: vi.fn() }));
 vi.mock("./delay", () => ({
   randomDelayMs: vi.fn(() => 5000),
@@ -89,6 +91,8 @@ const defaultMocks = () => {
   });
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true });
   vi.mocked(openwa.sendText).mockResolvedValue({ messageId: "m1", status: "sent" });
+  vi.mocked(prepaidSendGate).mockResolvedValue({ ok: true });
+  vi.mocked(spendCredit).mockResolvedValue({ ok: true, balance: 0 });
 };
 
 beforeEach(() => {
@@ -438,6 +442,49 @@ describe("executeSendMessage — watermark footnote (iklan platform)", () => {
     const [, , sent] = vi.mocked(openwa.sendText).mock.calls[0];
     expect(sent).toHaveLength(4096);
     expect(sent.endsWith("\n\nvia Wavio - https://wavio.satupintudigital.co.id")).toBe(true);
+  });
+});
+
+describe("executeSendMessage — metering prepaid (Espresso)", () => {
+  function prepaidCfg() {
+    return {
+      plan: { maxDevices: 1, maxUsers: 3, maxMessagesPerMonth: null, includesDelay: false, kind: "prepaid" },
+      addons: { removeWatermark: false, randomDelay: false, campaign: false },
+      features: { delayEnabled: false },
+      messageCount: 0,
+      ts: Date.now(),
+    };
+  }
+
+  it("prepaid saldo 0 → 402 INSUFFICIENT_CREDIT tanpa kirim & tanpa potong", async () => {
+    vi.mocked(getTenantConfig).mockResolvedValue(prepaidCfg());
+    vi.mocked(prepaidSendGate).mockResolvedValueOnce({ ok: false, code: "INSUFFICIENT_CREDIT", balance: 0 });
+    const result = await executeSendMessage(jsonReq({ to: "081234567890", text: "Halo" }), ctx);
+
+    expect(result).toMatchObject({ ok: false, status: 402 });
+    if (!result.ok) expect(result.error).toContain("INSUFFICIENT_CREDIT");
+    expect(openwa.sendText).not.toHaveBeenCalled();
+    expect(spendCredit).not.toHaveBeenCalled();
+  });
+
+  it("prepaid saldo cukup → kirim sukses & potong 1 pesan (refId messageId)", async () => {
+    vi.mocked(getTenantConfig).mockResolvedValue(prepaidCfg());
+    const result = await executeSendMessage(jsonReq({ to: "081234567890", text: "Halo" }), ctx);
+
+    expect(result).toMatchObject({ ok: true, status: 200 });
+    expect(prepaidSendGate).toHaveBeenCalledWith("prepaid", "t1", 1);
+    expect(spendCredit).toHaveBeenCalledWith({
+      tenantId: "t1",
+      messages: 1,
+      refId: "m1",
+      reason: "send",
+    });
+  });
+
+  it("subscription → tidak memotong saldo", async () => {
+    const result = await executeSendMessage(jsonReq({ to: "081234567890", text: "Halo" }), ctx);
+    expect(result).toMatchObject({ ok: true, status: 200 });
+    expect(spendCredit).not.toHaveBeenCalled();
   });
 });
 

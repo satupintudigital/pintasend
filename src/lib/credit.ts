@@ -41,6 +41,22 @@ export async function addCredit(input: {
 }
 
 /**
+ * Gate kirim utk tenant prepaid (Plan.kind='prepaid', hanya Espresso): saldo
+ * harus ≥ needed SEBELUM memanggil OpenWA (saldo 0 → tolak INSUFFICIENT_CREDIT).
+ * Plan subscription / tanpa plan selalu lolos tanpa menyentuh DB.
+ */
+export async function prepaidSendGate(
+  planKind: string | null | undefined,
+  tenantId: string,
+  needed = 1,
+): Promise<{ ok: true } | { ok: false; code: "INSUFFICIENT_CREDIT"; balance: number }> {
+  if (planKind !== "prepaid") return { ok: true };
+  const balance = await getBalance(tenantId);
+  if (balance < needed) return { ok: false, code: "INSUFFICIENT_CREDIT", balance };
+  return { ok: true };
+}
+
+/**
  * Potong saldo (kirim 1 pesan prepaid). UPDATE atomik bersyarat saldo cukup;
  * 0 baris → gagal (ok:false) tanpa ledger. Sukses → tulis CreditLedger -delta
  * dengan refId unik (idempoten via ON CONFLICT DO NOTHING).

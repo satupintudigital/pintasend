@@ -8,9 +8,15 @@ const sendLocationMock = vi.fn();
 const sendContactMock = vi.fn();
 const sendPollMock = vi.fn();
 const insertMessageLogMock = vi.fn();
+const prepaidSendGateMock = vi.fn();
+const spendCreditMock = vi.fn();
 
 vi.mock("./d1", () => ({ queryD1One: (...a: unknown[]) => queryD1OneMock(...a) }));
 vi.mock("./tenantConfig", () => ({ getTenantConfig: (...a: unknown[]) => getTenantConfigMock(...a) }));
+vi.mock("./credit", () => ({
+  prepaidSendGate: (...a: unknown[]) => prepaidSendGateMock(...a),
+  spendCredit: (...a: unknown[]) => spendCreditMock(...a),
+}));
 vi.mock("./rate-limit", () => ({
   checkRateLimit: (...a: unknown[]) => checkRateLimitMock(...a),
 }));
@@ -44,6 +50,8 @@ beforeEach(() => {
   sendContactMock.mockReset();
   sendPollMock.mockReset();
   insertMessageLogMock.mockReset();
+  prepaidSendGateMock.mockReset();
+  spendCreditMock.mockReset();
 
   checkRateLimitMock.mockResolvedValue({ allowed: true });
   getTenantConfigMock.mockResolvedValue({ plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: 100, includesDelay: false }, addons: {}, features: {}, messageCount: 1, ts: Date.now() });
@@ -51,6 +59,8 @@ beforeEach(() => {
   sendContactMock.mockResolvedValue({ messageId: "m-con", status: "sent" });
   sendPollMock.mockResolvedValue({ messageId: "m-poll", status: "sent" });
   insertMessageLogMock.mockResolvedValue(undefined);
+  prepaidSendGateMock.mockResolvedValue({ ok: true });
+  spendCreditMock.mockResolvedValue({ ok: true, balance: 0 });
 });
 
 describe("executeSendRichMessage — location", () => {
@@ -211,5 +221,54 @@ describe("executeSendRichMessage — common flow", () => {
         messageId: "m-loc",
       }),
     );
+  });
+
+  it("prepaid saldo 0 → 402 INSUFFICIENT_CREDIT tanpa kirim & tanpa potong", async () => {
+    queryD1OneMock.mockResolvedValue(DEVICE);
+    getTenantConfigMock.mockResolvedValue({ plan: { maxDevices: 1, maxUsers: 3, maxMessagesPerMonth: null, includesDelay: false, kind: "prepaid" }, addons: {}, features: {}, messageCount: 0, ts: Date.now() });
+    prepaidSendGateMock.mockResolvedValueOnce({ ok: false, code: "INSUFFICIENT_CREDIT", balance: 0 });
+    const res = await executeSendRichMessage(
+      "location",
+      { to: "081234567890", latitude: 1, longitude: 2 },
+      CTX,
+    );
+
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.status).toBe(402);
+      expect(res.error).toContain("INSUFFICIENT_CREDIT");
+    }
+    expect(sendLocationMock).not.toHaveBeenCalled();
+    expect(spendCreditMock).not.toHaveBeenCalled();
+  });
+
+  it("prepaid saldo cukup → kirim sukses & potong 1 pesan (refId messageId)", async () => {
+    queryD1OneMock.mockResolvedValue(DEVICE);
+    getTenantConfigMock.mockResolvedValue({ plan: { maxDevices: 1, maxUsers: 3, maxMessagesPerMonth: null, includesDelay: false, kind: "prepaid" }, addons: {}, features: {}, messageCount: 0, ts: Date.now() });
+    const res = await executeSendRichMessage(
+      "location",
+      { to: "081234567890", latitude: 1, longitude: 2 },
+      CTX,
+    );
+
+    expect(res.ok).toBe(true);
+    expect(prepaidSendGateMock).toHaveBeenCalledWith("prepaid", "t1", 1);
+    expect(spendCreditMock).toHaveBeenCalledWith({
+      tenantId: "t1",
+      messages: 1,
+      refId: "m-loc",
+      reason: "send",
+    });
+  });
+
+  it("subscription/tanpa kind → tidak memotong saldo", async () => {
+    queryD1OneMock.mockResolvedValue(DEVICE);
+    const res = await executeSendRichMessage(
+      "location",
+      { to: "081234567890", latitude: 1, longitude: 2 },
+      CTX,
+    );
+    expect(res.ok).toBe(true);
+    expect(spendCreditMock).not.toHaveBeenCalled();
   });
 });

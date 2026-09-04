@@ -6,9 +6,15 @@ const checkRateLimitMock = vi.fn();
 const getTenantConfigMock = vi.fn();
 const sendBulkMock = vi.fn();
 const insertMessageLogMock = vi.fn();
+const prepaidSendGateMock = vi.fn();
+const spendCreditMock = vi.fn();
 
 vi.mock("./d1", () => ({ queryD1One: (...a: unknown[]) => queryD1OneMock(...a) }));
 vi.mock("./tenantConfig", () => ({ getTenantConfig: (...a: unknown[]) => getTenantConfigMock(...a) }));
+vi.mock("./credit", () => ({
+  prepaidSendGate: (...a: unknown[]) => prepaidSendGateMock(...a),
+  spendCredit: (...a: unknown[]) => spendCreditMock(...a),
+}));
 vi.mock("./rate-limit", () => ({
   checkRateLimit: (...a: unknown[]) => checkRateLimitMock(...a),
 }));
@@ -61,12 +67,16 @@ beforeEach(() => {
   getTenantConfigMock.mockReset();
   sendBulkMock.mockReset();
   insertMessageLogMock.mockReset();
+  prepaidSendGateMock.mockReset();
+  spendCreditMock.mockReset();
 
   queryD1OneMock.mockResolvedValue(DEVICE);
   checkRateLimitMock.mockResolvedValue({ allowed: true });
   getTenantConfigMock.mockResolvedValue({ plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: 100, includesDelay: false }, addons: {}, features: {}, messageCount: 1, ts: Date.now() });
   sendBulkMock.mockResolvedValue(BATCH_RESULT);
   insertMessageLogMock.mockResolvedValue(undefined);
+  prepaidSendGateMock.mockResolvedValue({ ok: true });
+  spendCreditMock.mockResolvedValue({ ok: true, balance: 0 });
 });
 
 describe("executeSendBulk", () => {
@@ -185,5 +195,38 @@ describe("executeSendBulk", () => {
         messageId: null,
       }),
     );
+  });
+
+  it("prepaid saldo < jumlah batch → 402 INSUFFICIENT_CREDIT tanpa kirim", async () => {
+    getTenantConfigMock.mockResolvedValue({ plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false, kind: "prepaid" }, addons: {}, features: {}, messageCount: 0, ts: Date.now() });
+    prepaidSendGateMock.mockResolvedValueOnce({ ok: false, code: "INSUFFICIENT_CREDIT", balance: 1 });
+    const res = await executeSendBulk(bulkInput(), CTX);
+
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.status).toBe(402);
+      expect(res.error).toContain("INSUFFICIENT_CREDIT");
+    }
+    expect(sendBulkMock).not.toHaveBeenCalled();
+    expect(spendCreditMock).not.toHaveBeenCalled();
+  });
+
+  it("prepaid saldo cukup → submit batch & potong total pesan (refId bulk:batchId)", async () => {
+    getTenantConfigMock.mockResolvedValue({ plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false, kind: "prepaid" }, addons: {}, features: {}, messageCount: 0, ts: Date.now() });
+    const res = await executeSendBulk(bulkInput(), CTX);
+
+    expect(res.ok).toBe(true);
+    expect(prepaidSendGateMock).toHaveBeenCalledWith("prepaid", "t1", 2);
+    expect(spendCreditMock).toHaveBeenCalledWith({
+      tenantId: "t1",
+      messages: 2,
+      refId: "bulk:batch-1",
+      reason: "send",
+    });
+  });
+
+  it("subscription/tanpa kind → tidak memotong saldo", async () => {
+    await executeSendBulk(bulkInput(), CTX);
+    expect(spendCreditMock).not.toHaveBeenCalled();
   });
 });

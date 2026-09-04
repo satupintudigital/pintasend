@@ -23,6 +23,7 @@ import { putMediaObject } from "./r2";
 import { uuidv7 } from "./uuidv7";
 import { checkRateLimit } from "./rate-limit";
 import { getTenantConfig } from "./tenantConfig";
+import { prepaidSendGate, spendCredit } from "./credit";
 import { randomDelayMs, sleep } from "./delay";
 import { logEvent } from "./requestLogger";
 import {
@@ -280,6 +281,21 @@ export async function executeSendMessage(
     };
   }
 
+  // 5c. Gate prepaid (Espresso): saldo pulsa ≥ 1 pesan — tolak sebelum proses
+  //     body/kirim (INSUFFICIENT_CREDIT). Plan subscription lolos tanpa query.
+  const creditGate = await prepaidSendGate(cfg.plan.kind, ctx.tenantId, 1);
+  if (!creditGate.ok) {
+    logEvent("warn", "send_insufficient_credit", ctx.requestId, {
+      tenantId: ctx.tenantId,
+      balance: creditGate.balance,
+    });
+    return {
+      ok: false,
+      status: 402,
+      error: `Saldo pesan tidak cukup (INSUFFICIENT_CREDIT — sisa ${creditGate.balance}). Lakukan top-up di menu Langganan.`,
+    };
+  }
+
   // 6. Validasi hasil parse.
   if (!parsed.ok) return { ok: false, status: parsed.status, error: parsed.error };
   const { to, text, deviceId, media, upload, mentions, replyTo } = parsed.data;
@@ -447,6 +463,23 @@ export async function executeSendMessage(
       ...(delayMs !== null ? { delayMs } : {}),
       ...(media ? { mediaType: media.mediaType } : {}),
     });
+
+    // 10b. Prepaid: potong saldo 1 pesan pasca-kirim sukses. Best-effort
+    //     (kegagalan ledger tidak menggagalkan kirim); refId unik per pesan
+    //     (messageId OpenWA / fallback uuid) → idempoten di CreditLedger.
+    if (cfg.plan.kind === "prepaid") {
+      await spendCredit({
+        tenantId: ctx.tenantId,
+        messages: 1,
+        refId: messageId ?? `send-${uuidv7()}`,
+        reason: "send",
+      }).catch((e) =>
+        logEvent("error", "credit_spend_failed", ctx.requestId, {
+          tenantId: ctx.tenantId,
+          detail: String(e),
+        }),
+      );
+    }
 
     // 11. Simpan idempotensi HANYA untuk respons sukses — kegagalan tidak
     //     direkam sehingga retry dengan key yang sama diperbolehkan.

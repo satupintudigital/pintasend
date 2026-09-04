@@ -6,11 +6,13 @@ import { openwa, OpenwaError } from "./openwa";
 import { checkRateLimit } from "./rate-limit";
 import { insertMessageLog } from "./messageStore";
 import { getTenantConfig } from "./tenantConfig";
+import { prepaidSendGate, spendCredit } from "./credit";
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
 vi.mock("./d1", () => ({ queryD1One: vi.fn() }));
 vi.mock("./db", () => ({ queryOne: vi.fn() }));
 vi.mock("./tenantConfig", () => ({ getTenantConfig: vi.fn() }));
+vi.mock("./credit", () => ({ prepaidSendGate: vi.fn(), spendCredit: vi.fn() }));
 vi.mock("./openwa", () => {
   class MockOpenwaError extends Error {
     status: number;
@@ -50,6 +52,8 @@ beforeEach(() => {
     messageCount: 0,
     ts: Date.now(),
   });
+  vi.mocked(prepaidSendGate).mockResolvedValue({ ok: true });
+  vi.mocked(spendCredit).mockResolvedValue({ ok: true, balance: 0 });
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -137,6 +141,49 @@ describe("executeSendTemplate — canonical physical binding", () => {
     const result = await executeSendTemplate({ to: "6281234567890", templateName: "pesanan_baru" }, ctx);
     expect(result).toMatchObject({ ok: false, status: 409 });
     expect(openwa.sendTemplate).not.toHaveBeenCalled();
+  });
+});
+
+describe("executeSendTemplate — metering prepaid (Espresso)", () => {
+  function prepaidCfg() {
+    return {
+      plan: { maxDevices: 1, maxUsers: 3, maxMessagesPerMonth: null, includesDelay: false, kind: "prepaid" },
+      addons: { removeWatermark: false, randomDelay: false, campaign: false },
+      features: { delayEnabled: false },
+      messageCount: 0,
+      ts: Date.now(),
+    };
+  }
+
+  it("prepaid saldo 0 → 402 INSUFFICIENT_CREDIT tanpa kirim & tanpa potong", async () => {
+    vi.mocked(getTenantConfig).mockResolvedValue(prepaidCfg());
+    vi.mocked(prepaidSendGate).mockResolvedValueOnce({ ok: false, code: "INSUFFICIENT_CREDIT", balance: 0 });
+    const result = await executeSendTemplate({ to: "081234567890", templateName: "pesanan_baru" }, ctx);
+
+    expect(result).toMatchObject({ ok: false, status: 402 });
+    if (!result.ok) expect(result.error).toContain("INSUFFICIENT_CREDIT");
+    expect(openwa.sendTemplate).not.toHaveBeenCalled();
+    expect(spendCredit).not.toHaveBeenCalled();
+  });
+
+  it("prepaid saldo cukup → kirim sukses & potong 1 pesan (refId messageId)", async () => {
+    vi.mocked(getTenantConfig).mockResolvedValue(prepaidCfg());
+    const result = await executeSendTemplate({ to: "081234567890", templateName: "pesanan_baru" }, ctx);
+
+    expect(result).toMatchObject({ ok: true, status: 200 });
+    expect(prepaidSendGate).toHaveBeenCalledWith("prepaid", "t1", 1);
+    expect(spendCredit).toHaveBeenCalledWith({
+      tenantId: "t1",
+      messages: 1,
+      refId: "m-tpl-1",
+      reason: "send",
+    });
+  });
+
+  it("subscription → tidak memotong saldo", async () => {
+    const result = await executeSendTemplate({ to: "081234567890", templateName: "pesanan_baru" }, ctx);
+    expect(result).toMatchObject({ ok: true, status: 200 });
+    expect(spendCredit).not.toHaveBeenCalled();
   });
 });
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { getBalance, addCredit, spendCredit } from "./credit";
+import { getBalance, addCredit, spendCredit, prepaidSendGate } from "./credit";
 import { query, queryOne } from "@/lib/db";
 
 vi.mock("@/lib/db", () => ({
@@ -54,5 +54,37 @@ describe("credit (saldo prepaid)", () => {
     const res = await spendCredit({ tenantId: "t1", messages: 5, refId: "msg-2" });
     expect(res.ok).toBe(false);
     expect(q).toHaveBeenCalledTimes(1); // tidak ada insert ledger
+  });
+
+  it("prepaidSendGate: plan subscription → selalu lolos tanpa sentuh DB", async () => {
+    const res = await prepaidSendGate("subscription", "t1");
+    expect(res).toEqual({ ok: true });
+    expect(q1).not.toHaveBeenCalled();
+  });
+
+  it("prepaidSendGate: plan prepaid saldo cukup (≥ needed) → lolos", async () => {
+    q1.mockResolvedValueOnce({ balance: 5 });
+    expect(await prepaidSendGate("prepaid", "t1", 1)).toEqual({ ok: true });
+    q1.mockResolvedValueOnce({ balance: 100 });
+    expect(await prepaidSendGate("prepaid", "t1", 100)).toEqual({ ok: true });
+    expect(q1.mock.calls[0][1]).toEqual(["t1"]);
+  });
+
+  it("prepaidSendGate: plan prepaid saldo kurang → INSUFFICIENT_CREDIT + balance", async () => {
+    q1.mockResolvedValueOnce({ balance: 0 });
+    expect(await prepaidSendGate("prepaid", "t1", 1)).toEqual({
+      ok: false,
+      code: "INSUFFICIENT_CREDIT",
+      balance: 0,
+    });
+    q1.mockResolvedValueOnce({ balance: 2 });
+    const res = await prepaidSendGate("prepaid", "t1", 5);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.code).toBe("INSUFFICIENT_CREDIT");
+  });
+
+  it("prepaidSendGate: tanpa plan (kind null) → lolos", async () => {
+    expect(await prepaidSendGate(null, "t1", 1)).toEqual({ ok: true });
+    expect(q1).not.toHaveBeenCalled();
   });
 });

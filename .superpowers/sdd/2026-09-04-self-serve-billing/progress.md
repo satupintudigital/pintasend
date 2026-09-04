@@ -29,3 +29,9 @@ Task 6: complete (commits d9b5c22..HEAD, review clean — billingRenewal.ts + sy
 - watermark.ts tenantHasRemoveWatermark, delay.ts getTenantDelayInfo, platform.ts getTenantDetail: EXISTS addon pakai tenantAddonActiveWhere (addon kedaluwarsa dianggap nonaktif). campaigns.ts via getTenantConfig otomatis ikut.
 - platform.ts setTenantAddon: grant (active=true) → activeUntil=NULL (permanen); revoke mempertahankan activeUntil lama.
 - Mock cfg.plan di sendMessage/sendTemplate.test + kind:"subscription" (disiapkan untuk Task 11 metering). Test: +tenantConfig.test (helper), watermark aktif-until SQL, delay SQL alias. 947 total, tsc bersih.
+
+## Task 11: Metering kirim prepaid (Espresso) — complete
+- credit.ts: + prepaidSendGate(planKind, tenantId, needed) — prepaid butuh saldo ≥ needed sebelum OpenWA (INSUFFICIENT_CREDIT); subscription/null lolos tanpa query DB. Test 4 baru.
+- sendMessage/sendTemplate/sendRichMessage: gate 402 pasca-quota; pasca-kirim sukses spendCredit messages=1 refId=messageId??`send-|tpl-|rich-${uuidv7}` best-effort (.catch logEvent credit_spend_failed). sendBulk: gate needed=count (batch N penerima = N pulsa), pasca-submit potong total count refId=`bulk:${batchId}` (batch jalan async di OpenWA).
+- Test 4 file +16: saldo 0 → 402 INSUFFICIENT_CREDIT tanpa OpenWA/spend; saldo cukup → kirim & potong dgn refId benar; subscription → tanpa potong. 963 total (+16), tsc bersih.
+- Catatan: worker campaign-dispatch & platform-broadcast potong kredit = fase-2 (TODO di plan), tidak dikerjakan.

@@ -11,6 +11,8 @@ import { checkRateLimit } from "./rate-limit";
 import { insertMessageLog } from "./messageStore";
 import { logEvent } from "./requestLogger";
 import { getTenantConfig } from "./tenantConfig";
+import { prepaidSendGate, spendCredit } from "./credit";
+import { uuidv7 } from "./uuidv7";
 
 export type RichMessageKind = "location" | "contact" | "poll";
 
@@ -149,6 +151,21 @@ export async function executeSendRichMessage(
     };
   }
 
+  // 4c. Gate prepaid (Espresso): saldo pulsa ≥ 1 pesan sebelum kirim.
+  const creditGate = await prepaidSendGate(cfg.plan.kind, ctx.tenantId, 1);
+  if (!creditGate.ok) {
+    logEvent("warn", "send_rich_insufficient_credit", ctx.requestId, {
+      tenantId: ctx.tenantId,
+      kind,
+      balance: creditGate.balance,
+    });
+    return {
+      ok: false,
+      status: 402,
+      error: `Saldo pesan tidak cukup (INSUFFICIENT_CREDIT — sisa ${creditGate.balance}). Lakukan top-up di menu Langganan.`,
+    };
+  }
+
   // 5. Pilih device — D1 (0 Neon queries).
   const device = input.deviceId
     ? await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
@@ -234,6 +251,22 @@ export async function executeSendRichMessage(
       kind,
       messageId,
     });
+
+    // Prepaid: potong saldo 1 pesan pasca-kirim (best-effort, refId unik).
+    if (cfg.plan.kind === "prepaid") {
+      await spendCredit({
+        tenantId: ctx.tenantId,
+        messages: 1,
+        refId: messageId ?? `rich-${uuidv7()}`,
+        reason: "send",
+      }).catch((e) =>
+        logEvent("error", "credit_spend_failed", ctx.requestId, {
+          tenantId: ctx.tenantId,
+          kind,
+          detail: String(e),
+        }),
+      );
+    }
 
     return {
       ok: true,
