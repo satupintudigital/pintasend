@@ -11,6 +11,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   const { id } = await params;
   const body = (await req.json().catch(() => null)) as {
+    priceMonthly?: unknown;
     maxDevices?: unknown;
     maxUsers?: unknown;
     maxMessagesPerMonth?: unknown;
@@ -19,6 +20,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   } | null;
 
   const patch: Parameters<typeof updatePlan>[1] = {};
+  if (body?.priceMonthly === null) {
+    patch.priceMonthly = null;
+  } else if (typeof body?.priceMonthly === "number" && body.priceMonthly >= 0) {
+    patch.priceMonthly = Math.floor(body.priceMonthly);
+  }
   if (typeof body?.maxDevices === "number" && body.maxDevices >= 0) {
     patch.maxDevices = Math.floor(body.maxDevices);
   }

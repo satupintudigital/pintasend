@@ -88,6 +88,7 @@ export interface PlanRow {
   name: string;
   tagline: string;
   priceDisplay: string;
+  priceMonthly: number | null;
   maxDevices: number;
   maxUsers: number;
   maxMessagesPerMonth: number | null;
@@ -97,7 +98,7 @@ export interface PlanRow {
 
 export async function listPlans(): Promise<PlanRow[]> {
   return query<PlanRow>(
-    'SELECT id, name, tagline, "priceDisplay", "maxDevices", "maxUsers", "maxMessagesPerMonth", "includesDelay", "isActive" FROM "Plan" ORDER BY name ASC',
+    'SELECT id, name, tagline, "priceDisplay", "priceMonthly", "maxDevices", "maxUsers", "maxMessagesPerMonth", "includesDelay", "isActive" FROM "Plan" ORDER BY name ASC',
   );
 }
 
@@ -171,6 +172,7 @@ export async function getPlatformMetrics(): Promise<PlatformMetrics> {
 }
 
 export interface PlanPatch {
+  priceMonthly?: number | null;
   maxDevices?: number;
   maxUsers?: number;
   maxMessagesPerMonth?: number | null;
@@ -182,6 +184,10 @@ export interface PlanPatch {
 export async function updatePlan(id: string, patch: PlanPatch): Promise<boolean> {
   const sets: string[] = [];
   const args: unknown[] = [];
+  if (patch.priceMonthly !== undefined) {
+    args.push(patch.priceMonthly);
+    sets.push(`"priceMonthly" = $${args.length}`);
+  }
   if (patch.maxDevices !== undefined) {
     args.push(patch.maxDevices);
     sets.push(`"maxDevices" = $${args.length}`);

@@ -12,6 +12,7 @@ model Plan {
   name                String
   tagline             String
   priceDisplay        String
+  priceMonthly        Int? // nominal rupiah/bulan (null = gratis / tidak tertera)
   maxDevices          Int
   maxUsers            Int
   maxMessagesPerMonth Int?
@@ -19,6 +20,29 @@ model Plan {
   isActive            Boolean  @default(true)
   createdAt           DateTime @default(now())
   tenants             Tenant[]
+}
+
+// ─── INVOICE (registri tagihan bulanan, simulasi) ───────────────────────────
+// Belum terhubung payment gateway — dokumentasikan sebagai registri tagihan
+// agar platform admin punya gambaran pendapatan per bulan. periodStart unik per
+// tenant (satu invoice per tenant per bulan). priceMonthly = snapshot nominal
+// plan saat invoice terbit (ubah harga plan tidak mengubah invoice lama).
+
+model Invoice {
+  id           String   @id @default(uuid(7))
+  tenantId     String
+  planId       String?
+  planName     String
+  priceMonthly Int? // snapshot nominal saat terbit (Rp)
+  periodStart  DateTime // awal bulan tagihan (WIB)
+  periodEnd    DateTime // akhir bulan tagihan (WIB)
+  status       String   @default("issued") // issued | paid | void
+  paidAt       DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt @default(now())
+
+  @@unique([tenantId, periodStart])
+  @@index([status, periodStart])
 }
 
 model Tenant {

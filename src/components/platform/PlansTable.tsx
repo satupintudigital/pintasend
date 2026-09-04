@@ -8,6 +8,7 @@ interface PlanRow {
   name: string;
   tagline: string;
   priceDisplay: string;
+  priceMonthly: number | null;
   maxDevices: number;
   maxUsers: number;
   maxMessagesPerMonth: number | null;
@@ -38,6 +39,7 @@ export function PlansTable({ initial }: PlansTableProps) {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          priceMonthly: p.priceMonthly,
           maxDevices: p.maxDevices,
           maxUsers: p.maxUsers,
           maxMessagesPerMonth: p.maxMessagesPerMonth,
@@ -68,6 +70,7 @@ export function PlansTable({ initial }: PlansTableProps) {
             <th className="px-4 py-3 text-right">Device</th>
             <th className="px-4 py-3 text-right">User</th>
             <th className="px-4 py-3 text-right">Pesan/bulan</th>
+            <th className="px-4 py-3 text-right">Rp/bulan</th>
             <th className="px-4 py-3 text-center">Delay</th>
             <th className="px-4 py-3">Aktif</th>
             <th className="px-4 py-3 text-right">Aksi</th>
@@ -123,6 +126,29 @@ export function PlansTable({ initial }: PlansTableProps) {
                           ? {
                               ...x,
                               maxMessagesPerMonth:
+                                e.target.value === "" ? null : (num(e.target.value) ?? null),
+                            }
+                          : x,
+                      ),
+                    )
+                  }
+                  className="bk-tabular w-24 rounded-lg border border-line bg-ink-2 px-2 py-1.5 text-right text-sm text-fg placeholder:text-fg-faint focus:border-accent focus:outline-none"
+                />
+              </td>
+              <td className="px-4 py-3 text-right">
+                <input
+                  type="number"
+                  min={0}
+                  step={5000}
+                  value={p.priceMonthly ?? ""}
+                  placeholder="gratis"
+                  onChange={(e) =>
+                    setPlans((ps) =>
+                      ps.map((x) =>
+                        x.id === p.id
+                          ? {
+                              ...x,
+                              priceMonthly:
                                 e.target.value === "" ? null : (num(e.target.value) ?? null),
                             }
                           : x,
