@@ -37,6 +37,8 @@ export interface TenantPlanConfig {
   maxUsers: number;
   maxMessagesPerMonth: number | null;
   includesDelay: boolean;
+  /** Jenis plan: "subscription" | "prepaid" | null (tanpa plan). */
+  kind: string | null;
 }
 
 export interface TenantAddonConfig {
@@ -61,11 +63,22 @@ export interface CachedTenantConfig {
 
 // Default: tanpa plan, tanpa addon, tanpa delay, count 0.
 const EMPTY_CONFIG: Omit<CachedTenantConfig, "ts"> = {
-  plan: { maxDevices: 0, maxUsers: 0, maxMessagesPerMonth: null, includesDelay: false },
+  plan: { maxDevices: 0, maxUsers: 0, maxMessagesPerMonth: null, includesDelay: false, kind: null },
   addons: { removeWatermark: false, randomDelay: false, campaign: false },
   features: { delayEnabled: false },
   messageCount: 0,
 };
+
+/**
+ * Kondisi WHERE addon tenant yang AKTIF & belum kedaluwarsa — disentralisasi
+ * agar semua query TenantAddon konsisten. `activeUntil` null = grant permanen
+ * (platform manual); timestamp = kedaluwarsa (addon mandiri via billing).
+ * Alias opsional utk query ber-join (mis. `tenantAddonActiveWhere("a")`).
+ */
+export function tenantAddonActiveWhere(alias = ""): string {
+  const p = alias ? `${alias}.` : "";
+  return `${p}active = true AND (${p}"activeUntil" IS NULL OR ${p}"activeUntil" > now())`;
+}
 
 // ── KV helpers ──────────────────────────────────────────────────────────────
 
@@ -116,6 +129,7 @@ async function fetchFromNeon(tenantId: string): Promise<CachedTenantConfig> {
     maxUsers: number | null;
     maxMessagesPerMonth: number | null;
     includesDelay: boolean | null;
+    kind: string | null;
     delayEnabled: boolean | null;
     removeWm: boolean | null;
     randomDelay: boolean | null;
@@ -123,11 +137,11 @@ async function fetchFromNeon(tenantId: string): Promise<CachedTenantConfig> {
     msgCount: number | null;
   }>(
     `SELECT
-       p."maxDevices", p."maxUsers", p."maxMessagesPerMonth", p."includesDelay",
+       p."maxDevices", p."maxUsers", p."maxMessagesPerMonth", p."includesDelay", p.kind,
        t."delayEnabled",
-       EXISTS(SELECT 1 FROM "TenantAddon" a WHERE a."tenantId" = t.id AND a.key = '${REMOVE_WATERMARK_ADDON_KEY}' AND a.active) AS "removeWm",
-       EXISTS(SELECT 1 FROM "TenantAddon" a WHERE a."tenantId" = t.id AND a.key = '${RANDOM_DELAY_ADDON_KEY}' AND a.active) AS "randomDelay",
-       EXISTS(SELECT 1 FROM "TenantAddon" a WHERE a."tenantId" = t.id AND a.key = '${CAMPAIGN_ADDON_KEY}' AND a.active) AS "campaignAddon",
+       EXISTS(SELECT 1 FROM "TenantAddon" a WHERE a."tenantId" = t.id AND a.key = '${REMOVE_WATERMARK_ADDON_KEY}' AND ${tenantAddonActiveWhere("a")}) AS "removeWm",
+       EXISTS(SELECT 1 FROM "TenantAddon" a WHERE a."tenantId" = t.id AND a.key = '${RANDOM_DELAY_ADDON_KEY}' AND ${tenantAddonActiveWhere("a")}) AS "randomDelay",
+       EXISTS(SELECT 1 FROM "TenantAddon" a WHERE a."tenantId" = t.id AND a.key = '${CAMPAIGN_ADDON_KEY}' AND ${tenantAddonActiveWhere("a")}) AS "campaignAddon",
        (SELECT COUNT(*)::int FROM "MessageLog" m WHERE m."tenantId" = t.id AND m."createdAt" >= $2) AS "msgCount"
      FROM "Tenant" t LEFT JOIN "Plan" p ON p.id = t."planId"
      WHERE t.id = $1`,
@@ -143,6 +157,7 @@ async function fetchFromNeon(tenantId: string): Promise<CachedTenantConfig> {
       maxUsers: row.maxUsers ?? 0,
       maxMessagesPerMonth: row.maxMessagesPerMonth ?? null,
       includesDelay: row.includesDelay ?? false,
+      kind: row.kind ?? null,
     },
     addons: {
       removeWatermark: row.removeWm ?? false,

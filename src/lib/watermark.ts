@@ -12,6 +12,7 @@
 import { query } from "@/lib/db";
 import { getPlatformSetting } from "@/lib/platformSettings";
 import { REMOVE_WATERMARK_ADDON_KEY } from "@/lib/addonKeys";
+import { tenantAddonActiveWhere } from "@/lib/tenantConfig";
 
 /** Key addon TenantAddon yang menghapus footnote dari pesan keluar. */
 export const WATERMARK_ADDON_KEY: string = REMOVE_WATERMARK_ADDON_KEY;
@@ -89,10 +90,14 @@ export function appendFootnote(text: string, footnote: string, maxLength: number
   return foot.slice(0, maxLength);
 }
 
-/** Cek apakah tenant punya addon remove_watermark yang AKTIF. */
+/**
+ * Cek apakah tenant punya addon remove_watermark yang AKTIF & belum
+ * kedaluwarsa (activeUntil masa depan / null utk grant permanen).
+ */
 export async function tenantHasRemoveWatermark(tenantId: string): Promise<boolean> {
   const rows = await query<{ active: boolean }>(
-    'SELECT active FROM "TenantAddon" WHERE "tenantId" = $1 AND key = $2 AND active = true LIMIT 1',
+    `SELECT active FROM "TenantAddon"
+     WHERE "tenantId" = $1 AND key = $2 AND ${tenantAddonActiveWhere()} LIMIT 1`,
     [tenantId, WATERMARK_ADDON_KEY],
   );
   return rows.length > 0;

@@ -81,7 +81,7 @@ function readyDevice(over: Partial<{ id: string; label: string; openwaSessionId:
 const defaultMocks = () => {
   vi.mocked(queryD1One).mockResolvedValue(readyDevice());
   vi.mocked(getTenantConfig).mockResolvedValue({
-    plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+    plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false, kind: "subscription" },
     addons: { removeWatermark: true, randomDelay: false, campaign: false },
     features: { delayEnabled: false },
     messageCount: 0,
@@ -153,7 +153,7 @@ describe("executeSendMessage — validasi & error", () => {
   });
 
   it("kuota pesan habis → 429", async () => {
-    vi.mocked(getTenantConfig).mockResolvedValue({ plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: 100, includesDelay: false }, addons: { removeWatermark: false, randomDelay: false, campaign: false }, features: { delayEnabled: false }, messageCount: 100, ts: Date.now() });
+    vi.mocked(getTenantConfig).mockResolvedValue({ plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: 100, includesDelay: false, kind: "subscription" }, addons: { removeWatermark: false, randomDelay: false, campaign: false }, features: { delayEnabled: false }, messageCount: 100, ts: Date.now() });
     const result = await executeSendMessage(jsonReq({ to: "6281234567890", text: "x" }), ctx);
     expect(result).toMatchObject({ ok: false, status: 429 });
   });
@@ -334,7 +334,7 @@ describe("executeSendMessage — watermark footnote (iklan platform)", () => {
 
   it("tanpa addon remove_watermark → footnote disisipkan ke teks + watermark:true", async () => {
     vi.mocked(getTenantConfig).mockResolvedValue({
-      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false, kind: "subscription" },
       addons: { removeWatermark: false, randomDelay: false, campaign: false },
       features: { delayEnabled: false },
       messageCount: 0,
@@ -349,7 +349,7 @@ describe("executeSendMessage — watermark footnote (iklan platform)", () => {
 
   it("addon remove_watermark aktif → tanpa footnote & tanpa field watermark", async () => {
     vi.mocked(getTenantConfig).mockResolvedValue({
-      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false, kind: "subscription" },
       addons: { removeWatermark: true, randomDelay: false, campaign: false },
       features: { delayEnabled: false },
       messageCount: 0,
@@ -365,7 +365,7 @@ describe("executeSendMessage — watermark footnote (iklan platform)", () => {
 
   it("media dengan caption → footnote disisipkan ke caption", async () => {
     vi.mocked(getTenantConfig).mockResolvedValue({
-      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false, kind: "subscription" },
       addons: { removeWatermark: false, randomDelay: false, campaign: false },
       features: { delayEnabled: false },
       messageCount: 0,
@@ -386,7 +386,7 @@ describe("executeSendMessage — watermark footnote (iklan platform)", () => {
 
   it("media tanpa caption → footnote menjadi caption", async () => {
     vi.mocked(getTenantConfig).mockResolvedValue({
-      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false, kind: "subscription" },
       addons: { removeWatermark: false, randomDelay: false, campaign: false },
       features: { delayEnabled: false },
       messageCount: 0,
@@ -407,7 +407,7 @@ describe("executeSendMessage — watermark footnote (iklan platform)", () => {
 
   it("sticker → footnote TIDAK disisipkan (tanpa caption)", async () => {
     vi.mocked(getTenantConfig).mockResolvedValue({
-      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false, kind: "subscription" },
       addons: { removeWatermark: false, randomDelay: false, campaign: false },
       features: { delayEnabled: false },
       messageCount: 0,
@@ -427,7 +427,7 @@ describe("executeSendMessage — watermark footnote (iklan platform)", () => {
 
   it("teks panjang (≤ 4096) → dipangkas agar footnote tetap muat (total ≤ 4096)", async () => {
     vi.mocked(getTenantConfig).mockResolvedValue({
-      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false, kind: "subscription" },
       addons: { removeWatermark: false, randomDelay: false, campaign: false },
       features: { delayEnabled: false },
       messageCount: 0,
@@ -444,7 +444,7 @@ describe("executeSendMessage — watermark footnote (iklan platform)", () => {
 describe("executeSendMessage — delay anti-spam", () => {
   it("delay aktif → sleep dipanggil & delayMs disertakan", async () => {
     vi.mocked(getTenantConfig).mockResolvedValue({
-      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: true },
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: true, kind: "subscription" },
       addons: { removeWatermark: false, randomDelay: false, campaign: false },
       features: { delayEnabled: true },
       messageCount: 0,

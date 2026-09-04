@@ -9,6 +9,7 @@
 
 import { queryOne } from "@/lib/db";
 import { RANDOM_DELAY_ADDON_KEY } from "@/lib/addonKeys";
+import { tenantAddonActiveWhere } from "@/lib/tenantConfig";
 
 export const DELAY_MIN_MS = 3000;
 export const DELAY_MAX_MS = 10000;
@@ -53,7 +54,8 @@ export async function getTenantDelayInfo(tenantId: string): Promise<DelayInfo> {
     `SELECT t."delayEnabled",
             p."includesDelay",
             EXISTS(SELECT 1 FROM "TenantAddon" a
-                   WHERE a."tenantId" = t.id AND a.key = '${RANDOM_DELAY_ADDON_KEY}' AND a.active) AS "addonActive"
+                   WHERE a."tenantId" = t.id AND a.key = '${RANDOM_DELAY_ADDON_KEY}'
+                     AND ${tenantAddonActiveWhere("a")}) AS "addonActive"
      FROM "Tenant" t LEFT JOIN "Plan" p ON p.id = t."planId"
      WHERE t.id = $1`,
     [tenantId],

@@ -44,7 +44,7 @@ beforeEach(() => {
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true });
   vi.mocked(openwa.sendTemplate).mockResolvedValue({ messageId: "m-tpl-1", status: "sent" });
   vi.mocked(getTenantConfig).mockResolvedValue({
-    plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+    plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false, kind: "subscription" },
     addons: { removeWatermark: false, randomDelay: false, campaign: false },
     features: { delayEnabled: false },
     messageCount: 0,
@@ -104,7 +104,7 @@ describe("executeSendTemplate — sukses", () => {
 
   it("addon remove_watermark aktif → vars.watermark kosong, respons tanpa field watermark, log false", async () => {
     vi.mocked(getTenantConfig).mockResolvedValue({
-      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false },
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: false, kind: "subscription" },
       addons: { removeWatermark: true, randomDelay: false, campaign: false },
       features: { delayEnabled: false },
       messageCount: 0,
@@ -169,7 +169,7 @@ describe("executeSendTemplate — validasi & error", () => {
 
   it("kuota pesan habis → 429", async () => {
     vi.mocked(getTenantConfig).mockResolvedValue({
-      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: 100, includesDelay: false },
+      plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: 100, includesDelay: false, kind: "subscription" },
       addons: { removeWatermark: false, randomDelay: false, campaign: false },
       features: { delayEnabled: false },
       messageCount: 100,

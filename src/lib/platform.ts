@@ -1,5 +1,6 @@
 import { query } from "@/lib/db";
 import { uuidv7 } from "@/lib/uuidv7";
+import { tenantAddonActiveWhere } from "@/lib/tenantConfig";
 
 export interface TenantListRow {
   id: string;
@@ -71,9 +72,9 @@ export async function getTenantDetail(id: string): Promise<TenantDetailRow | nul
     `SELECT t.id, t.name, t."createdAt", t."suspendedAt", t."planId", p.name AS "planName",
             t."delayEnabled", t."messageRetentionDays",
             EXISTS(SELECT 1 FROM "TenantAddon" a
-                   WHERE a."tenantId" = t.id AND a.key = 'random_delay' AND a.active) AS "delayAddonActive",
+                   WHERE a."tenantId" = t.id AND a.key = 'random_delay' AND ${tenantAddonActiveWhere("a")}) AS "delayAddonActive",
             EXISTS(SELECT 1 FROM "TenantAddon" a
-                   WHERE a."tenantId" = t.id AND a.key = 'remove_watermark' AND a.active) AS "watermarkAddonActive",
+                   WHERE a."tenantId" = t.id AND a.key = 'remove_watermark' AND ${tenantAddonActiveWhere("a")}) AS "watermarkAddonActive",
             (SELECT COUNT(*)::int FROM "Device" d WHERE d."tenantId" = t.id) AS devices,
             (SELECT COUNT(*)::int FROM "User" u WHERE u."tenantId" = t.id) AS users,
             (SELECT COUNT(*)::int FROM "MessageLog" m WHERE m."tenantId" = t.id) AS messages
@@ -130,6 +131,9 @@ export async function setTenantDelayEnabled(tenantId: string, enabled: boolean):
 }
 
 // Grant/revoke addon tenant (upsert). Key di-whitelist di lapisan route.
+// Grant (active=true) = permanen → activeUntil di-reset NULL. Revoke
+// (active=false) mempertahankan activeUntil lama (bila addon dibeli mandiri
+// lalu dicabut admin, pembelian aslinya tidak hilang).
 export async function setTenantAddon(
   tenantId: string,
   key: string,
@@ -137,7 +141,9 @@ export async function setTenantAddon(
 ): Promise<boolean> {
   const rows = await query<{ id: string }>(
     'INSERT INTO "TenantAddon" (id, "tenantId", key, active) VALUES ($1, $2, $3, $4) ' +
-      'ON CONFLICT ("tenantId", key) DO UPDATE SET active = EXCLUDED.active, "updatedAt" = now() ' +
+      'ON CONFLICT ("tenantId", key) DO UPDATE SET active = EXCLUDED.active, ' +
+      '"activeUntil" = CASE WHEN EXCLUDED.active THEN NULL ELSE "TenantAddon"."activeUntil" END, ' +
+      '"updatedAt" = now() ' +
       "RETURNING id",
     [uuidv7(), tenantId, key, active],
   );

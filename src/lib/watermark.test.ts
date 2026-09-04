@@ -83,6 +83,13 @@ describe("tenantHasRemoveWatermark", () => {
     vi.mocked(query).mockResolvedValueOnce([]);
     expect(await tenantHasRemoveWatermark("t1")).toBe(false);
   });
+
+  it("query menyertakan kondisi activeUntil (kedaluwarsa diperhitungkan)", async () => {
+    vi.mocked(query).mockResolvedValueOnce([{ active: true }]);
+    await tenantHasRemoveWatermark("t1");
+    const sql = vi.mocked(query).mock.calls[0][0] as string;
+    expect(sql).toContain('"activeUntil" IS NULL OR "activeUntil" > now()');
+  });
 });
 
 describe("resolveWatermarkFootnote", () => {

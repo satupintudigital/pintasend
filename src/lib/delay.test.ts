@@ -62,7 +62,9 @@ describe("delay", () => {
       entitled: true,
       active: true,
     });
-    expect(neonQuery.mock.calls[0][0]).toContain("TenantAddon");
+    const sql = neonQuery.mock.calls[0][0] as string;
+    expect(sql).toContain("TenantAddon");
+    expect(sql).toContain('a."activeUntil" IS NULL OR a."activeUntil" > now()');
   });
 
   it("getTenantDelayInfo: tenant tanpa plan / tidak ditemukan → nonaktif", async () => {
