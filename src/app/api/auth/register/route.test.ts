@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { POST } from "./route";
 import { registerTenantOwner, EmailAlreadyTakenError } from "@/lib/register";
 import { signIn } from "@/lib/auth";
-import { getPublicCatalog } from "@/lib/catalog";
 
 vi.mock("@/lib/register", () => ({
   registerTenantOwner: vi.fn(),

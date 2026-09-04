@@ -99,6 +99,24 @@ Blast massal ratusan–ribuan penerima, digate `TenantAddon` key `campaign`:
 - **Dispatcher** — `workers/campaign-dispatch` (HTTP on-demand): claim batch pending → kirim via OpenWA berjeda acak → cap harian per device → auto-pause saat device restriction/kuota habis → finalisasi + event webhook `campaign.completed` (via outbox `WebhookDelivery`).
 - **Skema & migrasi:** `prisma/migrations/2026-08-21-campaign.sql` (apply: `node prisma/apply-migration.mjs prisma/migrations/2026-08-21-campaign.sql`).
 
+## Self-serve billing (registrasi publik + pembayaran)
+
+Alur jual paket tanpa intervensi admin platform (`2026-09-04-self-serve-billing.sql`):
+
+- **Registrasi publik** — `/register` membuat tenant baru (status `pending`, `activatedAt` NULL) + user owner + saldo `TenantBalance`; gate login/API key menolak tenant pending hingga order pertama lunas.
+- **Katalog dinamis** — `GET /api/public/catalog` (publik, tanpa auth) membaca `Plan` (kind `subscription`/`prepaid`) + `Addon` dari `PlatformSetting`; halaman landing Pricing render dinamis dari sini.
+- **Order & checkout** — `POST /api/billing/orders` membuat order (aktivasi bulanan Latte/Mocha, top-up Espresso = aktivasi prepaid, addon); `GET /api/billing/my` = status langganan tenant; `GET /api/billing/orders/:id` polling pembayaran; halaman `/checkout` menampilkan kode bayar + polling otomatis.
+- **Top-up pertama = aktivasi Espresso** — order top-up prepaid membawa `planId`; saat lunas, tenant diaktifkan (`activatedAt`) + plan prepaid di-assign.
+- **Payment gateway Tripay** — `src/lib/providers/tripay.ts` + callback `POST /api/billing/tripay/callback` (HMAC + idempoten); sandbox: `TRIPAY_MODE=sandbox`.
+- **Renewal bulanan lazy** — `billingRenewal.ts` memperpanjang periode (`planPeriodEnd`) saat periode habis; `POST /api/billing/sync` memicu sinkronisasi; renewal di-fan-out ke D1 (`syncTenantD1`).
+- **Saldo prepaid (Espresso)** — `TenantBalance` + `CreditLedger`; setiap kirim pesan memotong saldo (idempoten per refId, batch dipotong per batch); saldo 0 → kirim ditolak 402/`insufficient_credit`.
+- **Addon berbayar** — `TenantAddon.activeUntil` meng-expire `random_delay`/`remove_watermark` otomatis di config tenant.
+- **UI** — `/register`, `/checkout`, `/dashboard/langganan` (langganan & saldo tenant), `/platform/orders` + `/platform/plans` (kelola order & katalog platform).
+
+### Tripay env
+
+`TRIPAY_MODE` (`sandbox`|`production`), `TRIPAY_API_KEY`, `TRIPAY_PRIVATE_KEY`, `TRIPAY_MERCHANT_CODE` — lihat `.env.example` seksi `🔗 TRIPAY`. Callback URL didaftarkan di dashboard Tripay → `POST /api/billing/tripay/callback`. Di production, set sebagai secret Worker bila route dijalankan di Worker.
+
 ## Integrasi NalaNiaga (Fase 4 — gateway SSO)
 
 NalaNiaga memakai Wavio sebagai gateway WhatsApp tanpa konfigurasi manual:
@@ -118,7 +136,7 @@ node prisma/apply-schema.mjs   # menerapkan SQL ke DATABASE_URL
 
 ## Env & secret
 
-`.env` (lokal) dan `wrangler secret put` (Worker): `DATABASE_URL`, `AUTH_SECRET`, `OPENWA_BASE_URL` (`https://owa.nalaniaga.id`), `OPENWA_ADMIN_KEY`, `RESEND_API_KEY` + `EMAIL_FROM` (email via Resend, sender `Wavio <noreply@wavio.satupintudigital.co.id>`).
+`.env` (lokal) dan `wrangler secret put` (Worker): `DATABASE_URL`, `AUTH_SECRET`, `OPENWA_BASE_URL` (`https://owa.nalaniaga.id`), `OPENWA_ADMIN_KEY`, `RESEND_API_KEY` + `EMAIL_FROM` (email via Resend, sender `Wavio <noreply@wavio.satupintudigital.co.id>`), plus `TRIPAY_MODE`/`TRIPAY_API_KEY`/`TRIPAY_PRIVATE_KEY`/`TRIPAY_MERCHANT_CODE` (self-serve billing) — lihat `.env.example`.
 
 ## Sinkronisasi template NalaNiaga → Wavio → OpenWA
 

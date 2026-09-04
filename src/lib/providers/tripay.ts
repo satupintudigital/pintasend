@@ -48,11 +48,27 @@ function constantTimeEqualHex(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// Payload Tripay adalah JSON dinamis (data transaksi/channel bervariasi antar
+// endpoint) — nilai diakses field-wise, jadi tipe longgar cukup.
+interface TripayJson {
+  success?: boolean;
+  data?: unknown;
+  message?: string;
+}
+
+// Sempitkan `data` Tripay ke objek record (bukan array/null) untuk akses field.
+function dataRecord(data: unknown): Record<string, unknown> {
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    return data as Record<string, unknown>;
+  }
+  return {};
+}
+
 async function tripayFetch(
   env: Record<string, string | undefined>,
   path: string,
   init?: RequestInit,
-): Promise<any> {
+): Promise<TripayJson> {
   const res = await fetch(`${baseUrl(env.TRIPAY_MODE)}${path}`, {
     ...init,
     headers: {
@@ -104,13 +120,13 @@ export function createPaymentProvider(
         method: "POST",
         body: JSON.stringify(body),
       });
-      const d = json?.data ?? {};
+      const d = dataRecord(json?.data);
       return {
         gatewayRef: String(d.reference ?? ""),
-        payCode: d.pay_code ?? null,
-        checkoutUrl: d.checkout_url ?? null,
+        payCode: typeof d.pay_code === "string" ? d.pay_code : null,
+        checkoutUrl: typeof d.checkout_url === "string" ? d.checkout_url : null,
         payMethod: input.method,
-        qrString: d.qr_string ?? null,
+        qrString: typeof d.qr_string === "string" ? d.qr_string : null,
       };
     },
 
@@ -137,17 +153,19 @@ export function createPaymentProvider(
     async checkStatus(gatewayRef: string): Promise<PaymentStatus> {
       requireKey("TRIPAY_API_KEY");
       const json = await tripayFetch(e, `/transaction/detail?reference=${encodeURIComponent(gatewayRef)}`);
-      const d = json?.data ?? {};
+      const d = dataRecord(json?.data);
       return {
         status: String(d.status ?? "UNKNOWN"),
-        paidAt: d.paid_at ?? null,
+        paidAt: typeof d.paid_at === "string" ? d.paid_at : null,
       };
     },
 
     async listChannels(): Promise<PaymentChannel[]> {
       requireKey("TRIPAY_API_KEY");
       const json = await tripayFetch(e, "/merchant/payment-channel");
-      const rows: any[] = Array.isArray(json?.data) ? json.data : [];
+      const rows: Record<string, unknown>[] = Array.isArray(json?.data)
+        ? (json.data as Record<string, unknown>[])
+        : [];
       return rows.map((r) => ({
         code: String(r.code ?? ""),
         name: String(r.name ?? ""),

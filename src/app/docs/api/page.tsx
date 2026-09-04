@@ -38,6 +38,12 @@ const endpoints = [
   { method: "POST" as const, path: "/v1/campaigns/:id/pause", desc: "Jeda campaign yang berjalan" },
   { method: "POST" as const, path: "/v1/campaigns/:id/cancel", desc: "Batalkan campaign (sisa pending di-skip)" },
   { method: "GET" as const, path: "/api/health", desc: "Status layanan (publik)" },
+  { method: "GET" as const, path: "/api/public/catalog", desc: "Katalog paket & addon (publik, tanpa auth) — dipakai halaman Pricing" },
+  { method: "POST" as const, path: "/api/auth/register", desc: "Registrasi publik (Turnstile) — buat tenant + owner baru" },
+  { method: "POST" as const, path: "/api/billing/orders", desc: "Buat order pembayaran (aktivasi, top-up, addon, renewal)" },
+  { method: "GET" as const, path: "/api/billing/orders/:id", desc: "Detail order + status pembayaran (untuk polling)" },
+  { method: "GET" as const, path: "/api/billing/my", desc: "Status langganan & saldo tenant (session)" },
+  { method: "POST" as const, path: "/api/billing/sync", desc: "Sinkronkan periode langganan & mirror D1" },
 ];
 
 export default function DocsApi() {
@@ -1223,6 +1229,56 @@ User-Agent: Wavio-Webhook/1.0`}
               <code className="font-mono">{"{\"retentionDays\", \"defaultRetentionDays\", \"requests\": [{\"status\": \"pending|approved|rejected\"}]}"}</code>
               — <code className="font-mono">retentionDays</code> adalah nilai yang
               berlaku saat ini (berubah hanya setelah permintaan disetujui platform).
+            </p>
+          </section>
+
+          {/* Self-serve billing */}
+          <section>
+            <Anchor id="self-serve-billing">Self-serve billing — registrasi &amp; pembayaran</Anchor>
+            <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+              Alur jual paket mandiri (tanpa intervensi admin platform): registrasi
+              publik → checkout → bayar via Tripay → tenant aktif. Endpoint publik &
+              billing di bawah memakai session login (kecuali dicatat publik).
+            </p>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
+              <li>
+                <strong>GET /api/public/catalog</strong> (publik) — katalog paket
+                (kind <code className="font-mono">subscription</code> |{" "}
+                <code className="font-mono">prepaid</code>) dan addon, harga dari{" "}
+                <code className="font-mono">PlatformSetting</code>. Dipakai halaman landing Pricing.
+              </li>
+              <li>
+                <strong>POST /api/auth/register</strong> — buat tenant baru (status{" "}
+                <code className="font-mono">pending</code>) + user owner + saldo awal. Wajib token Turnstile.
+                Login/API key ditolak sampai order pertama lunas (aktivasi).
+              </li>
+              <li>
+                <strong>POST /api/billing/orders</strong> — buat order: aktivasi paket
+                bulanan (Latte/Mocha), <em>top-up Espresso</em> (top-up pertama = aktivasi
+                prepaid), addon berbayar, atau renewal. Respons menyertakan{" "}
+                <code className="font-mono">checkoutUrl</code> /{" "}
+                <code className="font-mono">payCode</code> Tripay.
+              </li>
+              <li>
+                <strong>GET /api/billing/orders/:id</strong> — status order untuk polling;
+                setelah lunas tenant otomatis aktif / saldo bertambah.
+              </li>
+              <li>
+                <strong>GET /api/billing/my</strong> — ringkasan langganan tenant:
+                plan aktif, <code className="font-mono">planPeriodEnd</code>, saldo pesan
+                prepaid, dan order terakhir.
+              </li>
+              <li>
+                <strong>POST /api/billing/sync</strong> — sinkronkan periode langganan
+                (renewal lazy saat periode habis) dan mirror D1{" "}
+                (<code className="font-mono">activatedAt</code>).
+              </li>
+            </ul>
+            <h3 className="mt-6 text-sm font-semibold text-fg">Webhook pembayaran</h3>
+            <p className="mt-2 text-sm text-fg-muted">
+              Tripay mengirim callback ke <code className="font-mono">POST /api/billing/tripay/callback</code>{" "}
+              (divalidasi HMAC, idempoten; didaftarkan di dashboard Tripay). Tenang —
+              endpoint ini internal, bukan untuk dipanggil manual.
             </p>
           </section>
 

@@ -310,7 +310,8 @@ Platform admin = role `platform_admin`, tenantId = `00000000-0000-7000-8000-0000
 ## 7. Rekomendasi
 
 - **Untuk owner@wavio.test**: fitur WebSocket/WhatsApp messaging sudah cukup lengkap. Tambahkan member management (add/remove member di tenant) jika owner butuh multi-user di satu tenant.
-- **Untuk superadmin platform**: ada, tapi fiturnya terbatas ke tenant lifecycle, plan, delay, retention approval, dan metrics. Kalau butuh audit log, billing, atau global broadcast, itu perlu ditambahkan.
+- **Untuk superadmin platform**: ada, tapi fiturnya terbatas ke tenant lifecycle, plan, delay, retention approval, dan metrics. Kalau butuh audit log, billing, atau global broadcast, itu perlu ditambahkan. *(Sudah ditutup: audit log, global broadcast, invoice, dan settings — lihat plan platform owner/superadmin.)*
+- **Jual paket ke user (gap)**: sudah ditutup oleh self-serve billing (`2026-09-04-self-serve-billing.sql`) — registrasi publik + order Tripay + aktivasi otomatis + saldo prepaid Espresso + addon berbayar (`activeUntil`). Detail: `README.md` seksi Self-serve billing.
 - **Untuk keamanan**: verifikasi `/api/admin/users` dan `/api/admin/api-keys` hanya accessible by `platform_admin`.
 
 ---

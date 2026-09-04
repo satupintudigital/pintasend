@@ -48,3 +48,20 @@ Task 6: complete (commits d9b5c22..HEAD, review clean — billingRenewal.ts + sy
 - Checkout + mode renewal_subscription (attach payment ke order renewal tanpa gateway — createOrder idempoten).
 - Platform: menu Orders; /platform/orders + OrdersTable (filter status + tombol Resync Tripay → POST /api/billing/sync + refresh); listPlatformOrders di platform.ts; PlansTable + isPublic/sortOrder input & label kind; plans PUT terima isPublic/sortOrder (PlanPatch/updatePlan); SettingsForm + 4 input billing (activation_fee_rp, credit_price_per_message, credit_min_topup_rp, order_expiry_minutes).
 - tsc & lint bersih; 963 test hijau.
+
+## Task 14: Worker D1 resync, docs, env, verifikasi akhir — complete
+- workers/d1-resync/worker.js: spec "tenant" kini sync activatedAt (Neon → D1) — gate login/API key D1 butuh membedakan pending vs aktif; INSERT OR REPLACE 4 kolom.
+- .env.example: seksi 🔗 TRIPAY (TRIPAY_MODE sandbox/production, TRIPAY_API_KEY, TRIPAY_PRIVATE_KEY, TRIPAY_MERCHANT_CODE) + catatan callback URL.
+- README.md: seksi "Self-serve billing (registrasi publik + pembayaran)" (alur, top-up pertama = aktivasi, renewal, saldo, addon activeUntil, UI) + Tripay env + update seksi Env & secret.
+- src/app/docs/api/page.tsx: 6 endpoint billing baru di tabel daftar + seksi "Self-serve billing — registrasi & pembayaran" (catalog, register, orders, my, sync, callback Tripay).
+- docs/wavio-fitur-review.md: gap "jual paket ke user" ditandai tertutup (self-serve billing).
+- Lint: tripay.ts no-explicit-any dibereskan (TripayJson + dataRecord, tanpa cast any); 4 error tersisa = pra-ada dashboard channels/labels/profile. Warnings baru dibersihkan (import tak terpakai register.ts/route.test.ts/register.test.ts).
+- Verifikasi: npx tsc --noEmit bersih; npm run test 963 hijau (119 file); lint hanya 4 error pra-ada.
+
+## Verifikasi akhir (Task 14 checklist)
+- [x] npx tsc --noEmit bersih
+- [x] npm run test → 963 hijau (119 file)
+- [x] npm run lint → hanya 4 error pra-ada (dashboard channels/labels/profile)
+- [ ] Migrasi Neon 2026-09-04-self-serve-billing.sql di-apply ke production (idempotent; butuh persetujuan)
+- [ ] D1: kolom activatedAt (prisma/d1-schema.sql) di-apply ke wavio-auth
+- [ ] Deploy: merge → npm run deploy + deploy ulang workers/d1-resync

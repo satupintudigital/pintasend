@@ -111,10 +111,17 @@ const TABLE_SPECS = [
     stat: "tenant",
     neonTable: "Tenant",
     d1Table: "Tenant",
-    neonColumns: 'id, name, "suspendedAt"',
-    d1Columns: "(id, name, suspendedAt)",
-    d1Values: "(?, ?, ?)",
-    map: (t) => [t.id, t.name, t.suspendedAt ? new Date(t.suspendedAt).toISOString() : null],
+    // activatedAt ikut di-sync karena gate login/API key D1 (authStore)
+    // butuh membedakan tenant pending vs aktif (self-serve billing).
+    neonColumns: 'id, name, "suspendedAt", "activatedAt"',
+    d1Columns: "(id, name, suspendedAt, activatedAt)",
+    d1Values: "(?, ?, ?, ?)",
+    map: (t) => [
+      t.id,
+      t.name,
+      t.suspendedAt ? new Date(t.suspendedAt).toISOString() : null,
+      t.activatedAt ? new Date(t.activatedAt).toISOString() : null,
+    ],
   },
 ];
 

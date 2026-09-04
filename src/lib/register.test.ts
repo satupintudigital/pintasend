@@ -15,7 +15,7 @@ vi.mock("@/lib/d1", () => ({
   queryD1One: vi.fn(async () => undefined),
 }));
 vi.mock("@/lib/authStore", () => ({
-  createUser: vi.fn(async (input: { tenantId: string; email: string }) => ({ id: "user-1" })),
+  createUser: vi.fn(async () => ({ id: "user-1" })),
 }));
 vi.mock("@/lib/tenantStore", () => ({
   syncTenantD1: vi.fn(async () => true),

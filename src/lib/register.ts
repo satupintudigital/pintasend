@@ -8,7 +8,6 @@ import { query } from "@/lib/db";
 import { queryD1 } from "@/lib/d1";
 import { uuidv7 } from "@/lib/uuidv7";
 import { createUser } from "@/lib/authStore";
-import { syncTenantD1 } from "@/lib/tenantStore";
 import { sendWelcomeEmail } from "@/lib/email";
 
 export interface RegisterInput {
