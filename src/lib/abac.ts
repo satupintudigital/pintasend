@@ -73,7 +73,7 @@ export function canManageTenantMembers(p: Principal, tenantId: string | null | u
   return p.role === "owner" || p.role === "tenant_admin";
 }
 
-interface SessionLike {
+export interface SessionLike {
   user?: {
     id?: string;
     email?: string | null;

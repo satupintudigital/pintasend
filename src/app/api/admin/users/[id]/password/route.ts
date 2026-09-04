@@ -1,19 +1,21 @@
 import { auth } from "@/lib/auth";
-import bcrypt from "bcryptjs";
-import { updateUserPassword } from "@/lib/authStore";
+import { canManageTenantMembers, parsePrincipal, unauthorized, forbidden } from "@/lib/abac";
+import { resetTenantMemberPassword } from "@/lib/tenantMembers";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 
-// Reset password pengguna dari halaman admin — owner-only.
-// Write-through via authStore: Neon source of truth → clone D1,
-// sehingga login (yang baca D1) langsung memakai password baru.
+// Reset password user tenant — owner & tenant_admin.
+// Sebelumnya route ini meng-update user hanya by id (tanpa scope tenant) —
+// celah lintas-tenant. Sekarang lewat resetTenantMemberPassword yang melakukan
+// getUserInTenant dulu (user tenant lain → 404), lalu write-through Neon → D1.
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
-  if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "owner") {
-    return Response.json({ error: "Forbidden — hanya owner" }, { status: 403 });
+  const p = parsePrincipal(session);
+  if (!p) return unauthorized();
+  if (!canManageTenantMembers(p, p.tenantId)) {
+    return forbidden("Forbidden — hanya owner atau tenant_admin");
   }
 
-  const rl = await checkRateLimit(`admin-password:${clientIp(req)}`, 20, 60_000);
+  const rl = await checkRateLimit(`admin-password:${p.tenantId}:${clientIp(req)}`, 20, 60_000);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterSec);
 
   const { id } = await params;
@@ -29,12 +31,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   try {
-    const passwordHash = bcrypt.hashSync(password, 10);
-    const result = await updateUserPassword(id, passwordHash);
-    if (!result.updated) {
-      return Response.json({ error: "Pengguna tidak ditemukan" }, { status: 404 });
+    const result = await resetTenantMemberPassword(id, p.tenantId, password);
+    if (!result.ok) {
+      return Response.json(
+        { error: result.error ?? "Gagal mereset password" },
+        { status: result.status ?? 400 },
+      );
     }
-    return Response.json({ ok: true, d1Ok: result.d1Ok });
+    return Response.json({ ok: true, d1Ok: result.data?.d1Ok });
   } catch (e) {
     console.error("admin/users/[id]/password:", e);
     return Response.json({ error: "Gagal mereset password" }, { status: 500 });
