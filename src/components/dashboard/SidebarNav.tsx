@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ChatCircleText,
+  CreditCard,
   Devices,
   House,
   Key,
@@ -24,6 +25,10 @@ const items = [
   { href: "/dashboard/channels", label: "Channels", icon: Radio },
   { href: "/dashboard/profile", label: "Profil", icon: UserCircle },
 ];
+
+// Langganan (billing self-serve) — owner & tenant_admin; TETAP tampil saat
+// tenant pending agar aktivasi bisa diselesaikan.
+const billingItem = [{ href: "/dashboard/langganan", label: "Langganan", icon: CreditCard }];
 
 // Kelola member tenant (owner & tenant_admin) — halaman Members.
 const memberAdminItems = [
@@ -47,19 +52,26 @@ export function SidebarNav({
   canManageUsers = false,
   isOwner = false,
   hasCampaign = false,
+  pending = false,
 }: {
   horizontal?: boolean;
   canManageUsers?: boolean;
   isOwner?: boolean;
   hasCampaign?: boolean;
+  /** Tenant pending (belum bayar paket) → sembunyikan menu operasional. */
+  pending?: boolean;
 }) {
   const pathname = usePathname();
-  const visible = [
-    ...items,
-    ...(hasCampaign ? campaignItems : []),
-    ...(canManageUsers ? memberAdminItems : []),
-    ...(isOwner ? ownerItems : []),
-  ];
+  // Saat pending hanya Beranda, Profil, dan Langganan yang tampil — sisanya
+  // aktif setelah pembayaran pertama lunas.
+  const visible = pending
+    ? [items[0], ...billingItem, items[items.length - 1]]
+    : [
+        ...items,
+        ...(hasCampaign ? campaignItems : []),
+        ...(canManageUsers ? [...billingItem, ...memberAdminItems] : []),
+        ...(isOwner ? ownerItems : []),
+      ];
 
   const linkClass = (active: boolean) =>
     `flex items-center gap-2.5 rounded-lg px-3 text-sm font-medium transition-colors ${

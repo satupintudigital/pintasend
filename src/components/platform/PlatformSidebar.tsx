@@ -9,6 +9,7 @@ import {
   House,
   Invoice,
   Megaphone,
+  Receipt,
   Stack,
   UsersThree,
 } from "@phosphor-icons/react";
@@ -19,6 +20,7 @@ const items = [
   { href: "/platform/plans", label: "Plan", icon: Stack },
   { href: "/platform/tenants", label: "Tenant", icon: UsersThree },
   { href: "/platform/broadcasts", label: "Broadcast", icon: Megaphone },
+  { href: "/platform/orders", label: "Orders", icon: Receipt },
   { href: "/platform/invoices", label: "Invoice", icon: Invoice },
   { href: "/platform/audit", label: "Audit", icon: ClipboardText },
   { href: "/platform/settings", label: "Pengaturan", icon: GearSix },

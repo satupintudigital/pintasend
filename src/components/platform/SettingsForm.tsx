@@ -14,7 +14,7 @@ const FIELDS: {
   key: string;
   label: string;
   desc: string;
-  type: "text" | "textarea" | "toggle";
+  type: "text" | "textarea" | "toggle" | "number";
   placeholder?: string;
 }[] = [
   {
@@ -44,17 +44,49 @@ const FIELDS: {
     type: "text",
     placeholder: "30",
   },
+  {
+    key: "activation_fee_rp",
+    label: "Biaya aktivasi (Rp)",
+    desc: "Biaya sekali untuk paket bulanan (0 = tanpa aktivasi).",
+    type: "number",
+    placeholder: "350000",
+  },
+  {
+    key: "credit_price_per_message",
+    label: "Harga per pesan prepaid (Rp)",
+    desc: "Tarif potong saldo per pesan terkirim (Espresso).",
+    type: "number",
+    placeholder: "400",
+  },
+  {
+    key: "credit_min_topup_rp",
+    label: "Minimal top-up (Rp)",
+    desc: "Nominal minimum pembelian pulsa pesan.",
+    type: "number",
+    placeholder: "20000",
+  },
+  {
+    key: "order_expiry_minutes",
+    label: "Masa berlaku order (menit)",
+    desc: "Batas waktu pembayaran order sebelum dinyatakan kedaluwarsa.",
+    type: "number",
+    placeholder: "1440",
+  },
 ];
 
-const EMPTY: Record<string, string | boolean> = {
+const EMPTY: Record<string, string | boolean | number> = {
   platform_name: "",
   watermark_footnote: "",
   allow_public_registration: false,
   message_retention_default_days: "30",
+  activation_fee_rp: 350000,
+  credit_price_per_message: 400,
+  credit_min_topup_rp: 20000,
+  order_expiry_minutes: 1440,
 };
 
 export function SettingsForm() {
-  const [values, setValues] = useState<Record<string, string | boolean>>(EMPTY);
+  const [values, setValues] = useState<Record<string, string | boolean | number>>(EMPTY);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -73,7 +105,7 @@ export function SettingsForm() {
             const parsed = JSON.parse(row.value) as string | boolean | number;
             next[row.key] = row.key === "message_retention_default_days"
               ? String(parsed)
-              : (parsed as string | boolean);
+              : parsed;
           } catch {
             // value korup → biarkan default
           }
@@ -92,12 +124,16 @@ export function SettingsForm() {
     };
   }, []);
 
-  async function save(key: string, value: string | boolean) {
+  async function save(key: string, value: string | boolean | number) {
     setSaving(key);
     setStatus(null);
     try {
       // Key bertipe number dikirim sebagai angka (route memvalidasi tipe).
-      const payload = key === "message_retention_default_days" ? Number(value) : value;
+      const field = FIELDS.find((f) => f.key === key);
+      const payload =
+        field?.type === "number" || key === "message_retention_default_days"
+          ? Number(value)
+          : value;
       const res = await fetch("/api/platform/settings", {
         method: "PUT",
         headers: { "content-type": "application/json" },
@@ -162,6 +198,16 @@ export function SettingsForm() {
                     {values[f.key] ? "Aktif" : "Nonaktif"}
                   </span>
                 </button>
+              ) : f.type === "number" ? (
+                <input
+                  id={`set-${f.key}`}
+                  type="number"
+                  min={0}
+                  value={String(values[f.key])}
+                  onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
+                  placeholder={f.placeholder}
+                  className="mt-4 w-full rounded-xl border border-line bg-ink-2 px-3 py-2 text-sm text-fg placeholder:text-fg-faint focus:outline-none"
+                />
               ) : (
                 <textarea
                   id={`set-${f.key}`}

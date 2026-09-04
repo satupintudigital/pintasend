@@ -37,7 +37,7 @@ interface MyBilling {
   renewalTriggered: boolean;
 }
 
-type Mode = "subscription" | "topup" | "addon";
+type Mode = "subscription" | "renewal" | "topup" | "addon";
 
 function CheckoutContent() {
   const router = useRouter();
@@ -103,6 +103,7 @@ function CheckoutContent() {
 
   // Mode order diturunkan dari query + status tenant.
   const mode: Mode | null = (() => {
+    if (searchParams.get("kind") === "renewal" && my && !my.pending && my.plan?.planId) return "renewal";
     if (topupParam === "1" || (plan && plan.kind === "prepaid")) return "topup";
     if (plan && plan.kind === "subscription") return "subscription";
     if (addon) return "addon";
@@ -132,6 +133,13 @@ function CheckoutContent() {
         (my.pending ? catalog.settings.activationFeeRp : 0) +
         (addon ? addon.priceMonthly! : 0);
       return { rows, total };
+    }
+    if (mode === "renewal" && my.plan) {
+      const labelPlan = catalog.plans.find((p) => p.id === my.plan!.planId);
+      return {
+        rows: [{ label: `Perpanjangan ${my.plan.planName ?? labelPlan?.name ?? "paket"}`, value: rupiah(my.plan.priceMonthly ?? 0) }],
+        total: my.plan.priceMonthly ?? 0,
+      };
     }
     if (mode === "topup") {
       return {
@@ -182,6 +190,9 @@ function CheckoutContent() {
         body.kind = "first_subscription";
         body.planId = plan.id;
         if (addon) body.addonKeys = [addon.key];
+      } else if (mode === "renewal" && my?.plan?.planId) {
+        body.kind = "renewal_subscription";
+        body.planId = my.plan.planId;
       } else if (mode === "topup") {
         body.kind = "topup";
         // Clamp ke minimal top-up dari katalog (server memvalidasi ulang).
@@ -273,7 +284,7 @@ function CheckoutContent() {
         <div className="rounded-2xl border border-line bg-surface p-6">
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">Checkout</p>
           <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight">
-            {mode === "subscription" ? "Aktivasi paket" : mode === "topup" ? "Top-up pulsa pesan" : "Beli add-on"}
+            {mode === "subscription" ? "Aktivasi paket" : mode === "renewal" ? "Perpanjangan paket" : mode === "topup" ? "Top-up pulsa pesan" : "Beli add-on"}
           </h1>
 
           {my.pending && (
@@ -323,6 +334,13 @@ function CheckoutContent() {
                 </p>
               )}
             </div>
+          )}
+
+          {mode === "renewal" && my.plan && (
+            <p className="mt-3 flex items-start gap-2 rounded-xl border border-accent/20 bg-accent/5 px-3.5 py-2.5 text-sm text-fg-muted">
+              <CheckCircle size={16} className="mt-0.5 shrink-0 text-accent-bright" weight="fill" />
+              Perpanjang paket <b>{my.plan.planName}</b> — {rupiah(my.plan.priceMonthly ?? 0)}/bulan.
+            </p>
           )}
 
           {isPendingOnly && (

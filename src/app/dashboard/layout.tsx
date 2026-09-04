@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { tenantHasCampaignAddon } from "@/lib/campaigns";
+import { getTenantActivation } from "@/lib/tenantGate";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
 import { SidebarNav } from "@/components/dashboard/SidebarNav";
 import { Logo } from "@/components/Logo";
@@ -19,6 +20,12 @@ export default async function DashboardLayout({
     ? await tenantHasCampaignAddon(session.user.tenantId).catch(() => false)
     : false;
 
+  // Tenant pending (activatedAt NULL) → menu operasional disembunyikan;
+  // owner/tenant_admin tetap bisa mengakses halaman Langganan utk aktivasi.
+  const activation = session.user.tenantId
+    ? await getTenantActivation(session.user.tenantId).catch(() => ({ pending: false }))
+    : { pending: false };
+
   const name = session.user.name ?? session.user.email;
   const initial = (name ?? "?").charAt(0).toUpperCase();
 
@@ -34,6 +41,7 @@ export default async function DashboardLayout({
             }
             isOwner={session.user.role === "owner"}
             hasCampaign={hasCampaign}
+            pending={activation.pending}
           />
           <div className="mt-auto space-y-4 border-t border-line-soft pt-5">
             <div className="flex items-center gap-3">
@@ -62,6 +70,7 @@ export default async function DashboardLayout({
             }
             isOwner={session.user.role === "owner"}
             hasCampaign={hasCampaign}
+            pending={activation.pending}
           />
         </div>
 

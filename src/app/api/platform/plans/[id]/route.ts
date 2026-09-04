@@ -17,6 +17,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     maxMessagesPerMonth?: unknown;
     includesDelay?: unknown;
     isActive?: unknown;
+    isPublic?: unknown;
+    sortOrder?: unknown;
   } | null;
 
   const patch: Parameters<typeof updatePlan>[1] = {};
@@ -41,6 +43,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   }
   if (typeof body?.includesDelay === "boolean") patch.includesDelay = body.includesDelay;
   if (typeof body?.isActive === "boolean") patch.isActive = body.isActive;
+  if (typeof body?.isPublic === "boolean") patch.isPublic = body.isPublic;
+  if (typeof body?.sortOrder === "number" && body.sortOrder >= 0) {
+    patch.sortOrder = Math.floor(body.sortOrder);
+  }
 
   if (Object.keys(patch).length === 0) {
     return Response.json({ error: "Tidak ada field valid untuk diubah" }, { status: 400 });

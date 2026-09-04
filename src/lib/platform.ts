@@ -95,11 +95,43 @@ export interface PlanRow {
   maxMessagesPerMonth: number | null;
   includesDelay: boolean;
   isActive: boolean;
+  /** Jenis plan: "subscription" (bulanan) | "prepaid" (per pesan). */
+  kind: string;
+  /** Tampil di katalog publik / halaman harga. */
+  isPublic: boolean;
+  /** Urutan tampil katalog (kecil = lebih dulu). */
+  sortOrder: number;
 }
 
 export async function listPlans(): Promise<PlanRow[]> {
   return query<PlanRow>(
-    'SELECT id, name, tagline, "priceDisplay", "priceMonthly", "maxDevices", "maxUsers", "maxMessagesPerMonth", "includesDelay", "isActive" FROM "Plan" ORDER BY name ASC',
+    'SELECT id, name, tagline, "priceDisplay", "priceMonthly", "maxDevices", "maxUsers", "maxMessagesPerMonth", "includesDelay", "isActive", kind, "isPublic", "sortOrder" FROM "Plan" ORDER BY "sortOrder" ASC, name ASC',
+  );
+}
+
+export interface PlatformOrderRow {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  kind: string;
+  status: string;
+  amount: number;
+  payMethod: string | null;
+  createdAt: string;
+  paidAt: string | null;
+  expiresAt: string | null;
+}
+
+// Daftar semua order (platform admin) — opsional filter status. Dipakai
+// halaman /platform/orders + tombol Resync (POST /api/billing/sync).
+export async function listPlatformOrders(status?: string, limit = 200): Promise<PlatformOrderRow[]> {
+  return query<PlatformOrderRow>(
+    `SELECT o.id, o."tenantId", t.name AS "tenantName", o.kind, o.status, o.amount,
+            o."payMethod", o."createdAt", o."paidAt", o."expiresAt"
+     FROM "Order" o JOIN "Tenant" t ON t.id = o."tenantId"
+     WHERE ($1::text IS NULL OR o.status = $1)
+     ORDER BY o."createdAt" DESC LIMIT $2`,
+    [status ?? null, Math.min(500, Math.max(1, limit))],
   );
 }
 
@@ -184,6 +216,8 @@ export interface PlanPatch {
   maxMessagesPerMonth?: number | null;
   includesDelay?: boolean;
   isActive?: boolean;
+  isPublic?: boolean;
+  sortOrder?: number;
 }
 
 // Update sebagian kuota plan. Hanya kolom yang di-set yang diubah.
@@ -213,6 +247,14 @@ export async function updatePlan(id: string, patch: PlanPatch): Promise<boolean>
   if (patch.isActive !== undefined) {
     args.push(patch.isActive);
     sets.push(`"isActive" = $${args.length}`);
+  }
+  if (patch.isPublic !== undefined) {
+    args.push(patch.isPublic);
+    sets.push(`"isPublic" = $${args.length}`);
+  }
+  if (patch.sortOrder !== undefined) {
+    args.push(Math.floor(patch.sortOrder));
+    sets.push(`"sortOrder" = $${args.length}`);
   }
   if (!sets.length) return false;
   args.push(id);

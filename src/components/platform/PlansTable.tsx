@@ -14,6 +14,9 @@ interface PlanRow {
   maxMessagesPerMonth: number | null;
   includesDelay: boolean;
   isActive: boolean;
+  kind: string;
+  isPublic: boolean;
+  sortOrder: number;
 }
 
 interface PlansTableProps {
@@ -45,6 +48,8 @@ export function PlansTable({ initial }: PlansTableProps) {
           maxMessagesPerMonth: p.maxMessagesPerMonth,
           includesDelay: p.includesDelay,
           isActive: p.isActive,
+          isPublic: p.isPublic,
+          sortOrder: p.sortOrder,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -71,6 +76,8 @@ export function PlansTable({ initial }: PlansTableProps) {
             <th className="px-4 py-3 text-right">User</th>
             <th className="px-4 py-3 text-right">Pesan/bulan</th>
             <th className="px-4 py-3 text-right">Rp/bulan</th>
+            <th className="px-4 py-3 text-center">Katalog</th>
+            <th className="px-4 py-3 text-right">Urutan</th>
             <th className="px-4 py-3 text-center">Delay</th>
             <th className="px-4 py-3">Aktif</th>
             <th className="px-4 py-3 text-right">Aksi</th>
@@ -80,7 +87,16 @@ export function PlansTable({ initial }: PlansTableProps) {
           {plans.map((p) => (
             <tr key={p.id} className="border-b border-line-soft/60 last:border-0">
               <td className="px-4 py-3">
-                <p className="font-medium text-fg">{p.name}</p>
+                <p className="flex items-center gap-2 font-medium text-fg">
+                  {p.name}
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      p.kind === "prepaid" ? "bg-amber-300/10 text-amber-200" : "bg-accent/10 text-accent-bright"
+                    }`}
+                  >
+                    {p.kind === "prepaid" ? "per pesan" : "bulanan"}
+                  </span>
+                </p>
                 <p className="text-xs text-fg-faint">{p.priceDisplay}</p>
               </td>
               <td className="px-4 py-3 text-right">
@@ -156,6 +172,43 @@ export function PlansTable({ initial }: PlansTableProps) {
                     )
                   }
                   className="bk-tabular w-24 rounded-lg border border-line bg-ink-2 px-2 py-1.5 text-right text-sm text-fg placeholder:text-fg-faint focus:border-accent focus:outline-none"
+                />
+              </td>
+              <td className="px-4 py-3 text-center">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={p.isPublic}
+                  onClick={() =>
+                    setPlans((ps) =>
+                      ps.map((x) => (x.id === p.id ? { ...x, isPublic: !x.isPublic } : x)),
+                    )
+                  }
+                  title="Tampil di katalog publik (halaman harga)"
+                  className={`relative h-6 w-11 rounded-full transition-colors ${
+                    p.isPublic ? "bg-accent" : "bg-line"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+                      p.isPublic ? "translate-x-[22px]" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </td>
+              <td className="px-4 py-3 text-right">
+                <input
+                  type="number"
+                  min={0}
+                  value={p.sortOrder}
+                  onChange={(e) =>
+                    setPlans((ps) =>
+                      ps.map((x) =>
+                        x.id === p.id ? { ...x, sortOrder: num(e.target.value) ?? 0 } : x,
+                      ),
+                    )
+                  }
+                  className="bk-tabular w-16 rounded-lg border border-line bg-ink-2 px-2 py-1.5 text-right text-sm text-fg focus:border-accent focus:outline-none"
                 />
               </td>
               <td className="px-4 py-3 text-center">

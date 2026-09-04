@@ -35,3 +35,16 @@ Task 6: complete (commits d9b5c22..HEAD, review clean — billingRenewal.ts + sy
 - sendMessage/sendTemplate/sendRichMessage: gate 402 pasca-quota; pasca-kirim sukses spendCredit messages=1 refId=messageId??`send-|tpl-|rich-${uuidv7}` best-effort (.catch logEvent credit_spend_failed). sendBulk: gate needed=count (batch N penerima = N pulsa), pasca-submit potong total count refId=`bulk:${batchId}` (batch jalan async di OpenWA).
 - Test 4 file +16: saldo 0 → 402 INSUFFICIENT_CREDIT tanpa OpenWA/spend; saldo cukup → kirim & potong dgn refId benar; subscription → tanpa potong. 963 total (+16), tsc bersih.
 - Catatan: worker campaign-dispatch & platform-broadcast potong kredit = fase-2 (TODO di plan), tidak dikerjakan.
+
+## Task 12: UI publik — Pricing dinamis, Register, Checkout — complete
+- Pricing.tsx: fetch /api/public/catalog (useEffect .then), skeleton/error; toggle tahunan dihapus; kartu plan data-driven (format harga prepaid per-pesan / subscription per-bulan); CTA → /register?plan=; kartu add-on berbayar dari catalog.
+- /register: form nama/email/password/nama tenant + radio plan (semua plan, incl. Espresso utk aktivasi top-up) + checkbox add-on berbayar + Turnstile (wajib hanya bila env siteverify diset); POST /api/auth/register → push redirectTo; sudah login → redirect ke /checkout (cegah akun duplikat).
+- /checkout: baca query plan/addon/topup/creditMessages + /api/billing/my (auth 401 → ajakan login); mode subscription (first_subscription + bundle addon), topup (aktivasi Espresso bila pending dgn planId prepaid; clamp min top-up), addon; daftar channel Tripay statis; POST /api/billing/orders; PayCodePanel (kode bayar/copy/CTA bayar + countdown) & polling 5 dtk → paid → /dashboard/langganan?paid=1; expired state.
+- Lint & tsc bersih pada 4 file; 963 test tetap hijau.
+
+## Task 13: Dashboard Langganan + platform orders/plan/settings — complete
+- /dashboard/langganan (server auth) + SubscriptionDashboard: kartu plan + kuota (device/user/pesan) + periode, saldo pulsa + modal top-up (→ /checkout?topup=1&creditMessages=), daftar order/tagihan dgn badge status + Bayar Sekarang (→ /checkout?kind=renewal), add-on beli mandiri, banner aktivasi saat pending.
+- SidebarNav + dashboard layout: menu Langganan (owner/tenant_admin); saat tenant pending hanya Beranda/Langganan/Profil yang tampil (getTenantActivation di layout).
+- Checkout + mode renewal_subscription (attach payment ke order renewal tanpa gateway — createOrder idempoten).
+- Platform: menu Orders; /platform/orders + OrdersTable (filter status + tombol Resync Tripay → POST /api/billing/sync + refresh); listPlatformOrders di platform.ts; PlansTable + isPublic/sortOrder input & label kind; plans PUT terima isPublic/sortOrder (PlanPatch/updatePlan); SettingsForm + 4 input billing (activation_fee_rp, credit_price_per_message, credit_min_topup_rp, order_expiry_minutes).
+- tsc & lint bersih; 963 test hijau.
