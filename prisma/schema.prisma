@@ -295,6 +295,53 @@ model PlatformSetting {
   updatedAt DateTime @updatedAt @default(now())
 }
 
+// ─── PLATFORM BROADCAST (pengumuman platform → nomor owner device) ──────────
+// Scope terpisah dari campaign tenant: broadcast dikirim ke `Device.phone`
+// (nomor pemilik perangkat yang siap), bukan ke kontak tenant. Dispatcher
+// (Task 11) mem-klaim job pending → kirim text via openwa → MessageLog tenant.
+
+model PlatformBroadcast {
+  id          String   @id @default(uuid(7))
+  name        String
+  messageBody String
+  status      String   @default("draft") // draft | running | completed | failed | cancelled
+  targetMode  String   @default("ready_devices") // ready_devices | tenant_ids
+  tenantIds   String   @default("[]") // JSON array — filter bila targetMode=tenant_ids
+  createdBy   String? // actor email
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  failReason  String?
+  totalJobs   Int      @default(0)
+  sentCount   Int      @default(0)
+  failedCount Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt @default(now())
+  jobs        PlatformBroadcastJob[]
+}
+
+model PlatformBroadcastJob {
+  id            String   @id @default(uuid(7))
+  broadcastId   String
+  tenantId      String
+  deviceId      String
+  deviceLabel   String?
+  chatId        String? // tujuan (phone@c.us dari device) — diset saat dispatch
+  status        String   @default("pending") // pending | sending | sent | failed | skipped
+  error         String?
+  messageId     String?
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime? // backoff retry
+  lockedAt      DateTime? // klaim dispatcher (staleness recovery)
+  sentAt        DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt @default(now())
+  broadcast     PlatformBroadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+
+  @@index([broadcastId, status])
+  @@index([status, nextAttemptAt])
+}
+
 // Kontak audiens campaign (per tenant). `chatId` JID WhatsApp; opt-out
 // dihormati dispatcher (recipient dengan kontak optedOut → status skipped).
 model Contact {
