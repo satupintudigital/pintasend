@@ -54,9 +54,11 @@ export function SidebarNav({
   ];
 
   const linkClass = (active: boolean) =>
-    `flex items-center gap-2.5 rounded-lg px-3 text-sm transition-colors ${horizontal ? "py-3" : "py-2.5"} ${
+    `flex items-center gap-2.5 rounded-lg px-3 text-sm font-medium transition-colors ${
+      horizontal ? "py-2.5" : "py-2.5"
+    } ${
       active
-        ? "bg-surface-2 text-fg"
+        ? "bg-surface-2 text-fg font-semibold"
         : "text-fg-muted hover:bg-surface-2/60 hover:text-fg"
     }`;
 

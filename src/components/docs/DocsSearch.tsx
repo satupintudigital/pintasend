@@ -164,7 +164,7 @@ export function DocsSearch() {
             <motion.div
               aria-hidden
               onClick={closeSearch}
-              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
               initial={reduced ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, transition: { duration: 0.15 } }}
@@ -176,7 +176,7 @@ export function DocsSearch() {
               aria-modal="true"
               aria-label="Pencarian dokumentasi"
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-[620px] overflow-hidden rounded-2xl border border-line bg-ink-2 shadow-[0_48px_120px_-40px_rgba(0,0,0,0.9)]"
+              className="relative w-full max-w-[620px] overflow-hidden rounded-2xl border border-line bg-ink-2 shadow-[0_48px_120px_-40px_rgba(15,23,42,0.3)]"
               initial={reduced ? false : { opacity: 0, y: -14, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{

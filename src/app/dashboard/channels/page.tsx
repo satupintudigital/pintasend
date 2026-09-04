@@ -222,11 +222,11 @@ export default function ChannelsPage() {
       {/* Create Modal */}
       {createOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
           onClick={() => setCreateOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-3xl border border-line bg-surface p-6 shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)]"
+            className="w-full max-w-md rounded-3xl border border-line bg-surface p-6 shadow-[0_40px_120px_-40px_rgba(15,23,42,0.3)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between">

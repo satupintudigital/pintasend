@@ -445,11 +445,11 @@ export default function DevicesPage() {
 
       {addOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
           onClick={closeAdd}
         >
           <div
-            className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-3xl border border-line bg-surface shadow-[0_40px_120px_-40px_rgba(0,0,0,0.9)]"
+            className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-3xl border border-line bg-surface shadow-[0_40px_120px_-40px_rgba(15,23,42,0.3)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div aria-hidden className="h-px w-full bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
