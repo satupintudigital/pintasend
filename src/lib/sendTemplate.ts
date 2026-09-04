@@ -10,7 +10,7 @@ import { openwa, OpenwaError, publicOpenwaError, type OpenwaSendResult } from ".
 import { checkRateLimit } from "./rate-limit";
 import { insertMessageLog } from "./messageStore";
 import { logEvent } from "./requestLogger";
-import { getWatermarkFootnote } from "./watermark";
+import { resolveWatermarkFootnote } from "./watermark";
 import { getTenantConfig } from "./tenantConfig";
 
 export interface SendTemplateContext {
@@ -173,7 +173,7 @@ export async function executeSendTemplate(
   //     bersih tanpa trailing newline). Dibaca dari KV cache (0 Neon queries).
   const watermark = {
     apply: !cfg.addons.removeWatermark,
-    footnote: cfg.addons.removeWatermark ? "" : getWatermarkFootnote(),
+    footnote: cfg.addons.removeWatermark ? "" : await resolveWatermarkFootnote(),
   };
   const vars = {
     ...(input.vars ?? {}),

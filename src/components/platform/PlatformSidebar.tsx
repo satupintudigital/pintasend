@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   ChartLineUp,
   ClipboardText,
+  GearSix,
   House,
   Stack,
   UsersThree,
@@ -16,6 +17,7 @@ const items = [
   { href: "/platform/plans", label: "Plan", icon: Stack },
   { href: "/platform/tenants", label: "Tenant", icon: UsersThree },
   { href: "/platform/audit", label: "Audit", icon: ClipboardText },
+  { href: "/platform/settings", label: "Pengaturan", icon: GearSix },
 ];
 
 export function PlatformSidebar() {

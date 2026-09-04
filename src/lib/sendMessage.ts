@@ -17,7 +17,7 @@ import { queryD1One } from "./d1";
 import { openwa, OpenwaError, publicOpenwaError, type OpenwaSendResult } from "./openwa";
 import { insertMessageLog } from "./messageStore";
 import { parseMediaPayload, MEDIA_LIMITS, type MediaPayload } from "./media";
-import { appendFootnote, getWatermarkFootnote } from "./watermark";
+import { appendFootnote, resolveWatermarkFootnote } from "./watermark";
 import { MultipartError, parseMultipartForm, sanitizeFilename, type MultipartForm } from "./multipart";
 import { putMediaObject } from "./r2";
 import { uuidv7 } from "./uuidv7";
@@ -354,7 +354,7 @@ export async function executeSendMessage(
   //     Dibaca dari KV cache (0 Neon queries).
   const watermark = {
     apply: !cfg.addons.removeWatermark,
-    footnote: cfg.addons.removeWatermark ? "" : getWatermarkFootnote(),
+    footnote: cfg.addons.removeWatermark ? "" : await resolveWatermarkFootnote(),
   };
   const finalText = media
     ? text

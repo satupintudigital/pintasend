@@ -284,6 +284,19 @@ model AuditLog {
 
 // Kontak audiens campaign (per tenant). `chatId` JID WhatsApp; opt-out
 // dihormati dispatcher (recipient dengan kontak optedOut → status skipped).
+// ─── PLATFORM SETTING (key-value global, platform admin) ────────────────────
+// Nilai disimpan sebagai JSON string (string/bool/int sesuai key whitelist di
+// src/lib/platformSettings.ts). Hanya Neon — dibaca jalur frekuensi rendah
+// (watermark footnote, nama platform) dengan cache per-proses.
+model PlatformSetting {
+  key       String   @id
+  value     String // JSON (string/bool/int sesuai key)
+  updatedBy String?
+  updatedAt DateTime @updatedAt @default(now())
+}
+
+// Kontak audiens campaign (per tenant). `chatId` JID WhatsApp; opt-out
+// dihormati dispatcher (recipient dengan kontak optedOut → status skipped).
 model Contact {
   id        String   @id @default(uuid(7))
   tenantId  String

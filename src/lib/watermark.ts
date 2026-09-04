@@ -10,12 +10,24 @@
 // (mis. kampanye promosi berbeda). Kosong/tidak diset → default bawaan.
 
 import { query } from "@/lib/db";
+import { getPlatformSetting } from "@/lib/platformSettings";
 
 /** Key addon TenantAddon yang menghapus footnote dari pesan keluar. */
 export const WATERMARK_ADDON_KEY = "remove_watermark";
 
 /** Footnote default (media iklan) - dipakai bila env tidak diset. */
 export const DEFAULT_WATERMARK_FOOTNOTE = "via Wavio - https://wavio.satupintudigital.co.id";
+
+// Cache footnote global (per proses) — setting platform jarang berubah; TTL
+// pendek menjaga hot path kirim pesan tetap 0 Neon query (query hanya sekali
+// per jendela TTL, bukan per pesan). Invalidate saat settings di-PUT.
+let footnoteCache: { value: string; at: number } | null = null;
+const FOOTNOTE_CACHE_TTL_MS = 60_000;
+
+/** Kosongkan cache footnote (dipanggil route PUT settings). */
+export function invalidateWatermarkFootnoteCache(): void {
+  footnoteCache = null;
+}
 
 /** Sepasang newline pemisah footnote dari isi pesan (biar rapi di WhatsApp). */
 const FOOTNOTE_SEPARATOR = "\n\n";
@@ -25,6 +37,33 @@ export function getWatermarkFootnote(env: Record<string, string | undefined> = p
   const raw = env.WAVIO_WATERMARK_FOOTNOTE;
   if (typeof raw === "string" && raw.trim()) return raw.trim();
   return DEFAULT_WATERMARK_FOOTNOTE;
+}
+
+/**
+ * Footnote efektif untuk kirim pesan: env override → setting DB
+ * `watermark_footnote` (platform admin, cache TTL) → default. Fail-safe:
+ * kegagalan baca DB / tabel belum ada → default (tidak pernah melempar).
+ */
+export async function resolveWatermarkFootnote(
+  env: Record<string, string | undefined> = process.env,
+): Promise<string> {
+  const raw = env.WAVIO_WATERMARK_FOOTNOTE;
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+
+  const now = Date.now();
+  if (footnoteCache && now - footnoteCache.at < FOOTNOTE_CACHE_TTL_MS) {
+    return footnoteCache.value;
+  }
+  let fromDb: string | boolean | number | null = null;
+  try {
+    fromDb = await getPlatformSetting("watermark_footnote");
+  } catch (e) {
+    console.error("watermark: baca setting watermark_footnote gagal (fallback default):", e);
+  }
+  const value =
+    typeof fromDb === "string" && fromDb.trim() ? fromDb.trim() : DEFAULT_WATERMARK_FOOTNOTE;
+  footnoteCache = { value, at: now };
+  return value;
 }
 
 /**
@@ -70,7 +109,7 @@ export interface WatermarkDecision {
  * DAN tenant belum punya addon remove_watermark.
  */
 export async function resolveWatermark(tenantId: string): Promise<WatermarkDecision> {
-  const footnote = getWatermarkFootnote();
+  const footnote = await resolveWatermarkFootnote();
   if (!footnote) return { apply: false, footnote: "" };
   const removed = await tenantHasRemoveWatermark(tenantId);
   return { apply: !removed, footnote };

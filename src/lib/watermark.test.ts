@@ -3,7 +3,9 @@ import {
   appendFootnote,
   DEFAULT_WATERMARK_FOOTNOTE,
   getWatermarkFootnote,
+  invalidateWatermarkFootnoteCache,
   resolveWatermark,
+  resolveWatermarkFootnote,
   tenantHasRemoveWatermark,
   WATERMARK_ADDON_KEY,
 } from "./watermark";
@@ -13,6 +15,7 @@ import { query } from "./db";
 
 afterEach(() => {
   delete process.env.WAVIO_WATERMARK_FOOTNOTE;
+  invalidateWatermarkFootnoteCache();
   vi.restoreAllMocks();
 });
 
@@ -82,15 +85,39 @@ describe("tenantHasRemoveWatermark", () => {
   });
 });
 
-describe("resolveWatermark", () => {
-  it("env kosong/whitespace → fallback ke footnote default, tetap diterapkan", async () => {
-    process.env.WAVIO_WATERMARK_FOOTNOTE = "   ";
-    vi.mocked(query).mockResolvedValueOnce([]);
-    const d = await resolveWatermark("t1");
-    expect(d).toEqual({ apply: true, footnote: DEFAULT_WATERMARK_FOOTNOTE });
+describe("resolveWatermarkFootnote", () => {
+  it("env override menang tanpa sentuh DB", async () => {
+    process.env.WAVIO_WATERMARK_FOOTNOTE = "Iklan env";
+    const foot = await resolveWatermarkFootnote();
+    expect(foot).toBe("Iklan env");
+    expect(query).not.toHaveBeenCalled();
   });
 
-  it("tenant TANPA addon → footnote diterapkan", async () => {
+  it("env kosong → setting DB dipakai (PlatformSetting watermark_footnote)", async () => {
+    process.env.WAVIO_WATERMARK_FOOTNOTE = "   ";
+    vi.mocked(query).mockResolvedValueOnce([{ value: JSON.stringify("Iklan dari setting") }]);
+    const foot = await resolveWatermarkFootnote();
+    expect(foot).toBe("Iklan dari setting");
+    expect(query).toHaveBeenCalledWith(expect.stringContaining("PlatformSetting"), [
+      "watermark_footnote",
+    ]);
+  });
+
+  it("tidak ada baris setting → fallback default", async () => {
+    vi.mocked(query).mockResolvedValueOnce([]);
+    const foot = await resolveWatermarkFootnote();
+    expect(foot).toBe(DEFAULT_WATERMARK_FOOTNOTE);
+  });
+
+  it("DB error → fallback default (never-throw)", async () => {
+    vi.mocked(query).mockRejectedValueOnce(new Error("db down"));
+    const foot = await resolveWatermarkFootnote();
+    expect(foot).toBe(DEFAULT_WATERMARK_FOOTNOTE);
+  });
+});
+
+describe("resolveWatermark", () => {
+  it("tenant TANPA addon → footnote diterapkan (env override)", async () => {
     process.env.WAVIO_WATERMARK_FOOTNOTE = "Iklan";
     vi.mocked(query).mockResolvedValueOnce([]);
     const d = await resolveWatermark("t1");
@@ -102,5 +129,14 @@ describe("resolveWatermark", () => {
     vi.mocked(query).mockResolvedValueOnce([{ active: true }]);
     const d = await resolveWatermark("t1");
     expect(d).toEqual({ apply: false, footnote: "Iklan" });
+  });
+
+  it("env kosong + no setting → default diterapkan (addon query tetap jalan)", async () => {
+    process.env.WAVIO_WATERMARK_FOOTNOTE = "   ";
+    vi.mocked(query)
+      .mockResolvedValueOnce([]) // setting → default
+      .mockResolvedValueOnce([]); // addon → tidak aktif
+    const d = await resolveWatermark("t1");
+    expect(d).toEqual({ apply: true, footnote: DEFAULT_WATERMARK_FOOTNOTE });
   });
 });
