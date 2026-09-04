@@ -61,7 +61,7 @@ export default function ProfilePage() {
         // 501 = engine limitation (Baileys doesn't support profile)
         if (res.status === 501) {
           setProfile(null);
-          setError("Profil tidak tersedia pada engine Baileys. Fitur ini memerlukan engine whatsapp-web.js.");
+          setError("Fitur profil belum tersedia untuk device ini. Hubungi admin untuk info lebih lanjut.");
           return;
         }
         throw new Error(data.error ?? "Gagal memuat profil");

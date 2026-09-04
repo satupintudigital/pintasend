@@ -22,7 +22,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   } catch (e) {
     if (e instanceof OpenwaError) {
       if (e.status === 404 || e.status === 501) {
-        return Response.json({ error: "Channels tidak tersedia pada engine ini" }, { status: 501 });
+        return Response.json({ error: "Fitur channels belum tersedia untuk device ini" }, { status: 501 });
       }
       return Response.json({ error: "Gagal mengambil channels" }, { status: 502 });
     }
@@ -56,7 +56,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   } catch (e) {
     if (e instanceof OpenwaError) {
       if (e.status === 404 || e.status === 501) {
-        return Response.json({ error: "Channels tidak tersedia pada engine ini" }, { status: 501 });
+        return Response.json({ error: "Fitur channels belum tersedia untuk device ini" }, { status: 501 });
       }
       return Response.json({ error: "Gagal membuat channel" }, { status: 502 });
     }

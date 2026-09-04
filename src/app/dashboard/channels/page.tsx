@@ -59,7 +59,7 @@ export default function ChannelsPage() {
         // 501 = engine limitation (Baileys doesn't support channels)
         if (res.status === 501) {
           setChannels([]);
-          setError("Channels tidak tersedia pada engine Baileys. Fitur ini memerlukan engine whatsapp-web.js.");
+          setError("Fitur channels belum tersedia untuk device ini. Hubungi admin untuk info lebih lanjut.");
           return;
         }
         throw new Error(data.error ?? "Gagal memuat channels");

@@ -23,7 +23,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     if (e instanceof OpenwaError) {
       // 404 = endpoint not available on this engine (Baileys doesn't support profile)
       if (e.status === 404) {
-        return Response.json({ error: "Profil tidak tersedia pada engine ini" }, { status: 501 });
+        return Response.json({ error: "Fitur profil belum tersedia untuk device ini" }, { status: 501 });
       }
       return Response.json({ error: "Gagal mengambil profil" }, { status: 502 });
     }
@@ -56,7 +56,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   } catch (e) {
     if (e instanceof OpenwaError) {
       if (e.status === 404) {
-        return Response.json({ error: "Profil tidak tersedia pada engine ini" }, { status: 501 });
+        return Response.json({ error: "Fitur profil belum tersedia untuk device ini" }, { status: 501 });
       }
       return Response.json({ error: "Gagal memperbarui profil" }, { status: 502 });
     }
