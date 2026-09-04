@@ -5,6 +5,7 @@ import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { checkDeviceQuota } from "@/lib/quota";
 import { getCachedDeviceList, setCachedDeviceList } from "@/lib/deviceCache";
 import { recordAuditFromSession } from "@/lib/audit";
+import { assertTenantCanOperate } from "@/lib/tenantGate";
 
 export async function GET() {
   const session = await auth();
@@ -25,6 +26,12 @@ export async function POST(req: Request) {
   const session = await auth();
   const tenantId = session?.user?.tenantId;
   if (!tenantId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Tenant pending (belum bayar paket) belum boleh membuat device.
+  const gate = await assertTenantCanOperate(tenantId);
+  if (!gate.ok) {
+    return Response.json({ error: gate.error }, { status: 403 });
+  }
 
   // Rate limit pembuatan device (mutasi) per tenant+IP.
   const rl = await checkRateLimit(`device-create:${tenantId}:${clientIp(req)}`, 10, 60_000);

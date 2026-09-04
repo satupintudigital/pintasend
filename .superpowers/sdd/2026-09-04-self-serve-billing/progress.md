@@ -6,3 +6,4 @@ Task 2: complete (commits 919a5fb..1b946a3, review clean — catalog.ts + 4 key 
 Task 3: complete (commits 1b946a3..HEAD, review clean — credit.ts, 856 test hijau, tsc bersih)
 Task 4: complete (commits 1e07291..HEAD, review clean — payments.ts + providers/tripay.ts, 862 test hijau, tsc bersih)
 Task 5: complete (commits d368468..HEAD, review clean — billing.ts order service + syncTenantD1, 876 test hijau, tsc bersih)
+Task 6: complete (commits d9b5c22..HEAD, review clean — billingRenewal.ts + syncTenantD1/setTenantSuspended, 884 test hijau, tsc bersih)

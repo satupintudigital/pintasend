@@ -29,26 +29,34 @@ describe("verifyApiKey — gate suspend", () => {
   it("menolak key tenant yang di-suspend", async () => {
     const raw = `${API_KEY_PREFIX}${"a".repeat(48)}`;
     await seedD1([
-      { id: "k1", tenantId: "t1", revokedAt: null, suspendedAt: "2026-08-18T00:00:00.000Z" },
+      { id: "k1", tenantId: "t1", revokedAt: null, suspendedAt: "2026-08-18T00:00:00.000Z", activatedAt: "2026-01-01T00:00:00.000Z" },
     ]);
     const result = await verifyApiKey(raw);
     expect(result).toBeNull();
     const sql = (fakeDb.prepare.mock.calls[0] as unknown as [string])[0];
     expect(sql.toLowerCase()).toContain("join tenant");
     expect(sql.toLowerCase()).toContain("keyhash");
+    expect(sql.toLowerCase()).toContain("activatedat");
   });
 
   it("mengizinkan key tenant aktif & mengembalikan keyId (utk rate limit per key)", async () => {
     const raw = `${API_KEY_PREFIX}${"b".repeat(48)}`;
-    await seedD1([{ id: "k2", tenantId: "t1", revokedAt: null, suspendedAt: null }]);
+    await seedD1([{ id: "k2", tenantId: "t1", revokedAt: null, suspendedAt: null, activatedAt: "2026-01-01T00:00:00.000Z" }]);
     const result = await verifyApiKey(raw);
     expect(result).toEqual({ tenantId: "t1", keyId: "k2" });
+  });
+
+  it("menolak key tenant pending (activatedAt NULL)", async () => {
+    const raw = `${API_KEY_PREFIX}${"d".repeat(48)}`;
+    await seedD1([{ id: "k4", tenantId: "t1", revokedAt: null, suspendedAt: null, activatedAt: null }]);
+    const result = await verifyApiKey(raw);
+    expect(result).toBeNull();
   });
 
   it("menolak key yang dicabut (revoked) walau tenant aktif", async () => {
     const raw = `${API_KEY_PREFIX}${"c".repeat(48)}`;
     await seedD1([
-      { id: "k3", tenantId: "t1", revokedAt: "2026-08-18T00:00:00.000Z", suspendedAt: null },
+      { id: "k3", tenantId: "t1", revokedAt: "2026-08-18T00:00:00.000Z", suspendedAt: null, activatedAt: "2026-01-01T00:00:00.000Z" },
     ]);
     const result = await verifyApiKey(raw);
     expect(result).toBeNull();

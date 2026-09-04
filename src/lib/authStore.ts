@@ -317,8 +317,9 @@ export async function verifyApiKey(raw: string): Promise<{ tenantId: string; key
     tenantId: string;
     revokedAt: string | null;
     suspendedAt: string | null;
+    activatedAt: string | null;
   }>(
-    "SELECT k.id, k.tenantId, k.revokedAt, t.suspendedAt FROM ApiKey k " +
+    "SELECT k.id, k.tenantId, k.revokedAt, t.suspendedAt, t.activatedAt FROM ApiKey k " +
       "LEFT JOIN Tenant t ON k.tenantId = t.id WHERE k.keyHash = ?",
     [keyHash],
   );
@@ -326,6 +327,8 @@ export async function verifyApiKey(raw: string): Promise<{ tenantId: string; key
   if (row.revokedAt) return null;
   // Tenant nonaktif (suspended) → tolak semua pemakaian API key tenant itu.
   if (row.suspendedAt) return null;
+  // Tenant pending (activatedAt NULL — baru daftar, belum bayar) → tolak API key.
+  if (!row.activatedAt) return null;
   // Best-effort: tidak memblokir respons bila update gagal.
   changesD1("UPDATE ApiKey SET lastUsedAt = ? WHERE id = ?", [
     new Date().toISOString(),
