@@ -258,6 +258,30 @@ model ApiKey {
   revokedAt  DateTime?
 }
 
+// ─── AUDIT LOG (lintas-tenant, platform admin) ──────────────────────────────
+// Jejak aksi admin & mutasi kunci (tenant.suspend, user.role.update, addon.set,
+// apikey.create/revoke, retention.approve, …). Hanya Neon — jalur admin
+// frekuensi rendah; TIDAK di-clone ke D1 (konsisten ADR-9). actorEmail wajib;
+// tenantId null = aksi platform-wide. meta = JSON objek detail.
+
+model AuditLog {
+  id          String   @id @default(uuid(7))
+  tenantId    String?
+  actorUserId String?
+  actorEmail  String
+  actorRole   String
+  action      String // tenant.suspend | tenant.activate | user.create | apikey.revoke | …
+  targetType  String? // "tenant" | "user" | "device" | "apikey" | "webhook" | …
+  targetId    String?
+  meta        String   @default("{}") // JSON objek (before/after, detail)
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  @@index([action, createdAt(sort: Desc)])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([actorEmail, createdAt(sort: Desc)])
+}
+
 // Kontak audiens campaign (per tenant). `chatId` JID WhatsApp; opt-out
 // dihormati dispatcher (recipient dengan kontak optedOut → status skipped).
 model Contact {
