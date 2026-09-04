@@ -9,9 +9,12 @@
 // hasil. Tidak ada kuota pesan (bukan kirim pesan) & tidak butuh device.
 
 import { setTenantAddon } from "@/lib/platform";
-import { tenantHasRemoveWatermark, WATERMARK_ADDON_KEY } from "@/lib/watermark";
+import { tenantHasRemoveWatermark } from "@/lib/watermark";
+import { REMOVE_WATERMARK_ADDON_KEY } from "@/lib/addonKeys";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { logEvent } from "@/lib/requestLogger";
+
+const WATERMARK_ADDON_KEY = REMOVE_WATERMARK_ADDON_KEY;
 
 export interface WatermarkAddonContext {
   tenantId: string;

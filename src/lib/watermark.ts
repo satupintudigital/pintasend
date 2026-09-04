@@ -11,9 +11,10 @@
 
 import { query } from "@/lib/db";
 import { getPlatformSetting } from "@/lib/platformSettings";
+import { REMOVE_WATERMARK_ADDON_KEY } from "@/lib/addonKeys";
 
 /** Key addon TenantAddon yang menghapus footnote dari pesan keluar. */
-export const WATERMARK_ADDON_KEY = "remove_watermark";
+export const WATERMARK_ADDON_KEY: string = REMOVE_WATERMARK_ADDON_KEY;
 
 /** Footnote default (media iklan) - dipakai bila env tidak diset. */
 export const DEFAULT_WATERMARK_FOOTNOTE = "via Wavio - https://wavio.satupintudigital.co.id";

@@ -13,6 +13,11 @@
 
 import { getBinding } from "@/lib/cf";
 import { query } from "@/lib/db";
+import {
+  CAMPAIGN_ADDON_KEY,
+  RANDOM_DELAY_ADDON_KEY,
+  REMOVE_WATERMARK_ADDON_KEY,
+} from "@/lib/addonKeys";
 
 // ── KV types ────────────────────────────────────────────────────────────────
 
@@ -120,9 +125,9 @@ async function fetchFromNeon(tenantId: string): Promise<CachedTenantConfig> {
     `SELECT
        p."maxDevices", p."maxUsers", p."maxMessagesPerMonth", p."includesDelay",
        t."delayEnabled",
-       EXISTS(SELECT 1 FROM "TenantAddon" a WHERE a."tenantId" = t.id AND a.key = 'remove_watermark' AND a.active) AS "removeWm",
-       EXISTS(SELECT 1 FROM "TenantAddon" a WHERE a."tenantId" = t.id AND a.key = 'random_delay' AND a.active) AS "randomDelay",
-       EXISTS(SELECT 1 FROM "TenantAddon" a WHERE a."tenantId" = t.id AND a.key = 'campaign' AND a.active) AS "campaignAddon",
+       EXISTS(SELECT 1 FROM "TenantAddon" a WHERE a."tenantId" = t.id AND a.key = '${REMOVE_WATERMARK_ADDON_KEY}' AND a.active) AS "removeWm",
+       EXISTS(SELECT 1 FROM "TenantAddon" a WHERE a."tenantId" = t.id AND a.key = '${RANDOM_DELAY_ADDON_KEY}' AND a.active) AS "randomDelay",
+       EXISTS(SELECT 1 FROM "TenantAddon" a WHERE a."tenantId" = t.id AND a.key = '${CAMPAIGN_ADDON_KEY}' AND a.active) AS "campaignAddon",
        (SELECT COUNT(*)::int FROM "MessageLog" m WHERE m."tenantId" = t.id AND m."createdAt" >= $2) AS "msgCount"
      FROM "Tenant" t LEFT JOIN "Plan" p ON p.id = t."planId"
      WHERE t.id = $1`,

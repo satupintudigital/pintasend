@@ -1,10 +1,10 @@
 import { auth } from "@/lib/auth";
 import { setTenantAddon } from "@/lib/platform";
 import { recordAuditFromSession } from "@/lib/audit";
+import { ADDON_KEYS, type AddonKey } from "@/lib/addonKeys";
 
 // Addon tenant (grant/revoke) — khusus platform_admin.
-// Body: { key: string, active: boolean }. Key di-whitelist di sini.
-const ADDON_KEYS = ["random_delay", "remove_watermark"] as const;
+// Body: { key: string, active: boolean }. Key di-whitelist dari addonKeys.ts.
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -19,7 +19,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     active?: unknown;
   } | null;
   const key = typeof body?.key === "string" ? body.key.trim() : "";
-  if (!ADDON_KEYS.includes(key as (typeof ADDON_KEYS)[number])) {
+  if (!ADDON_KEYS.includes(key as AddonKey)) {
     return Response.json({ error: "Addon tidak dikenal" }, { status: 400 });
   }
   if (typeof body?.active !== "boolean") {

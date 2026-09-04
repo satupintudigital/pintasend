@@ -17,8 +17,9 @@ import { checkRateLimit } from "./rate-limit";
 import { logEvent } from "./requestLogger";
 import { getTenantConfig } from "./tenantConfig";
 import { uuidv7 } from "./uuidv7";
+import { CAMPAIGN_ADDON_KEY } from "@/lib/addonKeys";
 
-export const CAMPAIGN_ADDON_KEY = "campaign";
+export { CAMPAIGN_ADDON_KEY };
 
 export const CAMPAIGN_STATUSES = [
   "draft",
