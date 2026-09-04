@@ -13,6 +13,9 @@ model Plan {
   tagline             String
   priceDisplay        String
   priceMonthly        Int? // nominal rupiah/bulan (null = gratis / tidak tertera)
+  kind                String   @default("subscription") // subscription | prepaid (Espresso)
+  isPublic            Boolean  @default(true) // tampil di katalog publik (halaman harga)
+  sortOrder           Int      @default(0) // urutan tampil katalog
   maxDevices          Int
   maxUsers            Int
   maxMessagesPerMonth Int?
@@ -20,6 +23,7 @@ model Plan {
   isActive            Boolean  @default(true)
   createdAt           DateTime @default(now())
   tenants             Tenant[]
+  orders              Order[]
 }
 
 // ─── INVOICE (registri tagihan bulanan, simulasi) ───────────────────────────
@@ -52,6 +56,8 @@ model Tenant {
   planId               String?
   plan                 Plan?    @relation(fields: [planId], references: [id])
   planAssignedAt       DateTime?
+  planPeriodEnd        DateTime? // akhir periode berlangganan berjalan (WIB)
+  activatedAt          DateTime? // null = tenant pending (belum bayar order pertama)
   suspendedAt          DateTime?
   delayEnabled         Boolean  @default(false)
   messageRetentionDays Int      @default(30) // retensi pesan efektif (hari); >30 hanya via RetentionRequest approved
@@ -60,6 +66,9 @@ model Tenant {
   devices              Device[]
   messages             MessageLog[]
   addons               TenantAddon[]
+  balance              TenantBalance?
+  creditLedger         CreditLedger[]
+  orders               Order[]
   retentionRequests    RetentionRequest[]
   contacts             Contact[]
   campaigns            Campaign[]
@@ -168,15 +177,86 @@ model RetentionRequest {
 }
 
 model TenantAddon {
+  id          String    @id @default(uuid(7))
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  key         String
+  active      Boolean   @default(true)
+  activeUntil DateTime? // null = permanen (grant manual); timestamp = kedaluwarsa (addon mandiri)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt @default(now())
+
+  @@unique([tenantId, key])
+}
+
+// ─── SELF-SERVE BILLING ─────────────────────────────────────────────────────
+// Order = instrumen pembayaran (snapshot item, merchant_ref Tripay = order.id).
+// Invoice tetap registri tagihan bulanan; order renewal menaut ke invoice.
+// TenantBalance + CreditLedger = pulsa pesan prepaid (Espresso).
+
+model Addon {
+  id           String   @id @default(uuid(7))
+  key          String   @unique // addonKey dari src/lib/addonKeys (single source)
+  name         String
+  tagline      String   @default("")
+  priceMonthly Int? // null = tidak dijual mandiri (grant manual platform)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt @default(now())
+}
+
+model Order {
+  id            String    @id @default(uuid(7))
+  tenantId      String
+  userId        String
+  kind          String // first_subscription | renewal_subscription | addon | topup
+  status        String    @default("pending") // pending | paid | expired | cancelled
+  invoiceId     String?
+  planId        String?
+  addonKey      String?
+  amount        Int
+  itemsJson     String // JSON OrderItem[]
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  creditMessages Int?
+  gateway       String    @default("tripay")
+  gatewayRef    String?
+  payCode       String?
+  checkoutUrl   String?
+  payMethod     String?
+  expiresAt     DateTime?
+  paidAt        DateTime?
+  callbackRaw   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan   Plan?  @relation(fields: [planId], references: [id])
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([status, expiresAt])
+  @@index([invoiceId])
+}
+
+model TenantBalance {
+  tenantId  String   @id
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  balance   Int      @default(0) // sisa pulsa pesan prepaid
+  updatedAt DateTime @updatedAt @default(now())
+}
+
+model CreditLedger {
   id        String   @id @default(uuid(7))
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  key       String
-  active    Boolean  @default(true)
+  orderId   String?
+  delta     Int // + topup, - pemakaian
+  reason    String // topup | send
+  refId     String? // unik idempoten (orderId utk topup, messageId utk send)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt @default(now())
 
-  @@unique([tenantId, key])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@unique([refId])
 }
 
 model User {

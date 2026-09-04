@@ -22,16 +22,29 @@ async function main() {
     [uuidv7(), tenantId, "owner@wavio.test", "Owner Wavio", passwordHash, "owner"],
   );
 
-  // Plan (id statis agar seed idempoten).
+  // Plan (id statis agar seed idempoten). Espresso = prepaid (per pesan).
   const plans = [
-    { id: "00000000-0000-7000-8000-000000000101", name: "Espresso", tagline: "Bayar sesuai pakai", priceDisplay: "Rp 400/pesan", maxDevices: 1, maxUsers: 3, maxMessagesPerMonth: null, includesDelay: false },
-    { id: "00000000-0000-7000-8000-000000000102", name: "Latte", tagline: "Paling laris", priceDisplay: "Rp 150.000/bulan", maxDevices: 3, maxUsers: 5, maxMessagesPerMonth: 500, includesDelay: false },
-    { id: "00000000-0000-7000-8000-000000000103", name: "Mocha", tagline: "Unlimited", priceDisplay: "Rp 300.000/bulan", maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: true },
+    { id: "00000000-0000-7000-8000-000000000101", name: "Espresso", tagline: "Bayar sesuai pakai", priceDisplay: "Rp 400/pesan", kind: "prepaid", isPublic: true, sortOrder: 0, maxDevices: 1, maxUsers: 3, maxMessagesPerMonth: null, includesDelay: false },
+    { id: "00000000-0000-7000-8000-000000000102", name: "Latte", tagline: "Paling laris", priceDisplay: "Rp 150.000/bulan", kind: "subscription", isPublic: true, sortOrder: 1, maxDevices: 3, maxUsers: 5, maxMessagesPerMonth: 500, includesDelay: false },
+    { id: "00000000-0000-7000-8000-000000000103", name: "Mocha", tagline: "Unlimited", priceDisplay: "Rp 300.000/bulan", kind: "subscription", isPublic: true, sortOrder: 2, maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: null, includesDelay: true },
   ];
   for (const p of plans) {
     await client.query(
-      'INSERT INTO "Plan" (id, name, tagline, "priceDisplay", "maxDevices", "maxUsers", "maxMessagesPerMonth", "includesDelay") VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO NOTHING',
-      [p.id, p.name, p.tagline, p.priceDisplay, p.maxDevices, p.maxUsers, p.maxMessagesPerMonth, p.includesDelay],
+      'INSERT INTO "Plan" (id, name, tagline, "priceDisplay", kind, "isPublic", "sortOrder", "maxDevices", "maxUsers", "maxMessagesPerMonth", "includesDelay") VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (id) DO NOTHING',
+      [p.id, p.name, p.tagline, p.priceDisplay, p.kind, p.isPublic, p.sortOrder, p.maxDevices, p.maxUsers, p.maxMessagesPerMonth, p.includesDelay],
+    );
+  }
+
+  // Katalog addon berbayar / grant manual (id statis, ON CONFLICT id DO NOTHING).
+  const addons = [
+    { id: "10000000-0000-7000-8000-000000000001", key: "random_delay", name: "Random delay", tagline: "Jeda acak 3–10 dtk antar kirim (anti-spam).", priceMonthly: 25000 },
+    { id: "10000000-0000-7000-8000-000000000002", key: "remove_watermark", name: "Remove watermark", tagline: "Hapus footnote iklan dari pesan keluar tenant.", priceMonthly: null },
+    { id: "10000000-0000-7000-8000-000000000003", key: "campaign", name: "Campaign", tagline: "Modul blast massal WA Campaign.", priceMonthly: null },
+  ];
+  for (const a of addons) {
+    await client.query(
+      'INSERT INTO "Addon" (id, key, name, tagline, "priceMonthly", "isActive") VALUES ($1,$2,$3,$4,$5,true) ON CONFLICT (id) DO NOTHING',
+      [a.id, a.key, a.name, a.tagline, a.priceMonthly],
     );
   }
 

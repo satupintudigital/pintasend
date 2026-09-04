@@ -3,7 +3,8 @@
 CREATE TABLE IF NOT EXISTS Tenant (
   id          TEXT PRIMARY KEY,
   name        TEXT NOT NULL,
-  suspendedAt TEXT
+  suspendedAt TEXT,
+  activatedAt TEXT
 );
 
 CREATE TABLE IF NOT EXISTS User (

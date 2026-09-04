@@ -1,0 +1,3 @@
+# SDD — Self-Serve Billing (2026-09-04)
+# plan: docs/superpowers/plans/2026-09-04-self-serve-billing.md
+Task 0: complete (worktree feat/self-serve-billing dari main 52cf1d7; baseline 849 test hijau, tsc bersih)
