@@ -20,20 +20,44 @@ export async function setTenantSuspended(
   );
   if (rows.length === 0) return { updated: false, d1Ok: false };
 
-  const nameRow = await queryD1One<{ name: string }>(
-    "SELECT name FROM Tenant WHERE id = ?",
+  // Ambil name & activatedAt yang sudah ada di D1 — INSERT OR REPLACE tidak
+  // boleh menghapusnya (activatedAt penting utk gate pending tenant).
+  const d1Row = await queryD1One<{ name: string; activatedAt: string | null }>(
+    "SELECT name, activatedAt FROM Tenant WHERE id = ?",
     [tenantId],
   );
-  const name = nameRow?.name ?? "Tenant";
+  const name = d1Row?.name ?? "Tenant";
+  const activatedAt = d1Row?.activatedAt ?? null;
   try {
     const changes = await changesD1(
-      "INSERT OR REPLACE INTO Tenant (id, name, suspendedAt) VALUES (?, ?, ?)",
-      [tenantId, name, suspendedAt],
+      "INSERT OR REPLACE INTO Tenant (id, name, suspendedAt, activatedAt) VALUES (?, ?, ?, ?)",
+      [tenantId, name, suspendedAt, activatedAt],
     );
     return { updated: true, d1Ok: changes > 0 };
   } catch (e) {
     console.error("tenantStore: clone D1 gagal, D1 stale:", e);
     return { updated: true, d1Ok: false };
+  }
+}
+
+// Sinkronkan baris tenant (id, name, suspendedAt, activatedAt) ke D1.
+// Dipakai saat aktivasi order pertama (billing) agar gate login/API key D1
+// langsung melihat tenant aktif (activatedAt bukan NULL). INSERT OR REPLACE.
+export async function syncTenantD1(tenant: {
+  id: string;
+  name: string;
+  suspendedAt: string | null;
+  activatedAt: string | null;
+}): Promise<boolean> {
+  try {
+    const changes = await changesD1(
+      "INSERT OR REPLACE INTO Tenant (id, name, suspendedAt, activatedAt) VALUES (?, ?, ?, ?)",
+      [tenant.id, tenant.name, tenant.suspendedAt, tenant.activatedAt],
+    );
+    return changes > 0;
+  } catch (e) {
+    console.error("tenantStore: sync D1 gagal, D1 stale:", e);
+    return false;
   }
 }
 
