@@ -89,10 +89,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await inviteTenantMember(
-      { tenantId: p.tenantId, name, email, password, role },
-      p,
-    );
+    const result = await inviteTenantMember({ tenantId: p.tenantId, name, email, password, role });
     if (!result.ok) {
       return Response.json(
         { error: result.error ?? "Gagal membuat user" },

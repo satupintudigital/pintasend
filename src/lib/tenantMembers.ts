@@ -24,7 +24,7 @@ import {
 } from "@/lib/authStore";
 import { checkUserQuota } from "@/lib/quota";
 import { sendWelcomeEmail } from "@/lib/email";
-import type { Principal, Role } from "@/lib/abac";
+import type { Principal } from "@/lib/abac";
 
 /** Role yang boleh di-assign lewat member management (bukan owner/platform). */
 export const MEMBER_MANAGEABLE_ROLES = ["member", "tenant_admin"] as const;
@@ -55,9 +55,9 @@ export interface InviteResult {
 
 // Undang member/tenant_admin baru ke tenant. Validasi nama/email/password
 // dilakukan route (format) — service jaga invariant role + kuota + email duplikat.
+// Catatan audit action user.create ditambahkan di lapisan route (Task 7).
 export async function inviteTenantMember(
   input: InviteInput,
-  _actor: Principal,
 ): Promise<ServiceResult<InviteResult>> {
   const role = input.role;
   if (!isMemberManageableRole(role)) {

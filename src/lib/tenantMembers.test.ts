@@ -34,13 +34,6 @@ function baseQuery() {
 
 const OWNER = { id: "o1", email: "owner@a.id", name: "Owner", role: "owner", tenantId: "tA" } as const;
 const TA = { id: "ta1", email: "ta@a.id", name: "TA", role: "tenant_admin", tenantId: "tA" } as const;
-const PLATFORM = {
-  id: "p1",
-  email: "p@wavio.test",
-  name: "P",
-  role: "platform_admin",
-  tenantId: "tP",
-} as const;
 
 function row(over: Partial<Record<string, unknown>> = {}) {
   return {
@@ -61,25 +54,16 @@ beforeEach(() => {
 
 describe("inviteTenantMember", () => {
   it("menolak role owner & platform_admin via jalur member", async () => {
-    const r1 = await inviteTenantMember(
-      { tenantId: "tA", name: "X", email: "x@a.id", password: "password123", role: "owner" },
-      OWNER,
-    );
+    const r1 = await inviteTenantMember({ tenantId: "tA", name: "X", email: "x@a.id", password: "password123", role: "owner" });
     expect(r1.ok).toBe(false);
     expect(r1.status).toBe(400);
-    const r2 = await inviteTenantMember(
-      { tenantId: "tA", name: "X", email: "x@a.id", password: "password123", role: "platform_admin" },
-      OWNER,
-    );
+    const r2 = await inviteTenantMember({ tenantId: "tA", name: "X", email: "x@a.id", password: "password123", role: "platform_admin" });
     expect(r2.ok).toBe(false);
     expect(q).not.toHaveBeenCalled();
   });
 
   it("invite member sukses (tanpa plan → kuota tidak diblokir)", async () => {
-    const r = await inviteTenantMember(
-      { tenantId: "tA", name: "M", email: "m@a.id", password: "password123", role: "member" },
-      OWNER,
-    );
+    const r = await inviteTenantMember({ tenantId: "tA", name: "M", email: "m@a.id", password: "password123", role: "member" });
     expect(r.ok).toBe(true);
     expect((r as { data?: { id: string } }).data?.id).toBeTruthy();
   });
@@ -90,10 +74,7 @@ describe("inviteTenantMember", () => {
     q.mockImplementationOnce(async () => {
       throw new Error("duplicate key value violates unique constraint");
     });
-    const r = await inviteTenantMember(
-      { tenantId: "tA", name: "M", email: "dup@a.id", password: "password123", role: "tenant_admin" },
-      OWNER,
-    );
+    const r = await inviteTenantMember({ tenantId: "tA", name: "M", email: "dup@a.id", password: "password123", role: "tenant_admin" });
     expect(r.ok).toBe(false);
     expect(r.status).toBe(409);
   });
@@ -185,12 +166,9 @@ describe("resetTenantMemberPassword", () => {
   });
 });
 
-describe("actor platform", () => {
-  it("platform_admin bisa invite untuk tenant lain (role member)", async () => {
-    const r = await inviteTenantMember(
-      { tenantId: "tX", name: "M", email: "m@x.id", password: "password123", role: "member" },
-      PLATFORM,
-    );
+describe("invite lintas tenant (actor tak lagi parameter service)", () => {
+  it("invite member untuk tenant mana pun tetap sukses", async () => {
+    const r = await inviteTenantMember({ tenantId: "tX", name: "M", email: "m@x.id", password: "password123", role: "member" });
     expect(r.ok).toBe(true);
   });
 });

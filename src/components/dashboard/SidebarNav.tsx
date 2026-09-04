@@ -9,6 +9,7 @@ import {
   Key,
   Megaphone,
   Users,
+  UsersThree,
   WebhooksLogo,
   Tag,
   Radio,
@@ -24,8 +25,12 @@ const items = [
   { href: "/dashboard/profile", label: "Profil", icon: UserCircle },
 ];
 
-// Provisioning tenant kini khusus platform admin (area /platform) — tenant
-// owner tidak lagi memiliki halaman "Pengguna".
+// Kelola member tenant (owner & tenant_admin) — halaman Members.
+const memberAdminItems = [
+  { href: "/dashboard/members", label: "Members", icon: UsersThree },
+];
+
+// Owner-only: kelola API key & webhook tenant.
 const ownerItems = [
   { href: "/dashboard/api-keys", label: "API Key", icon: Key },
   { href: "/dashboard/webhook", label: "Webhook", icon: WebhooksLogo },
@@ -40,17 +45,20 @@ const campaignItems = [
 export function SidebarNav({
   horizontal = false,
   canManageUsers = false,
+  isOwner = false,
   hasCampaign = false,
 }: {
   horizontal?: boolean;
   canManageUsers?: boolean;
+  isOwner?: boolean;
   hasCampaign?: boolean;
 }) {
   const pathname = usePathname();
   const visible = [
     ...items,
     ...(hasCampaign ? campaignItems : []),
-    ...(canManageUsers ? ownerItems : []),
+    ...(canManageUsers ? memberAdminItems : []),
+    ...(isOwner ? ownerItems : []),
   ];
 
   const linkClass = (active: boolean) =>

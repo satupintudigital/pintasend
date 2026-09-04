@@ -63,7 +63,6 @@ describe("POST /api/admin/users", () => {
     expect(res.status).toBe(201);
     expect(mockedInvite).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: "tA", role: "member" }),
-      expect.objectContaining({ role: "owner" }),
     );
     expect(await res.json()).toEqual({ id: "u-new" });
   });

@@ -28,7 +28,13 @@ export default async function DashboardLayout({
         {/* Sidebar — desktop */}
         <aside className="sticky top-0 hidden h-[100dvh] w-64 shrink-0 flex-col border-r border-line bg-surface p-5 md:flex">
           <Brand />
-          <SidebarNav canManageUsers={session.user.role === "owner"} hasCampaign={hasCampaign} />
+          <SidebarNav
+            canManageUsers={
+              session.user.role === "owner" || session.user.role === "tenant_admin"
+            }
+            isOwner={session.user.role === "owner"}
+            hasCampaign={hasCampaign}
+          />
           <div className="mt-auto space-y-4 border-t border-line-soft pt-5">
             <div className="flex items-center gap-3">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-accent/5 font-display text-sm font-semibold text-accent-bright">
@@ -49,7 +55,14 @@ export default async function DashboardLayout({
             <Brand />
             <SignOutButton compact />
           </div>
-          <SidebarNav horizontal canManageUsers={session.user.role === "owner"} hasCampaign={hasCampaign} />
+          <SidebarNav
+            horizontal
+            canManageUsers={
+              session.user.role === "owner" || session.user.role === "tenant_admin"
+            }
+            isOwner={session.user.role === "owner"}
+            hasCampaign={hasCampaign}
+          />
         </div>
 
         <main className="min-w-0 flex-1 bg-ink-2 p-6 md:p-10">
