@@ -334,6 +334,78 @@ export async function verifyApiKey(raw: string): Promise<{ tenantId: string; key
   return { tenantId: row.tenantId, keyId: row.id };
 }
 
+// Baca user dalam tenant (scope-check) — baca Neon (source of truth).
+// Dipakai operasi member management agar user dari tenant lain TIDAK pernah
+// tersentuh (menutup celah lintas-tenant).
+export async function getUserInTenant(
+  userId: string,
+  tenantId: string,
+): Promise<AdminUserRow | undefined> {
+  const rows = await query<AdminUserRow>(
+    'SELECT id, "tenantId", email, name, role, "createdAt" FROM "User" WHERE id = $1 AND "tenantId" = $2',
+    [userId, tenantId],
+  );
+  return rows[0];
+}
+
+export interface UpdateRoleResult {
+  /** User ditemukan di tenant & role berhasil diubah di Neon. */
+  updated: boolean;
+  /** Clone role ke D1 sukses (false → login baca D1 pakai role lama). */
+  d1Ok: boolean;
+}
+
+// Ubah role user — write-through Neon (source of truth) → clone D1.
+// Scoped ke tenantId — tidak bisa mengubah user tenant lain.
+export async function updateUserRole(
+  userId: string,
+  tenantId: string,
+  role: string,
+): Promise<UpdateRoleResult> {
+  const rows = await query<{ id: string }>(
+    'UPDATE "User" SET role = $1 WHERE id = $2 AND "tenantId" = $3 RETURNING id',
+    [role, userId, tenantId],
+  );
+  if (rows.length === 0) return { updated: false, d1Ok: false };
+  try {
+    const changes = await changesD1(
+      "UPDATE User SET role = ?, updatedAt = ? WHERE id = ?",
+      [role, new Date().toISOString(), userId],
+    );
+    return { updated: true, d1Ok: changes > 0 };
+  } catch (e) {
+    console.error("authStore: update role D1 gagal, D1 stale:", e);
+    return { updated: true, d1Ok: false };
+  }
+}
+
+export interface DeleteUserResult {
+  /** User ditemukan di tenant & dihapus dari Neon. */
+  deleted: boolean;
+  /** Clone hapus ke D1 sukses (false → D1 masih punya user, login masih bisa). */
+  d1Ok: boolean;
+}
+
+// Hapus user — write-through Neon (source of truth) → D1.
+// Scoped ke tenantId; RETURNING id utk deteksi user tak ditemukan (404).
+export async function deleteUser(
+  userId: string,
+  tenantId: string,
+): Promise<DeleteUserResult> {
+  const rows = await query<{ id: string }>(
+    'DELETE FROM "User" WHERE id = $1 AND "tenantId" = $2 RETURNING id',
+    [userId, tenantId],
+  );
+  if (rows.length === 0) return { deleted: false, d1Ok: false };
+  try {
+    const changes = await changesD1("DELETE FROM User WHERE id = ?", [userId]);
+    return { deleted: true, d1Ok: changes > 0 };
+  } catch (e) {
+    console.error("authStore: delete D1 gagal, D1 stale:", e);
+    return { deleted: true, d1Ok: false };
+  }
+}
+
 export interface UpdatePasswordResult {
   /** User ditemukan di Neon & password berhasil diubah. */
   updated: boolean;
