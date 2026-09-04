@@ -11,6 +11,22 @@ import { isSafeWebhookUrl } from "@/lib/ssrf";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
 import { cancelPendingDeliveriesForTenant } from "@/lib/webhookDelivery";
 import { recordAuditFromSession } from "@/lib/audit";
+import {
+  canManageTenantMembers,
+  parsePrincipal,
+  unauthorized,
+  forbidden,
+  type SessionLike,
+} from "@/lib/abac";
+
+function requireMemberManager(session: SessionLike | null): Response | null {
+  const p = parsePrincipal(session);
+  if (!p) return unauthorized();
+  if (!canManageTenantMembers(p, p.tenantId)) {
+    return forbidden("Forbidden — hanya owner atau tenant_admin");
+  }
+  return null;
+}
 
 // Konfigurasi webhook tenant — owner-only (API juga menegakkan 403).
 // - GET    → konfigurasi saat ini (secret di-mask, baca D1 = 0 Neon)
@@ -24,8 +40,9 @@ function maskSecret(secret: string): string {
 
 export async function GET() {
   const session = await auth();
-  const tenantId = session?.user?.tenantId;
-  if (!tenantId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = requireMemberManager(session);
+  if (denied) return denied;
+  const tenantId = parsePrincipal(session)?.tenantId ?? "";
 
   try {
     const wh = await getWebhookForTenant(tenantId);
@@ -52,11 +69,9 @@ export async function GET() {
 
 export async function PUT(req: Request) {
   const session = await auth();
-  const tenantId = session?.user?.tenantId;
-  if (!tenantId) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "owner") {
-    return Response.json({ error: "Forbidden — hanya owner" }, { status: 403 });
-  }
+  const denied = requireMemberManager(session);
+  if (denied) return denied;
+  const tenantId = parsePrincipal(session)?.tenantId ?? "";
 
   const rl = await checkRateLimit(`webhook-put:${tenantId}:${clientIp(req)}`, 10, 60_000);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterSec);
@@ -146,11 +161,9 @@ export async function PUT(req: Request) {
 
 export async function DELETE() {
   const session = await auth();
-  const tenantId = session?.user?.tenantId;
-  if (!tenantId) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "owner") {
-    return Response.json({ error: "Forbidden — hanya owner" }, { status: 403 });
-  }
+  const denied = requireMemberManager(session);
+  if (denied) return denied;
+  const tenantId = parsePrincipal(session)?.tenantId ?? "";
 
   try {
     const removed = await deleteWebhookForTenant(tenantId);

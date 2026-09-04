@@ -1,16 +1,31 @@
 import { auth } from "@/lib/auth";
 import { revokeApiKey } from "@/lib/authStore";
 import { recordAuditFromSession } from "@/lib/audit";
+import {
+  canManageTenantMembers,
+  parsePrincipal,
+  unauthorized,
+  forbidden,
+  type SessionLike,
+} from "@/lib/abac";
 
-// Revoke (cabut) API key — owner-only. Key yang dicabut langsung ditolak
-// verifikasi (auth baca D1, write-through Neon → D1).
+function requireMemberManager(session: SessionLike | null): Response | null {
+  const p = parsePrincipal(session);
+  if (!p) return unauthorized();
+  if (!canManageTenantMembers(p, p.tenantId)) {
+    return forbidden("Forbidden — hanya owner atau tenant_admin");
+  }
+  return null;
+}
+
+// Revoke (cabut) API key — owner & tenant_admin. Key yang dicabut langsung
+// ditolak verifikasi (auth baca D1, write-through Neon → D1).
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
-  const tenantId = session?.user?.tenantId;
-  if (!tenantId) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "owner") {
-    return Response.json({ error: "Forbidden — hanya owner" }, { status: 403 });
-  }
+  const denied = requireMemberManager(session);
+  if (denied) return denied;
+  const p = parsePrincipal(session);
+  const tenantId = p?.tenantId ?? "";
 
   const { id } = await params;
   try {

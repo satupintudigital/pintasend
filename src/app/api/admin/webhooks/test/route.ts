@@ -3,16 +3,30 @@ import { getWebhookForTenant } from "@/lib/webhookStore";
 import { hmacSha256Hex } from "@/lib/hmac";
 import { isSafeWebhookUrl } from "@/lib/ssrf";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
+import {
+  canManageTenantMembers,
+  parsePrincipal,
+  unauthorized,
+  forbidden,
+  type SessionLike,
+} from "@/lib/abac";
+
+function requireMemberManager(session: SessionLike | null): Response | null {
+  const p = parsePrincipal(session);
+  if (!p) return unauthorized();
+  if (!canManageTenantMembers(p, p.tenantId)) {
+    return forbidden("Forbidden — hanya owner atau tenant_admin");
+  }
+  return null;
+}
 
 // Kirim event uji sintetis (message.received) ke URL webhook milik client —
 // memakai jalur delivery yang sama dengan produksi (envelope + x-wavio-signature).
 export async function POST(req: Request) {
   const session = await auth();
-  const tenantId = session?.user?.tenantId;
-  if (!tenantId) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  if (session.user.role !== "owner") {
-    return Response.json({ error: "Forbidden — hanya owner" }, { status: 403 });
-  }
+  const denied = requireMemberManager(session);
+  if (denied) return denied;
+  const tenantId = parsePrincipal(session)?.tenantId ?? "";
 
   const rl = await checkRateLimit(`webhook-test:${tenantId}:${clientIp(req)}`, 10, 60_000);
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterSec);
