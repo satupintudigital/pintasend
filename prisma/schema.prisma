@@ -162,7 +162,7 @@ model User {
   email        String   @unique
   name         String
   passwordHash String
-  role         String   @default("owner") // "owner" | "member"
+  role         String   @default("owner") // "member" | "tenant_admin" | "owner" | "platform_admin" (string; validasi di src/lib/abac.ts & authStore)
   createdAt    DateTime @default(now())
 }
 

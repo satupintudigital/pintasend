@@ -3,6 +3,31 @@ import { changesD1, queryD1, queryD1One } from "@/lib/d1";
 import { uuidv7 } from "@/lib/uuidv7";
 import { API_KEY_PREFIX, generateApiKeyRaw, hashApiKey } from "@/lib/apiKeys";
 
+// Role yang boleh di-INSERT ke kolom User.role. Nilai di luar whitelist ditolak
+// (deny-by-default) — validasi di lapisan store, bukan hanya route, agar tidak
+// ada jalur create user yang bisa menyelipkan role arbitrer.
+export const USER_ROLE_ALLOWLIST = [
+  "member",
+  "tenant_admin",
+  "owner",
+  "platform_admin",
+] as const;
+export type UserRole = (typeof USER_ROLE_ALLOWLIST)[number];
+
+export class InvalidRoleError extends Error {
+  constructor(role: string) {
+    super(`Role tidak valid: ${role}`);
+    this.name = "InvalidRoleError";
+  }
+}
+
+/** Validasi role create user (default owner). Pure — aman di-unit-test. */
+export function assertCreateRole(role?: string | null): UserRole {
+  const r = role ?? "owner";
+  if (!USER_ROLE_ALLOWLIST.includes(r as UserRole)) throw new InvalidRoleError(r);
+  return r as UserRole;
+}
+
 export interface NewUser {
   tenantId: string;
   email: string;
@@ -28,7 +53,7 @@ export interface UserD1Row {
 export async function createUser(input: NewUser): Promise<{ id: string }> {
   const id = uuidv7();
   const now = new Date().toISOString();
-  const role = input.role ?? "owner";
+  const role = assertCreateRole(input.role);
 
   // 1. Neon (source of truth) — tabel User Neon TIDAK punya kolom updatedAt
   // (lihat schema.prisma), jadi hanya createdAt di-set via default now().
@@ -78,7 +103,7 @@ export async function createUserWithTenant(
   const tenantId = uuidv7();
   const userId = uuidv7();
   const now = new Date().toISOString();
-  const role = input.role ?? "owner";
+  const role = assertCreateRole(input.role);
 
   try {
     await query('INSERT INTO "Tenant" (id, name) VALUES ($1, $2)', [tenantId, input.tenantName]);

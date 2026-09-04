@@ -45,7 +45,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body?.password === "string" ? body.password : "";
-  const role = body?.role === "owner" ? "owner" : "member";
+  // User baru via jalur ini hanya member | tenant_admin (owner dibuat via
+  // provisioning POST /api/platform/tenants — invariant satu owner per tenant).
+  const role = body?.role === "tenant_admin" ? "tenant_admin" : "member";
 
   if (!name || name.length > 60) {
     return Response.json({ error: "Nama wajib diisi (maks. 60 karakter)" }, { status: 400 });
