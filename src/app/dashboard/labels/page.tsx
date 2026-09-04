@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Plus,
   Trash,
@@ -186,7 +187,12 @@ export default function LabelsPage() {
                       <Tag size={18} />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-fg">{label.name}</p>
+                      <Link
+                        href={`/dashboard/labels/${label.id}`}
+                        className="truncate font-medium text-fg hover:text-accent-bright transition-colors"
+                      >
+                        {label.name}
+                      </Link>
                       <p className="font-mono text-xs text-fg-faint">
                         {label.contactCount} kontak
                         {label.openwaSynced && <span className="ml-1.5 text-accent-bright">· synced</span>}
