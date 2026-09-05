@@ -7,6 +7,7 @@ Dashboard + API gateway WhatsApp multi-tenant berbasis **OpenWA**. Produk mandir
 - **Spec & plan:** `NalaNiaga/docs/superpowers/specs/2026-08-17-wa-gateway-saas-design.md` · `NalaNiaga/docs/superpowers/plans/2026-08-17-wavio-fase-0-1.md`
 - **Spec & plan (Fase 4 — integrasi NalaNiaga):** `NalaNiaga/docs/superpowers/specs/2026-08-18-wavio-gateway-sso-design.md` · `NalaNiaga/docs/superpowers/plans/2026-08-18-wavio-gateway-sso.md`
 - **Deploy OpenWA (v0.22.0):** [`docs/openwa-deploy.md`](docs/openwa-deploy.md)
+- **Kontrak helper HTTP JSON terpusat (app & worker):** [`docs/http-helpers.md`](docs/http-helpers.md)
 
 ## Arsitektur (aktual)
 
