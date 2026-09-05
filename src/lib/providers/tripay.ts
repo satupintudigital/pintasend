@@ -18,6 +18,7 @@
 // memakainya di body create — signature cukup method+ref+amount).
 
 import { hmacSha256Hex } from "@/lib/hmac";
+import { postJson } from "@/lib/http";
 import type {
   PaymentProvider,
   PaymentCreateInput,
@@ -67,16 +68,19 @@ function dataRecord(data: unknown): Record<string, unknown> {
 async function tripayFetch(
   env: Record<string, string | undefined>,
   path: string,
-  init?: RequestInit,
+  init?: { body?: unknown; signal?: AbortSignal },
 ): Promise<TripayJson> {
-  const res = await fetch(`${baseUrl(env.TRIPAY_MODE)}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${env.TRIPAY_API_KEY ?? ""}`,
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
+  const headers = { Authorization: `Bearer ${env.TRIPAY_API_KEY ?? ""}` };
+  // Body create TIDAK terikat HMAC (signature dihitung dari
+  // method+merchant_ref+amount, bukan dari raw body) → boleh lewat helper
+  // terpusat postJson agar body/header tidak bisa salah kirim.
+  const res =
+    init?.body !== undefined
+      ? await postJson(`${baseUrl(env.TRIPAY_MODE)}${path}`, init.body, { headers })
+      : await fetch(`${baseUrl(env.TRIPAY_MODE)}${path}`, {
+          signal: init?.signal,
+          headers: { ...headers, "Content-Type": "application/json" },
+        });
   if (!res.ok) {
     let message = res.statusText;
     try {
@@ -116,10 +120,7 @@ export function createPaymentProvider(
         expiry_time: input.expiryMinutes,
         signature,
       };
-      const json = await tripayFetch(e, "/transaction/create", {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
+      const json = await tripayFetch(e, "/transaction/create", { body });
       const d = dataRecord(json?.data);
       return {
         gatewayRef: String(d.reference ?? ""),

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { postJson } from "./http";
+import { postJson, jsonFetch } from "./http";
 
 // Helper fetch terpusat — kontrak Wajib: body selalu JSON.stringify + header
 // Content-Type: application/json. Regresi bug: route register pernah mengirim
@@ -62,5 +62,36 @@ describe("postJson", () => {
     const { fetchImpl } = captureFetch();
     const res = await postJson("https://x.test/endpoint", { a: 1 }, {}, fetchImpl);
     expect(res.status).toBe(200);
+  });
+});
+
+describe("jsonFetch", () => {
+  function captureFetch() {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return new Response("{}", { status: 200 });
+    });
+    return { fetchImpl, calls };
+  }
+
+  it.each(["PUT", "PATCH"] as const)("method %s + body JSON + Content-Type dipaksa", async (method) => {
+    const { fetchImpl, calls } = captureFetch();
+    await jsonFetch(method, "https://x.test/r", { a: 1 }, {}, fetchImpl);
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(calls[0].init?.method).toBe(method);
+    expect(calls[0].init?.body).toBe(JSON.stringify({ a: 1 }));
+    expect(new Headers(calls[0].init?.headers).get("content-type")).toBe("application/json");
+  });
+
+  it("postJson adalah jsonFetch(POST) — kontrak identik", async () => {
+    const { fetchImpl, calls } = captureFetch();
+    await postJson("https://x.test/r", { a: 1 }, {}, fetchImpl);
+    await jsonFetch("POST", "https://x.test/r", { a: 1 }, {}, fetchImpl);
+
+    expect(calls[0].init?.method).toBe("POST");
+    expect(calls[1].init?.method).toBe("POST");
+    expect(calls[0].init?.body).toBe(calls[1].init?.body);
   });
 });

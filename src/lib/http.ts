@@ -19,8 +19,17 @@ export type PostJsonInit = Omit<RequestInit, "method" | "body">;
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
-/** POST body sebagai JSON. Mengembalikan Response mentah — caller membaca. */
-export async function postJson(
+/** Method HTTP yang membawa body JSON ter-serialize. */
+export type JsonMethod = "POST" | "PUT" | "PATCH";
+
+/**
+ * Request method (POST/PUT/PATCH) dgn body sebagai JSON. Kontrak yang sama
+ * dgn postJson — body SELALU di-JSON.stringify, Content-Type dipaksa — tapi
+ * method bisa ditentukan pemanggil (dipakai openwa.ts utk PUT/PATCH).
+ * Mengembalikan Response mentah — caller membaca.
+ */
+export async function jsonFetch(
+  method: JsonMethod,
   url: string,
   body: unknown,
   init: PostJsonInit = {},
@@ -31,8 +40,18 @@ export async function postJson(
 
   return fetchImpl(url, {
     ...init,
-    method: "POST",
+    method,
     headers,
     body: JSON.stringify(body),
   });
+}
+
+/** POST body sebagai JSON. Mengembalikan Response mentah — caller membaca. */
+export function postJson(
+  url: string,
+  body: unknown,
+  init: PostJsonInit = {},
+  fetchImpl: FetchLike = (u, i) => fetch(u, i),
+): Promise<Response> {
+  return jsonFetch("POST", url, body, init, fetchImpl);
 }

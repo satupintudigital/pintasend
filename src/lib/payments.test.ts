@@ -50,8 +50,11 @@ describe("createPaymentProvider", () => {
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("https://tripay.co.id/api-sandbox/transaction/create");
-    const headers = init.headers as Record<string, string>;
-    expect(headers.Authorization).toBe("Bearer api-key-123");
+    // Header bisa berupa Headers instance (dari helper postJson) atau plain
+    // object — baca via Headers agar assertion robust terhadap keduanya.
+    const headers = new Headers(init.headers as HeadersInit);
+    expect(headers.get("Authorization")).toBe("Bearer api-key-123");
+    expect(headers.get("content-type")).toBe("application/json");
     const body = JSON.parse(String(init.body));
     expect(body.method).toBe("BRIVA0");
     expect(body.merchant_ref).toBe("ord-1");
