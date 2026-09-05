@@ -3,6 +3,7 @@
 // job per device. Worker ini hanya memakai operasi OpenWA list/create: versi
 // fisik immutable dibuat sekali, diverifikasi, lalu binding aktif dipindahkan.
 import { Client } from "@neondatabase/serverless";
+import { postJson, getJson } from "../shared/http.js";
 
 const BATCH_LIMIT = 20;
 const MAX_ATTEMPTS = 8;
@@ -41,11 +42,16 @@ function retryDelay(attempt) {
 async function openwaRequest(env, sessionId, path, init = {}) {
   const base = String(env.OPENWA_BASE_URL ?? "").replace(/\/+$/, "");
   if (!base || !env.OPENWA_ADMIN_KEY) throw new Error("Konfigurasi OpenWA worker belum lengkap");
-  const response = await fetch(`${base}/api/sessions/${encodeURIComponent(sessionId)}${path}`, {
-    ...init,
-    headers: { "X-API-Key": String(env.OPENWA_ADMIN_KEY), "Content-Type": "application/json", ...(init.headers ?? {}) },
+  const url = `${base}/api/sessions/${encodeURIComponent(sessionId)}${path}`;
+  const options = {
+    headers: { "X-API-Key": String(env.OPENWA_ADMIN_KEY), ...(init.headers ?? {}) },
     signal: AbortSignal.timeout(OPENWA_TIMEOUT_MS),
-  });
+  };
+  // Body terstruktur → postJson (POST); tanpa body → getJson (GET). Serialisasi
+  // & header JSON ditangani helper bersama workers/shared/http.js.
+  const response = init.body !== undefined
+    ? await postJson(url, init.body, options)
+    : await getJson(url, options);
   const data = await response.json().catch(() => null);
   if (!response.ok) throw new Error(`OpenWA HTTP ${response.status}`);
   return data;
@@ -67,13 +73,12 @@ async function reconcileJob(env, client, row) {
     if (!sameContent(existing, expected)) throw new Error("Template physical immutable sudah ada dengan isi berbeda");
   } else {
     const created = await openwaRequest(env, row.openwaSessionId, "/templates", {
-      method: "POST",
-      body: JSON.stringify({
+      body: {
         name: expected.name,
         body: expected.body,
         ...(expected.header ? { header: expected.header } : {}),
         ...(expected.footer ? { footer: expected.footer } : {}),
-      }),
+      },
     });
     physicalId = created?.id ?? created?.template?.id ?? null;
     if (!physicalId) {

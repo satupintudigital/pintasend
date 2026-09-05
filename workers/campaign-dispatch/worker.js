@@ -27,6 +27,7 @@
 // Secret: DATABASE_URL, OPENWA_BASE_URL, OPENWA_ADMIN_KEY, DISPATCH_TOKEN,
 //         WAVIO_WATERMARK_FOOTNOTE (opsional).
 import { Client } from "@neondatabase/serverless";
+import { postJson, getJson } from "../shared/http.js";
 
 // Free plan: invocation HTTP dibatasi ±30 dtk wall-clock & limits.* tidak
 // didukung — BATCH_LIMIT + MAX_GAP_MS dijaga agar worst-case tick muat
@@ -78,12 +79,15 @@ async function hmacSha256Hex(secret, body) {
 
 async function openwaSend(env, sessionId, action, payload) {
   const base = String(env.OPENWA_BASE_URL ?? "").replace(/\/$/, "");
-  const res = await fetch(`${base}/api/sessions/${sessionId}/messages/${action}`, {
-    method: "POST",
-    headers: { "X-API-Key": String(env.OPENWA_ADMIN_KEY ?? ""), "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
-  });
+  // Serialisasi body + header JSON ditangani helper bersama workers/shared/http.js.
+  const res = await postJson(
+    `${base}/api/sessions/${encodeURIComponent(sessionId)}/messages/${action}`,
+    payload,
+    {
+      headers: { "X-API-Key": String(env.OPENWA_ADMIN_KEY ?? "") },
+      signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+    },
+  );
   if (!res.ok) {
     let message = res.statusText;
     try {
@@ -233,8 +237,8 @@ async function runDispatch(env) {
     // 2b. Guard status sesi OpenWA langsung (Device.status di DB bisa basi bila
     //     webhook session.status tidak masuk) — sesi tidak ready → pause, jangan
     //     membakar penerima dgn error berulang.
-    const sess = await fetch(
-      `${String(env.OPENWA_BASE_URL ?? "").replace(/\/$/, "")}/api/sessions/${device.openwaSessionId}`,
+    const sess = await getJson(
+      `${String(env.OPENWA_BASE_URL ?? "").replace(/\/$/, "")}/api/sessions/${encodeURIComponent(device.openwaSessionId)}`,
       { headers: { "X-API-Key": String(env.OPENWA_ADMIN_KEY ?? "") }, signal: AbortSignal.timeout(10_000) },
     ).catch(() => null);
     if (!sess || !sess.ok) {
