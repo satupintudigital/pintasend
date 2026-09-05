@@ -210,6 +210,10 @@ export async function getPlatformMetrics(): Promise<PlatformMetrics> {
 }
 
 export interface PlanPatch {
+  name?: string;
+  tagline?: string;
+  priceDisplay?: string;
+  kind?: string;
   priceMonthly?: number | null;
   maxDevices?: number;
   maxUsers?: number;
@@ -224,6 +228,22 @@ export interface PlanPatch {
 export async function updatePlan(id: string, patch: PlanPatch): Promise<boolean> {
   const sets: string[] = [];
   const args: unknown[] = [];
+  if (patch.name !== undefined) {
+    args.push(patch.name);
+    sets.push(`name = $${args.length}`);
+  }
+  if (patch.tagline !== undefined) {
+    args.push(patch.tagline);
+    sets.push(`tagline = $${args.length}`);
+  }
+  if (patch.priceDisplay !== undefined) {
+    args.push(patch.priceDisplay);
+    sets.push(`"priceDisplay" = $${args.length}`);
+  }
+  if (patch.kind !== undefined) {
+    args.push(patch.kind);
+    sets.push(`kind = $${args.length}`);
+  }
   if (patch.priceMonthly !== undefined) {
     args.push(patch.priceMonthly);
     sets.push(`"priceMonthly" = $${args.length}`);
@@ -260,6 +280,204 @@ export async function updatePlan(id: string, patch: PlanPatch): Promise<boolean>
   args.push(id);
   const rows = await query<{ id: string }>(
     `UPDATE "Plan" SET ${sets.join(", ")} WHERE id = $${args.length} RETURNING id`,
+    args,
+  );
+  return rows.length > 0;
+}
+
+// ─── Kelola katalog plan & addon (platform admin, P1) ───────────────────────
+// Kolom isActive/isPublic sudah ada (tidak butuh migrasi). Catalog publik
+// (src/lib/catalog.ts) otomatis memfilter isActive=true & isPublic=true, jadi
+// mengarsipkan plan/addon langsung menghilangkannya dari halaman harga/checkout
+// tanpa menyentuh tenant yang sudah memakai.
+
+/** Validasi input create plan dari body request. Pure — mudah di-unit-test. */
+export function parsePlanCreateBody(
+  raw: unknown,
+): { ok: true; plan: PlanCreateInput } | { ok: false; error: string } {
+  const b = (raw ?? {}) as Record<string, unknown>;
+  const name = typeof b.name === "string" ? b.name.trim() : "";
+  if (!name || name.length > 80) return { ok: false, error: "Nama plan wajib 1–80 karakter" };
+  if (
+    b.kind !== undefined &&
+    b.kind !== "subscription" &&
+    b.kind !== "prepaid"
+  ) {
+    return { ok: false, error: "kind harus 'subscription' atau 'prepaid'" };
+  }
+  const kind = b.kind === "prepaid" ? "prepaid" : "subscription";
+  const int = (v: unknown, d: number, label: string): number => {
+    if (typeof v === "number" && Number.isFinite(v) && v >= 0) return Math.floor(v);
+    if (v === undefined) return d;
+    throw new Error(`${label} harus angka ≥ 0`);
+  };
+  try {
+    const plan: PlanCreateInput = {
+      name,
+      kind,
+      tagline: typeof b.tagline === "string" ? b.tagline.trim() : "",
+      priceDisplay: typeof b.priceDisplay === "string" ? b.priceDisplay.trim() : name,
+      priceMonthly:
+        b.priceMonthly === null || b.priceMonthly === undefined
+          ? null
+          : int(b.priceMonthly, 0, "priceMonthly"),
+      maxDevices: int(b.maxDevices, 1, "maxDevices"),
+      maxUsers: int(b.maxUsers, 1, "maxUsers"),
+      maxMessagesPerMonth:
+        b.maxMessagesPerMonth === null || b.maxMessagesPerMonth === undefined
+          ? null
+          : int(b.maxMessagesPerMonth, 0, "maxMessagesPerMonth"),
+      includesDelay: b.includesDelay === true,
+      isActive: b.isActive !== false,
+      isPublic: b.isPublic !== false,
+      sortOrder: typeof b.sortOrder === "number" && b.sortOrder >= 0 ? Math.floor(b.sortOrder) : 0,
+    };
+    return { ok: true, plan };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Input plan tidak valid" };
+  }
+}
+
+export interface PlanCreateInput {
+  name: string;
+  kind: string;
+  tagline: string;
+  priceDisplay: string;
+  priceMonthly: number | null;
+  maxDevices: number;
+  maxUsers: number;
+  maxMessagesPerMonth: number | null;
+  includesDelay: boolean;
+  isActive: boolean;
+  isPublic: boolean;
+  sortOrder: number;
+}
+
+/** Buat plan baru (platform admin). Mengembalikan baris lengkap bila sukses. */
+export async function createPlan(input: PlanCreateInput): Promise<PlanRow | null> {
+  const rows = await query<PlanRow>(
+    `INSERT INTO "Plan" (id, name, tagline, "priceDisplay", "priceMonthly", kind,
+       "isPublic", "sortOrder", "maxDevices", "maxUsers", "maxMessagesPerMonth",
+       "includesDelay", "isActive", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, now(), now())
+     RETURNING id, name, tagline, "priceDisplay", "priceMonthly", "maxDevices",
+       "maxUsers", "maxMessagesPerMonth", "includesDelay", "isActive", kind,
+       "isPublic", "sortOrder"`,
+    [
+      uuidv7(),
+      input.name,
+      input.tagline,
+      input.priceDisplay,
+      input.priceMonthly,
+      input.kind,
+      input.isPublic,
+      input.sortOrder,
+      input.maxDevices,
+      input.maxUsers,
+      input.maxMessagesPerMonth,
+      input.includesDelay,
+      input.isActive,
+    ],
+  );
+  return rows[0] ?? null;
+}
+
+export interface AddonRow {
+  key: string;
+  name: string;
+  tagline: string;
+  priceMonthly: number | null;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface AddonPatch {
+  name?: string;
+  tagline?: string;
+  priceMonthly?: number | null;
+  isActive?: boolean;
+}
+
+/** Daftar semua addon (termasuk non-aktif) — platform admin. */
+export async function listAddons(): Promise<AddonRow[]> {
+  return query<AddonRow>(
+    'SELECT key, name, tagline, "priceMonthly", "isActive", "createdAt" FROM "Addon" ORDER BY "isActive" DESC, name ASC',
+  );
+}
+
+export interface AddonCreateInput {
+  key: string;
+  name: string;
+  tagline: string;
+  priceMonthly: number | null;
+  isActive: boolean;
+}
+
+/** Validasi input addon dari body request. Pure — mudah di-unit-test. */
+export function parseAddonCreateBody(
+  raw: unknown,
+): { ok: true; addon: AddonCreateInput } | { ok: false; error: string } {
+  const b = (raw ?? {}) as Record<string, unknown>;
+  const key = typeof b.key === "string" ? b.key.trim().toLowerCase() : "";
+  const name = typeof b.name === "string" ? b.name.trim() : "";
+  if (!/^[a-z0-9_]{2,64}$/.test(key)) {
+    return { ok: false, error: "key addon wajib 2–64 karakter (huruf kecil, angka, underscore)" };
+  }
+  if (!name || name.length > 80) return { ok: false, error: "Nama addon wajib 1–80 karakter" };
+  let priceMonthly: number | null = null;
+  if (b.priceMonthly !== null && b.priceMonthly !== undefined) {
+    if (typeof b.priceMonthly !== "number" || !Number.isFinite(b.priceMonthly) || b.priceMonthly < 0) {
+      return { ok: false, error: "priceMonthly harus angka ≥ 0 atau null" };
+    }
+    priceMonthly = Math.floor(b.priceMonthly);
+  }
+  return {
+    ok: true,
+    addon: {
+      key,
+      name,
+      tagline: typeof b.tagline === "string" ? b.tagline.trim() : "",
+      priceMonthly,
+      isActive: b.isActive !== false,
+    },
+  };
+}
+
+/** Buat addon baru. Konflik key → false. */
+export async function createAddon(input: AddonCreateInput): Promise<boolean> {
+  const rows = await query<{ key: string }>(
+    `INSERT INTO "Addon" (id, key, name, tagline, "priceMonthly", "isActive", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, $4, $5, $6, now(), now())
+     ON CONFLICT (key) DO NOTHING RETURNING key`,
+    [uuidv7(), input.key, input.name, input.tagline, input.priceMonthly, input.isActive],
+  );
+  return rows.length > 0;
+}
+
+/** Update sebagian addon. Hanya kolom yang di-set yang diubah. */
+export async function updateAddon(key: string, patch: AddonPatch): Promise<boolean> {
+  const sets: string[] = [];
+  const args: unknown[] = [];
+  if (patch.name !== undefined) {
+    args.push(patch.name);
+    sets.push(`name = $${args.length}`);
+  }
+  if (patch.tagline !== undefined) {
+    args.push(patch.tagline);
+    sets.push(`tagline = $${args.length}`);
+  }
+  if (patch.priceMonthly !== undefined) {
+    args.push(patch.priceMonthly);
+    sets.push(`"priceMonthly" = $${args.length}`);
+  }
+  if (patch.isActive !== undefined) {
+    args.push(patch.isActive);
+    sets.push(`"isActive" = $${args.length}`);
+  }
+  if (!sets.length) return false;
+  args.push(key);
+  const rows = await query<{ key: string }>(
+    `UPDATE "Addon" SET ${sets.join(", ")}, "updatedAt" = now() WHERE key = $${args.length} RETURNING key`,
     args,
   );
   return rows.length > 0;

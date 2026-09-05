@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle, Warning } from "@phosphor-icons/react";
+import { CheckCircle, Plus, Warning } from "@phosphor-icons/react";
 
 interface PlanRow {
   id: string;
@@ -28,6 +28,21 @@ export function PlansTable({ initial }: PlansTableProps) {
   const [plans, setPlans] = useState(initial);
   const [saving, setSaving] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ id: string; ok: boolean; msg: string } | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const emptyDraft = {
+    name: "",
+    tagline: "",
+    priceDisplay: "",
+    priceMonthly: "",
+    kind: "subscription",
+    maxDevices: "1",
+    maxUsers: "1",
+    maxMessagesPerMonth: "",
+    sortOrder: "0",
+    includesDelay: false,
+  };
+  const [draft, setDraft] = useState(emptyDraft);
 
   const num = (v: string) => {
     const n = Number(v);
@@ -42,6 +57,8 @@ export function PlansTable({ initial }: PlansTableProps) {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          name: p.name,
+          priceDisplay: p.priceDisplay,
           priceMonthly: p.priceMonthly,
           maxDevices: p.maxDevices,
           maxUsers: p.maxUsers,
@@ -66,8 +83,160 @@ export function PlansTable({ initial }: PlansTableProps) {
     }
   }
 
+  async function create() {
+    setCreating(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/platform/plans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: draft.name,
+          tagline: draft.tagline,
+          priceDisplay: draft.priceDisplay,
+          priceMonthly: draft.priceMonthly === "" ? null : (num(draft.priceMonthly) ?? null),
+          kind: draft.kind,
+          maxDevices: num(draft.maxDevices) ?? 1,
+          maxUsers: num(draft.maxUsers) ?? 1,
+          maxMessagesPerMonth:
+            draft.maxMessagesPerMonth === "" ? null : (num(draft.maxMessagesPerMonth) ?? null),
+          sortOrder: num(draft.sortOrder) ?? 0,
+          includesDelay: draft.includesDelay,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        plan?: PlanRow;
+      };
+      if (!res.ok) throw new Error(data.error ?? "Gagal membuat plan");
+      if (data.plan) {
+        setPlans((ps) => [...ps, data.plan as PlanRow]);
+        setDraft(emptyDraft);
+        setShowCreate(false);
+        setFeedback({ id: "create", ok: true, msg: `Plan '${data.plan.name}' dibuat` });
+      }
+    } catch (e) {
+      setFeedback({ id: "create", ok: false, msg: e instanceof Error ? e.message : "Gagal membuat plan" });
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const inputCls =
+    "rounded-lg border border-line bg-ink-2 px-2 py-1.5 text-sm text-fg placeholder:text-fg-faint focus:border-accent focus:outline-none";
+
   return (
     <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
+        <h2 className="text-sm font-semibold text-fg">Plan ({plans.length})</h2>
+        <button
+          type="button"
+          onClick={() => setShowCreate((v) => !v)}
+          className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-xs font-semibold text-accent-ink transition-all hover:bg-accent-bright active:scale-[0.97]"
+        >
+          <Plus size={14} weight="bold" />
+          {showCreate ? "Tutup" : "Tambah plan"}
+        </button>
+      </div>
+
+      {feedback?.id === "create" && (
+        <p
+          className={`flex items-center gap-2 border-b border-line-soft px-4 py-2.5 text-xs ${
+            feedback.ok ? "text-accent-bright" : "text-red-600"
+          }`}
+        >
+          {feedback.ok ? <CheckCircle size={14} weight="fill" /> : <Warning size={14} weight="fill" />}
+          {feedback.msg}
+        </p>
+      )}
+
+      {showCreate && (
+        <div className="grid grid-cols-2 gap-3 border-b border-line-soft px-4 py-4 sm:grid-cols-4">
+          <input
+            value={draft.name}
+            onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+            placeholder="Nama plan *"
+            className={inputCls}
+          />
+          <select
+            value={draft.kind}
+            onChange={(e) => setDraft((d) => ({ ...d, kind: e.target.value }))}
+            className={inputCls}
+          >
+            <option value="subscription">subscription (bulanan)</option>
+            <option value="prepaid">prepaid (per pesan)</option>
+          </select>
+          <input
+            value={draft.priceDisplay}
+            onChange={(e) => setDraft((d) => ({ ...d, priceDisplay: e.target.value }))}
+            placeholder="Teks harga (Rp150rb/bln)"
+            className={inputCls}
+          />
+          <input
+            type="number"
+            min={0}
+            value={draft.priceMonthly}
+            onChange={(e) => setDraft((d) => ({ ...d, priceMonthly: e.target.value }))}
+            placeholder="Rp/bulan nominal"
+            className={inputCls}
+          />
+          <input
+            value={draft.tagline}
+            onChange={(e) => setDraft((d) => ({ ...d, tagline: e.target.value }))}
+            placeholder="Tagline singkat"
+            className={`${inputCls} sm:col-span-2`}
+          />
+          <input
+            type="number"
+            min={0}
+            value={draft.maxDevices}
+            onChange={(e) => setDraft((d) => ({ ...d, maxDevices: e.target.value }))}
+            placeholder="Max device"
+            className={inputCls}
+          />
+          <input
+            type="number"
+            min={0}
+            value={draft.maxUsers}
+            onChange={(e) => setDraft((d) => ({ ...d, maxUsers: e.target.value }))}
+            placeholder="Max user"
+            className={inputCls}
+          />
+          <input
+            type="number"
+            min={0}
+            value={draft.maxMessagesPerMonth}
+            onChange={(e) => setDraft((d) => ({ ...d, maxMessagesPerMonth: e.target.value }))}
+            placeholder="Pesan/bulan (kosong=∞)"
+            className={inputCls}
+          />
+          <input
+            type="number"
+            min={0}
+            value={draft.sortOrder}
+            onChange={(e) => setDraft((d) => ({ ...d, sortOrder: e.target.value }))}
+            placeholder="Urutan"
+            className={inputCls}
+          />
+          <label className="flex items-center gap-2 text-xs text-fg-muted">
+            <input
+              type="checkbox"
+              checked={draft.includesDelay}
+              onChange={(e) => setDraft((d) => ({ ...d, includesDelay: e.target.checked }))}
+            />
+            Termasuk random delay
+          </label>
+          <button
+            type="button"
+            onClick={create}
+            disabled={creating || !draft.name.trim()}
+            className="rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-accent-ink transition-all hover:bg-accent-bright active:scale-[0.97] disabled:opacity-50"
+          >
+            {creating ? "Membuat…" : "Buat plan"}
+          </button>
+        </div>
+      )}
+
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b border-line-soft text-xs uppercase tracking-wider text-fg-faint">
@@ -87,8 +256,16 @@ export function PlansTable({ initial }: PlansTableProps) {
           {plans.map((p) => (
             <tr key={p.id} className="border-b border-line-soft/60 last:border-0">
               <td className="px-4 py-3">
-                <p className="flex items-center gap-2 font-medium text-fg">
-                  {p.name}
+                <div className="flex items-center gap-2">
+                  <input
+                    value={p.name}
+                    onChange={(e) =>
+                      setPlans((ps) =>
+                        ps.map((x) => (x.id === p.id ? { ...x, name: e.target.value } : x)),
+                      )
+                    }
+                    className="w-24 rounded-lg border border-transparent bg-transparent px-1 py-0.5 font-medium text-fg hover:border-line focus:border-accent focus:bg-ink-2 focus:outline-none"
+                  />
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                       p.kind === "prepaid" ? "bg-amber-300/10 text-amber-200" : "bg-accent/10 text-accent-bright"
@@ -96,8 +273,16 @@ export function PlansTable({ initial }: PlansTableProps) {
                   >
                     {p.kind === "prepaid" ? "per pesan" : "bulanan"}
                   </span>
-                </p>
-                <p className="text-xs text-fg-faint">{p.priceDisplay}</p>
+                </div>
+                <input
+                  value={p.priceDisplay}
+                  onChange={(e) =>
+                    setPlans((ps) =>
+                      ps.map((x) => (x.id === p.id ? { ...x, priceDisplay: e.target.value } : x)),
+                    )
+                  }
+                  className="w-40 rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-xs text-fg-faint hover:border-line focus:border-accent focus:bg-ink-2 focus:text-fg focus:outline-none"
+                />
               </td>
               <td className="px-4 py-3 text-right">
                 <input

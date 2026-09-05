@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowClockwise, CheckCircle, Warning } from "@phosphor-icons/react";
+import { ArrowClockwise, CheckCircle, HandCoins, Warning } from "@phosphor-icons/react";
 import type { PlatformOrderRow } from "@/lib/platform";
 
 interface Props {
@@ -34,7 +34,7 @@ function statusBadge(status: string): string {
 
 export function OrdersTable({ initial }: Props) {
   const router = useRouter();
-  const [orders] = useState(initial);
+  const [orders, setOrders] = useState(initial);
   const [filter, setFilter] = useState<StatusFilter>("semua");
   const [syncing, setSyncing] = useState(false);
   const [feedback, setFeedback] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -61,6 +61,30 @@ export function OrdersTable({ initial }: Props) {
       setFeedback({ ok: false, msg: e instanceof Error ? e.message : "Sinkronisasi gagal" });
     } finally {
       setSyncing(false);
+    }
+  }
+
+  // Tandai order pending lunas secara manual (rekonsiliasi tanpa gateway) —
+  // efek per kind (aktivasi tenant / grant addon / isi kredit) dijalankan oleh
+  // finalizePaidOrder yang sama dgn callback Tripay.
+  async function markPaid(order: (typeof orders)[number]) {
+    if (!window.confirm(`Tandai order ${order.id.slice(0, 8)}… (${order.tenantName}) lunas secara manual?\n\nEfeknya sama dgn pembayaran Tripay sukses: tenant diaktifkan / addon di-grant / kredit diisi.`)) {
+      return;
+    }
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/platform/orders/${order.id}/mark-paid`, { method: "POST" });
+      const d = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(d.error ?? "Gagal menandai lunas");
+      setOrders((os) =>
+        os.map((o) =>
+          o.id === order.id ? { ...o, status: "paid", paidAt: new Date().toISOString() } : o,
+        ),
+      );
+      setFeedback({ ok: true, msg: `Order ${order.id.slice(0, 8)}… ditandai lunas — tenant diproses.` });
+      router.refresh();
+    } catch (e) {
+      setFeedback({ ok: false, msg: e instanceof Error ? e.message : "Gagal menandai lunas" });
     }
   }
 
@@ -112,12 +136,13 @@ export function OrdersTable({ initial }: Props) {
             <th className="px-4 py-3">Metode</th>
             <th className="px-4 py-3">Dibuat</th>
             <th className="px-4 py-3">Lunas</th>
+            <th className="px-4 py-3 text-right">Aksi</th>
           </tr>
         </thead>
         <tbody>
           {visible.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-4 py-10 text-center text-sm text-fg-faint">
+              <td colSpan={8} className="px-4 py-10 text-center text-sm text-fg-faint">
                 Tidak ada order{filter !== "semua" ? ` berstatus ${filter}` : ""}.
               </td>
             </tr>
@@ -143,6 +168,21 @@ export function OrdersTable({ initial }: Props) {
                 </td>
                 <td className="px-4 py-3 text-xs text-fg-faint">
                   {o.paidAt ? new Date(o.paidAt).toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" }) : "—"}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {o.status === "pending" ? (
+                    <button
+                      type="button"
+                      onClick={() => markPaid(o)}
+                      title="Rekonsiliasi manual: tandai lunas tanpa gateway (transfer manual / Tripay down)"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/5 px-3 py-1 text-xs font-semibold text-accent-bright transition-all hover:bg-accent hover:text-accent-ink active:scale-[0.97]"
+                    >
+                      <HandCoins size={13} weight="bold" />
+                      Tandai lunas
+                    </button>
+                  ) : (
+                    "—"
+                  )}
                 </td>
               </tr>
             ))

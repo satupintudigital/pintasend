@@ -11,7 +11,8 @@ export default async function PlatformOrders() {
       </h1>
       <p className="mt-2 max-w-[60ch] text-sm text-fg-muted">
         Semua order pembayaran (paket pertama, perpanjangan, add-on, top-up). Gunakan
-        tombol <b>Resync Tripay</b> bila status pembayaran belum ter-update dari callback.
+        <b>Resync Tripay</b> bila status belum ter-update dari callback, atau <b>Tandai lunas</b>
+        utk rekonsiliasi manual (pembayaran di luar gateway / Tripay sedang down).
       </p>
       <div className="mt-8">
         <OrdersTable initial={orders} />
