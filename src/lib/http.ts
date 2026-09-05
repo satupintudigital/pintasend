@@ -15,7 +15,7 @@
 // raw body), jangan pakai helper ini — pakai fetch() langsung dgn body string
 // hasil JSON.stringify sendiri (lihat webhookDelivery.ts / nalaniagaSso.ts).
 
-export interface PostJsonInit extends Omit<RequestInit, "method" | "body"> {}
+export type PostJsonInit = Omit<RequestInit, "method" | "body">;
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
