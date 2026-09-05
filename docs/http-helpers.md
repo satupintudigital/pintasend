@@ -104,6 +104,9 @@ Sengaja **tidak** memakai helper:
 
 ## 3. Aturan untuk developer baru (checklist)
 
+Berlaku untuk **HTTP keluar server-side** (client browser → `/api` sendiri di luar
+scope — lihat §4):
+
 - [ ] Panggilan keluar berbody JSON → `postJson` / `jsonFetch`, body = **objek terstruktur**.
 - [ ] Panggilan keluar GET dengan parameter → `getJson` + `query: {...}` — jangan menulis
       `?a=${encodeURIComponent(x)}` manual.
@@ -118,7 +121,52 @@ Sengaja **tidak** memakai helper:
 
 ---
 
-## 4. Menjalankan test
+## 4. Scope pemakaian & hasil audit (server-side)
+
+Helper ini dikhususkan untuk **HTTP keluar server-side** (app Wavio di
+Cloudflare Workers maupun worker standalone). Status audit **2026-09-05**:
+
+| Area | Status | Keterangan |
+|---|---|---|
+| `src/lib/openwa.ts` | ✅ helper | `request()` serialize body/query via `jsonFetch`/`getJson`; `getMedia`/`getProfilePicture` = download media mentah (raw fetch, sengaja) |
+| `src/lib/providers/tripay.ts` | ✅ helper | body create via `postJson`, GET via `getJson` |
+| `src/app/api/auth/register/route.ts` | ✅ helper | `postJson` ke worker siteverify (lokasi bug asli) |
+| Route handler lain `src/app/api/*` | ✅ n/a | tidak ada `fetch()` langsung (semua via lib) |
+| `src/lib/nalaniagaSso.ts`, `src/lib/webhookDelivery.ts` | ✅ raw (sengaja) | HMAC atas raw body — fetch manual + komentar |
+| Workers `template-sync`, `campaign-dispatch`, `platform-broadcast` | ✅ helper | `workers/shared/http.js` |
+| Workers `webhook-delivery`, `turnstile-siteverify` | ✅ raw (sengaja) | HMAC raw body / FormData |
+
+Cara memverifikasi server-side tetap bersih (ulangi sewaktu-waktu):
+
+```bash
+# Semua fetch di src di luar test — seharusnya HANYA: src/lib/http.ts,
+# src/lib/nalaniagaSso.ts, src/lib/openwa.ts + client pages/components (bukan
+# target helper — lihat bawah).
+grep -rln "fetch(" src --include=*.ts --include=*.tsx | grep -v test
+```
+
+### Client (browser → `/api/*` sendiri): sengaja DI LUAR scope
+
+Halaman & komponen `use client` memanggil route API Wavio sendiri dari
+browser dgn `fetch` polos. Ini **sengaja bukan** target helper:
+
+1. Receiver adalah route sendiri (`/api/*`) — kita kontrol keduanya; seluruh
+   body sudah `JSON.stringify` + `Content-Type: application/json` yang benar
+   (audit 2026-09-05), bukan kelas bug raw-string.
+2. Banyak call site memakai `DELETE` tanpa body atau `FormData` — tak ada
+   helper untuk bentuk itu; konversi parsial justru bikin pola campur.
+3. Beberapa `fetch` memakai `AbortSignal` (cancel request) — helper tidak
+   menambah nilai di sana.
+4. Teks contoh kode di `docs/*` (mis. `docs/page.tsx`, `docs/integrations/`)
+   adalah dokumentasi API publik utk pelanggan — tetap `fetch` polos, bukan
+   dieksekusi oleh server.
+
+Aturan praktis: **fetch keluar server-side baru → wajib helper**; client
+same-origin boleh tetap `fetch` biasa.
+
+---
+
+## 5. Menjalankan test
 
 ```bash
 # Full suite — SELALU dari dalam satu checkout (bukan dari root saat ada
