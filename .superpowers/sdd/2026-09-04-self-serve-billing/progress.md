@@ -106,3 +106,4 @@ Task 6: complete (commits d9b5c22..HEAD, review clean — billingRenewal.ts + sy
 - Commit: 1da6f9e (vitest exclude), 6fa1eb5 (getJson + openwa/tripay), 5ea834f (worker shared helper). 978 test hijau, tsc bersih, lint bersih.
 - Lanjutan: platform-broadcast (openwaSendText) pakai shared helper (commit e190996, deploy Version 7d67dff9). d1-resync & message-retention hanya fetch handler inbound (tanpa HTTP keluar); turnstile (FormData) & webhook-delivery (raw body ber-HMAC) tidak memakai helper JSON — sudah tervalidasi.
 - workers/shared/http.test.js: 12 test kontrak postJson/jsonFetch/getJson (commit ead5546). 990 test hijau (root & worktree), lint bersih. Test-only — tanpa deploy produksi.
+- docs/http-helpers.md (baru, commit e84a868): kontrak helper HTTP JSON terpusat utk developer baru — src/lib/http.ts & sibling workers/shared/http.js, kasus yg sengaja tidak memakai helper, checklist, cara test. Ditautkan dari README.
