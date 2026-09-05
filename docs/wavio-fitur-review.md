@@ -1,7 +1,7 @@
 # Wavio — Review Fitur & Role (Owner vs Platform Admin)
 
-Dibuat: 2026-09-04
-Status: **review manual + live DB check**
+Dibuat: 2026-09-04 · Diperbarui: 2026-09-05 (review lanjutan pasca self-serve billing — lihat §8)
+Status: **review manual + live DB check + verifikasi kode (main `feat/self-serve-billing`)**
 
 ---
 
@@ -317,3 +317,54 @@ Platform admin = role `platform_admin`, tenantId = `00000000-0000-7000-8000-0000
 ---
 
 *Review berdasarkan kode Wavio (branch `feat/wavio-fase-4`) + live DB check (3 tenant, 3 user termasuk platform_admin).*
+---
+
+## 8. Review lanjutan — 2026-09-05 (pasca self-serve billing)
+
+> Verifikasi: kode di main (`feat/self-serve-billing` tip `37c3f9a`), deploy live
+> wavio `4b5aa60c`, migrasi Neon + D1 `activatedAt` sudah di-apply, worker
+> d1-resync 4 kolom live. Seksi 1–7 di atas tetap berlaku; di bawah pembaruan
+> state + gap yang masih tersisa.
+
+### 8.1 Yang sudah bertambah sejak review awal (terverifikasi)
+
+| Area | Kondisi sekarang |
+|---|---|
+| **Self-serve billing (end-to-end)** | Registrasi publik `/register` → `/checkout?plan=…` → Order Tripay → aktivasi otomatis (Tenant `activatedAt`) → tenant pending terkunci dari operasional (login + menu Langganan saja). Katalog publik `/api/public/catalog` (Espresso prepaid Rp400/pesan, Latte/Mocha subscription, addon ter-seed). |
+| **Gate kredit prepaid** | Kirim via `src/lib/sendMessage.ts` → `prepaidSendGate`/`spendCredit`: saldo < 1 pesan → `INSUFFICIENT_CREDIT` (top-up dari menu Langganan). Potong 1 kredit pasca-kirim sukses. |
+| **Addon berbayar** | `remove_watermark` kini addon dengan `activeUntil` (dibeli via Order); keputusan watermark di `src/lib/watermark.ts` (env override → PlatformSetting → DB). Self-service v1 ada di `src/app/v1/addons/remove-watermark`. |
+| **Platform UI/API** | Sidebar 9 menu: Ringkasan, Metrik, Plan, Tenant, Broadcast, **Orders**, Invoice, Audit, Pengaturan. Route platform: tenants (CRUD+status/plan/delay/addons/users/retention), plans (GET+PUT by id), metrics, invoices (GET/POST[paid-void]/generate), orders (platform lihat+resync), audit (export CSV), broadcasts, settings, users/[id]/password. |
+| **Dashboard tenant** | `/dashboard/langganan` (langganan+saldo+addon, renewal via checkout), members (`tenant_admin`), api-keys, webhook, kontak, labels, campaign, pesan, channels, devices, profile. |
+| **Webhook/event OpenWA** | event lengkap: message.received/sent/ack/failed/edited/reaction/revoked, session.status/restriction; delivery outbox + retry; smart filters. |
+| **Ops notes** | Migrasi billing idempotent sudah di-apply; D1 `activatedAt` backfill 3 tenant; d1-resync 4 kolom. |
+
+### 8.2 GAP tersisa (terverifikasi di kode — belum ada)
+
+**Kode/fitur**
+1. **Katalog plan & addon belum bisa dikelola dari UI platform** — hanya `PUT /api/platform/plans/[id]` (edit kuota + `priceMonthly` + `isPublic/sortOrder`) dan `GET`. Tidak ada: create plan baru, nonaktifkan/arsip, create/price addon baru, urutan katalog → perubahan katalog butuh SQL/migrasi seed.
+2. **Tidak ada rekonsiliasi manual pembayaran di UI platform** — halaman/platform orders read-only (+ resync ke Tripay); invoice bulanan adalah **registri simulasi** (generate/mark-paid/void) yang TIDAK terhubung ke pembayaran sungguhan. Tidak ada aksi "tandai order lunas → aktivasi tenant / grant addon / isi saldo" manual. Akibat nyata: saat gateway tidak tersedia (kondisi sekarang — Tripay menutup pendaftaran), **tidak ada jalur aktivasi berbayar** selain manipulasi DB manual.
+3. **Renewal subscription tidak otomatis** — `planPeriodEnd` dicatat, tapi belum ada auto-charge / pengingat kedaluwarsa / dunning; renewal manual via checkout (`kind=renewal`).
+4. **Metrik platform masih teknis** — `getPlatformMetrics` = `messagesPerDay`, `deviceStatus`, `topTenants`. Belum ada metrik bisnis: MRR/ARR, pendapatan per plan/addon, churn, utilisasi kuota (terpakai vs batas), saldo kredit outstanding, invoice terhutang.
+5. **Dua dunia tagihan tidak tersinkron** — Order Tripay (nyata) vs Invoice bulanan (simulasi) untuk tenant subscription: pembayaran order tidak otomatis memengaruhi registri invoice.
+6. **Offboarding tenant tidak ada** — hanya suspend/aktifkan; tidak ada hapus tenant, export data, atau penutupan akun (kepatuhan/retensi data).
+7. **Halaman `/pricing` bukan route** — harga hanya seksi di landing `/` (bukan gap fungsional, tapi menyulitkan deep-link kampanye).
+
+**Operasional (bukan kode)**
+8. **Secret Tripay belum terpasang** (`TRIPAY_MODE/API_KEY/PRIVATE_KEY/MERCHANT_CODE` di worker wavio + `.env`) — checkout/order belum bisa diselesaikan end-to-end di production. Ini blocker #1 saat ini (menunggu Tripay buka pendaftaran; callback URL juga perlu didaftarkan).
+
+### 8.3 Roadmap (prioritas)
+
+| Prioritas | Item | Nilai |
+|---|---|---|
+| **P0** | Pasang kredensial Tripay (sandbox→prod) + daftar callback + uji E2E: checkout → aktivasi → kirim & top-up prepaid/addon | Revenue nyata pertama; tutup gap ops #8 |
+| **P1** | Rekonsiliasi manual platform: tandai order lunas → aktivasi tenant/grant addon/isi saldo; **create/arsip plan & addon dari UI** | Operasional mandiri tanpa SQL; tutup gap #1–2 |
+| **P2** | Hubungkan invoice bulanan ke Order/recurring Tripay + renewal auto/dunning; metrik bisnis (MRR, utilisasi kuota, saldo outstanding) | Skala komersial; tutup gap #3–5 |
+| **P3** | Offboarding (export + hapus tenant); route `/pricing`; notifikasi email order/aktivasi/kedaluwarsa (fondasi Resend ada) | Kepatuhan + konversi; tutup gap #6–7 |
+
+### 8.4 Status jawaban pertanyaan awal (masih berlaku)
+
+| Pertanyaan | Jawaban |
+|---|---|
+| Owner (`owner@wavio.test`) punya fitur lengkap? | Ya — lengkap utk tenant-scope, kini + dashboard Langganan (saldo/kredit/top-up) & gate pembayaran prepaid. |
+| Ada superadmin pengelola platform? | Ya — `platform@wavio.test` (`platform_admin`, tenant "Wavio Platform") + `/platform/*` 9 menu + `/api/platform/*`. Manajemen user platform lain via `users/[id]/password`. |
+| Jual paket ke user? | Sudah live secara kode+migrasi (registrasi publik, Order Tripay, aktivasi otomatis, top-up prepaid) — P0 ops: kredensial Tripay agar bisa benar-benar menghasilkan pendapatan. |
