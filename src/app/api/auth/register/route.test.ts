@@ -81,11 +81,39 @@ describe("POST /api/auth/register", () => {
     const res = await POST(
       jsonReq(
         { name: "Alice", email: "a@b.id", password: "password123", tenantName: "PT X", turnstileToken: "bad" },
-        { NEXT_PUBLIC_TURNSTILE_SITEVERIFY_URL: "https://challenges.cloudflare.com/turnstile/v0/siteverify" },
+        { NEXT_PUBLIC_TURNSTILE_SITEVERIFY_URL: "https://turnstile-siteverify.test" },
       ),
     );
     expect(res.status).toBe(400);
     expect(registerMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("turnstile sukses → mengirim JSON { token } ke siteverify worker → 200", async () => {
+    // Kontrak worker siteverify = JSON { token }, bukan raw string — regresi
+    // bug: body polos membuat request.json() di worker gagal (login selalu error).
+    let sentBody = "";
+    let sentHeaders: HeadersInit | undefined;
+    const fetchMock = vi.fn(async (_u: string, init?: RequestInit) => {
+      sentBody = String(init?.body ?? "");
+      sentHeaders = init?.headers;
+      return new Response(JSON.stringify({ success: true }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    registerMock.mockResolvedValueOnce({ tenantId: "t1", userId: "u1" });
+
+    const res = await POST(
+      jsonReq(
+        { name: "Alice", email: "alice@b.id", password: "password123", tenantName: "PT Alice", turnstileToken: "tok-abc" },
+        { NEXT_PUBLIC_TURNSTILE_SITEVERIFY_URL: "https://turnstile-siteverify.test" },
+      ),
+    );
+    expect(res.status).toBe(200);
+    expect(registerMock).toHaveBeenCalled();
+    // Body harus JSON { token } dengan Content-Type application/json.
+    expect(sentBody).toBe(JSON.stringify({ token: "tok-abc" }));
+    const h = new Headers(sentHeaders);
+    expect(h.get("content-type")).toContain("application/json");
     vi.unstubAllGlobals();
   });
 });

@@ -8,7 +8,12 @@ async function verifyTurnstile(token: unknown): Promise<boolean> {
   if (!url) return true; // belum dikonfigurasi → izinkan utk dev/sandbox
   if (typeof token !== "string" || !token) return false;
   try {
-    const res = await fetch(url, { method: "POST", body: token });
+    // Kontrak worker siteverify = JSON { token } (sama seperti login page).
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
     if (!res.ok) return false;
     const data = (await res.json()) as { success?: boolean };
     return data.success === true;
