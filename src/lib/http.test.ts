@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { postJson, jsonFetch } from "./http";
+import { postJson, jsonFetch, getJson } from "./http";
 
 // Helper fetch terpusat — kontrak Wajib: body selalu JSON.stringify + header
 // Content-Type: application/json. Regresi bug: route register pernah mengirim
@@ -93,5 +93,67 @@ describe("jsonFetch", () => {
     expect(calls[0].init?.method).toBe("POST");
     expect(calls[1].init?.method).toBe("POST");
     expect(calls[0].init?.body).toBe(calls[1].init?.body);
+  });
+});
+
+describe("getJson", () => {
+  function captureFetch() {
+    const calls: Array<{ url: string; init?: RequestInit }> = [];
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return new Response("{}", { status: 200 });
+    });
+    return { fetchImpl, calls };
+  }
+
+  it("query object diserialisasi ke URL + method GET", async () => {
+    const { fetchImpl, calls } = captureFetch();
+    await getJson("https://x.test/list", { query: { limit: 20, offset: 0 } }, fetchImpl);
+
+    expect(calls[0].url).toBe("https://x.test/list?limit=20&offset=0");
+    expect(calls[0].init?.method).toBe("GET");
+    expect(calls[0].init?.body).toBeUndefined();
+  });
+
+  it("null/undefined di-skip; boolean/number di-stringify", async () => {
+    const { fetchImpl, calls } = captureFetch();
+    await getJson(
+      "https://x.test/list",
+      { query: { a: undefined, b: null, flag: true, n: 7, s: "teks spasi" } },
+      fetchImpl,
+    );
+
+    // URLSearchParams meng-encode spasi sebagai + dan tak memuat a/b sama sekali.
+    expect(calls[0].url).toBe("https://x.test/list?flag=true&n=7&s=teks+spasi");
+  });
+
+  it("nilai array diulang per elemen", async () => {
+    const { fetchImpl, calls } = captureFetch();
+    await getJson("https://x.test/list", { query: { id: ["a", "b"] } }, fetchImpl);
+    expect(calls[0].url).toBe("https://x.test/list?id=a&id=b");
+  });
+
+  it("tanpa query URL tidak berubah", async () => {
+    const { fetchImpl, calls } = captureFetch();
+    await getJson("https://x.test/path", {}, fetchImpl);
+    expect(calls[0].url).toBe("https://x.test/path");
+  });
+
+  it("URL yg sudah punya query digabung dengan & (bukan ? ganda)", async () => {
+    const { fetchImpl, calls } = captureFetch();
+    await getJson("https://x.test/path?fixed=1", { query: { page: 2 } }, fetchImpl);
+    expect(calls[0].url).toBe("https://x.test/path?fixed=1&page=2");
+  });
+
+  it("meneruskan header & signal", async () => {
+    const { fetchImpl, calls } = captureFetch();
+    const controller = new AbortController();
+    await getJson(
+      "https://x.test/me",
+      { headers: { "X-API-Key": "k1" }, signal: controller.signal },
+      fetchImpl,
+    );
+    expect(new Headers(calls[0].init?.headers).get("x-api-key")).toBe("k1");
+    expect(calls[0].init?.signal).toBe(controller.signal);
   });
 });

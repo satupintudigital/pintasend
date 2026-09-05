@@ -18,7 +18,7 @@
 // memakainya di body create — signature cukup method+ref+amount).
 
 import { hmacSha256Hex } from "@/lib/hmac";
-import { postJson } from "@/lib/http";
+import { postJson, getJson, type JsonQuery } from "@/lib/http";
 import type {
   PaymentProvider,
   PaymentCreateInput,
@@ -68,19 +68,18 @@ function dataRecord(data: unknown): Record<string, unknown> {
 async function tripayFetch(
   env: Record<string, string | undefined>,
   path: string,
-  init?: { body?: unknown; signal?: AbortSignal },
+  init?: { body?: unknown; query?: JsonQuery; signal?: AbortSignal },
 ): Promise<TripayJson> {
   const headers = { Authorization: `Bearer ${env.TRIPAY_API_KEY ?? ""}` };
+  const url = `${baseUrl(env.TRIPAY_MODE)}${path}`;
   // Body create TIDAK terikat HMAC (signature dihitung dari
   // method+merchant_ref+amount, bukan dari raw body) → boleh lewat helper
-  // terpusat postJson agar body/header tidak bisa salah kirim.
+  // terpusat postJson agar body/header tidak bisa salah kirim. GET query juga
+  // diserialisasi terpusat via getJson (bukan string manual).
   const res =
     init?.body !== undefined
-      ? await postJson(`${baseUrl(env.TRIPAY_MODE)}${path}`, init.body, { headers })
-      : await fetch(`${baseUrl(env.TRIPAY_MODE)}${path}`, {
-          signal: init?.signal,
-          headers: { ...headers, "Content-Type": "application/json" },
-        });
+      ? await postJson(url, init.body, { headers })
+      : await getJson(url, { query: init?.query, signal: init?.signal, headers });
   if (!res.ok) {
     let message = res.statusText;
     try {
@@ -153,7 +152,7 @@ export function createPaymentProvider(
 
     async checkStatus(gatewayRef: string): Promise<PaymentStatus> {
       requireKey("TRIPAY_API_KEY");
-      const json = await tripayFetch(e, `/transaction/detail?reference=${encodeURIComponent(gatewayRef)}`);
+      const json = await tripayFetch(e, "/transaction/detail", { query: { reference: gatewayRef } });
       const d = dataRecord(json?.data);
       return {
         status: String(d.status ?? "UNKNOWN"),

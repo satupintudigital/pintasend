@@ -3,7 +3,7 @@
 // Import relatif (bukan @/) agar modul ini ikut ter-test di vitest (tidak
 // me-resolve alias tsconfig); Next.js menangani keduanya dengan baik.
 import { hashApiKey } from "./apiKeys";
-import { jsonFetch, type JsonMethod } from "./http";
+import { jsonFetch, getJson, type JsonMethod, type JsonQuery } from "./http";
 
 export interface OpenwaSession {
   id: string;
@@ -109,28 +109,34 @@ function config() {
   };
 }
 
-// init.body adalah objek TERSTRUKTUR — diserialisasi otomatis di sini via
-// jsonFetch/postJson (single source of truth di src/lib/http.ts). Tidak ada
-// lagi JSON.stringify manual di call site, jadi body tak mungkin salah kirim
-// (regresi bug token Turnstile: raw string ke receiver yang parsing JSON).
+// init.body adalah objek TERSTRUKTUR (diserialisasi via jsonFetch/postJson) dan
+// init.query objek query terstruktur (diserialisasi via getJson) — single
+// source of truth di src/lib/http.ts. Tidak ada lagi JSON.stringify / string
+// query manual di call site, jadi body & URL tak mungkin salah kirim (regresi
+// bug token Turnstile: raw string ke receiver yang parsing JSON).
 interface OpenwaRequestInit extends Omit<RequestInit, "body"> {
   body?: unknown;
+  query?: JsonQuery;
 }
 
 async function request<T>(path: string, init?: OpenwaRequestInit): Promise<T> {
   const { baseUrl, apiKey } = config();
   const url = `${baseUrl}${path}`;
-  const authHeaders = { "X-API-Key": apiKey, ...(init?.headers ?? {}) };
-  // Pisahkan body (objek terstruktur) dari init lain (method/header/signal...)
+  // Pisahkan body (objek terstruktur) & query dari init lain (method/header/signal...)
   // agar spread ke fetch tidak membawa tipe body: unknown.
-  const { body, ...restInit } = init ?? {};
+  const { body, query, ...restInit } = init ?? {};
+  const authHeaders = { "X-API-Key": apiKey, ...(restInit.headers ?? {}) };
+  const method = restInit.method ?? "GET";
   let res: Response;
   if (body !== undefined) {
     // Hanya POST/PUT/PATCH yang membawa body di modul ini (GET/DELETE tanpa body).
     res = await jsonFetch((restInit.method ?? "POST") as JsonMethod, url, body, {
       headers: authHeaders,
     });
+  } else if (method === "GET") {
+    res = await getJson(url, { ...restInit, query, headers: authHeaders });
   } else {
+    // DELETE tanpa body — fetch langsung (tidak ada helper JSON body).
     res = await fetch(url, {
       ...restInit,
       headers: { ...authHeaders, "Content-Type": "application/json" },
@@ -325,17 +331,16 @@ export const openwa = {
     sessionId: string,
     chatId: string,
     options?: { limit?: number; offset?: number; after?: string; inlineMedia?: boolean },
-  ) => {
-    const params = new URLSearchParams();
-    params.set("chatId", chatId);
-    if (options?.limit !== undefined) params.set("limit", String(options.limit));
-    if (options?.offset !== undefined) params.set("offset", String(options.offset));
-    if (options?.after !== undefined) params.set("after", options.after);
-    if (options?.inlineMedia !== undefined) params.set("inlineMedia", String(options.inlineMedia));
-    return request<{ messages?: unknown[] }>(
-      `/api/sessions/${sessionId}/messages?${params.toString()}`,
-    );
-  },
+  ) =>
+    request<{ messages?: unknown[] }>(`/api/sessions/${sessionId}/messages`, {
+      query: {
+        chatId,
+        ...(options?.limit !== undefined ? { limit: options.limit } : {}),
+        ...(options?.offset !== undefined ? { offset: options.offset } : {}),
+        ...(options?.after !== undefined ? { after: options.after } : {}),
+        ...(options?.inlineMedia !== undefined ? { inlineMedia: options.inlineMedia } : {}),
+      },
+    }),
   // Kirim template yang sudah disimpan di OpenWA (SendTemplateMessageDto).
   // templateName = nama template; vars disubstitusi ke token {{placeholder}}.
   sendTemplate: (
@@ -354,13 +359,13 @@ export const openwa = {
   // Daftar grup milik session (narrow projection: id, name, linkedParentJID;
   // bisa juga membawa participantsCount/isAdmin). Pagination limit (1-1000) &
   // offset — OpenWA men-clamp nilainya sendiri.
-  listGroups: (sessionId: string, limit?: number, offset?: number) => {
-    const params = new URLSearchParams();
-    if (limit !== undefined) params.set("limit", String(limit));
-    if (offset !== undefined) params.set("offset", String(offset));
-    const qs = params.toString();
-    return request<OpenwaGroupSummary[]>(`/api/sessions/${sessionId}/groups${qs ? `?${qs}` : ""}`);
-  },
+  listGroups: (sessionId: string, limit?: number, offset?: number) =>
+    request<OpenwaGroupSummary[]>(`/api/sessions/${sessionId}/groups`, {
+      query: {
+        ...(limit !== undefined ? { limit } : {}),
+        ...(offset !== undefined ? { offset } : {}),
+      },
+    }),
   // Kirim pesan teks. chatId format "62812...@c.us".
   // options.mentions = WID yang di-@ (contoh ["62811@c.us"]) — teks HARUS memuat
   // token @<number> yang sesuai (kontrak OpenWA SendTextMessageDto).
@@ -520,13 +525,13 @@ export const openwa = {
   listChats: (
     sessionId: string,
     options?: { limit?: number; offset?: number },
-  ) => {
-    const params = new URLSearchParams();
-    if (options?.limit !== undefined) params.set("limit", String(options.limit));
-    if (options?.offset !== undefined) params.set("offset", String(options.offset));
-    const qs = params.toString();
-    return request<unknown[]>(`/api/sessions/${sessionId}/chats${qs ? `?${qs}` : ""}`);
-  },
+  ) =>
+    request<unknown[]>(`/api/sessions/${sessionId}/chats`, {
+      query: {
+        ...(options?.limit !== undefined ? { limit: options.limit } : {}),
+        ...(options?.offset !== undefined ? { offset: options.offset } : {}),
+      },
+    }),
   // Archive or unarchive a chat.
   archiveChat: (sessionId: string, chatId: string, archive: boolean) =>
     request<{ success: boolean }>(`/api/sessions/${sessionId}/chats/archive`, {

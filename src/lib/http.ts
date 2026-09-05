@@ -1,12 +1,12 @@
 // ─── Helper fetch HTTP terpusat ────────────────────────────────────────────
-// Satu-satunya jalur POST berbody JSON ke endpoint eksternal. Kontrak dijamin
-// di sini sehingga tidak bisa salah lagi:
-//   - method selalu POST
-//   - body SELALU di-JSON.stringify (nilai JSON apa pun, termasuk string yang
-//     dibungkus literal) — tidak pernah mengirim string telanjang yang membuat
-//     request.json() di receiver gagal (regresi bug token Turnstile di route
-//     register: raw string → siteverify worker selalu menolak).
-//   - header Content-Type: application/json DIPAKSA (tidak bisa ditimpa).
+// Satu-satunya jalur request JSON ke endpoint eksternal (app Wavio).
+// Kontrak dijamin di sini sehingga tidak bisa salah lagi:
+//   - jsonFetch/postJson (POST/PUT/PATCH): body SELALU di-JSON.stringify
+//     (tidak pernah mengirim string telanjang yang membuat request.json() di
+//     receiver gagal — regresi bug token Turnstile di route register) dan
+//     Content-Type: application/json DIPAKSA.
+//   - getJson (GET): query object diserialisasi terpusat (URLSearchParams),
+//     bukan string manual — encoding tak bisa salah.
 //
 // Pemakaian server-side. fetchImpl di-inject utk unit test.
 //
@@ -54,4 +54,42 @@ export function postJson(
   fetchImpl: FetchLike = (u, i) => fetch(u, i),
 ): Promise<Response> {
   return jsonFetch("POST", url, body, init, fetchImpl);
+}
+
+/** Nilai yang boleh muncul di query string (null/undefined = di-skip). */
+export type JsonQueryValue = string | number | boolean | null | undefined;
+
+/** Query terstruktur — diserialisasi terpusat (kunci berulang = array). */
+export type JsonQuery = Record<string, JsonQueryValue | readonly JsonQueryValue[]>;
+
+export interface GetJsonInit extends Omit<RequestInit, "method" | "body"> {
+  /** Params query; null/undefined di-skip, array diulang per nilai. */
+  query?: JsonQuery;
+}
+
+/**
+ * GET endpoint JSON. Query object diserialisasi di sini (bukan string
+ * manual di call site) sehingga encoding tak bisa salah — konsisten dgn
+ * postJson/jsonFetch utk body. Mengembalikan Response mentah — caller membaca.
+ */
+export async function getJson(
+  url: string,
+  init: GetJsonInit = {},
+  fetchImpl: FetchLike = (u, i) => fetch(u, i),
+): Promise<Response> {
+  const { query, ...rest } = init;
+  const params = new URLSearchParams();
+  if (query) {
+    for (const [key, value] of Object.entries(query)) {
+      if (value === undefined || value === null) continue;
+      const items = Array.isArray(value) ? value : [value];
+      for (const item of items) {
+        if (item === undefined || item === null) continue;
+        params.append(key, String(item));
+      }
+    }
+  }
+  const qs = params.toString();
+  const target = qs ? `${url}${url.includes("?") ? "&" : "?"}${qs}` : url;
+  return fetchImpl(target, { ...rest, method: "GET" });
 }
