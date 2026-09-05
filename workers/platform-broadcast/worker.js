@@ -20,6 +20,7 @@
 //
 // Secret: DATABASE_URL, OPENWA_BASE_URL, OPENWA_ADMIN_KEY, BROADCAST_DISPATCH_TOKEN.
 import { Client } from "@neondatabase/serverless";
+import { postJson } from "../shared/http.js";
 
 const BATCH_LIMIT = 10;
 const SEND_TIMEOUT_MS = 30_000;
@@ -56,15 +57,15 @@ async function uuidv7() {
 
 async function openwaSendText(env, sessionId, chatId, text) {
   const base = String(env.OPENWA_BASE_URL ?? "").replace(/\/$/, "");
-  const res = await fetch(`${base}/api/sessions/${sessionId}/messages/send-text`, {
-    method: "POST",
-    headers: {
-      "X-API-Key": String(env.OPENWA_ADMIN_KEY ?? ""),
-      "Content-Type": "application/json",
+  // Serialisasi body + header JSON via helper bersama workers/shared/http.js.
+  const res = await postJson(
+    `${base}/api/sessions/${encodeURIComponent(sessionId)}/messages/send-text`,
+    { chatId, text },
+    {
+      headers: { "X-API-Key": String(env.OPENWA_ADMIN_KEY ?? "") },
+      signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
     },
-    body: JSON.stringify({ chatId, text }),
-    signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
-  });
+  );
   if (!res.ok) {
     let message = res.statusText;
     try {
