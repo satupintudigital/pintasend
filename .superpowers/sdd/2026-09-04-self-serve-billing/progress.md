@@ -109,3 +109,12 @@ Task 6: complete (commits d9b5c22..HEAD, review clean — billingRenewal.ts + sy
 - docs/http-helpers.md (baru, commit e84a868): kontrak helper HTTP JSON terpusat utk developer baru — src/lib/http.ts & sibling workers/shared/http.js, kasus yg sengaja tidak memakai helper, checklist, cara test. Ditautkan dari README.
 - Audit menyeluruh fetch di src (2026-09-05): server-side SUDAH patuh penuh (lib/route/worker via helper atau raw sengaja utk HMAC/FormData; docs/* hanya teks contoh literal). Sisa fetch = client same-origin (browser → /api sendiri, body benar, DELETE/FormData/AbortSignal tanpa helper). Keputusan user: server-side saja — docs/http-helpers.md §4 ditambah tabel hasil audit + scope client di luar (commit e2376ad). Tanpa perubahan kode produksi.
 - Review fitur lanjutan (2026-09-05) → docs/wavio-fitur-review.md §8 (commit f610950): state pasca self-serve billing terverifikasi; 8 gap (katalog plan/addon tanpa UI, rekonsiliasi manual order, renewal tak otomatis, metrik bisnis, invoice vs order, offboarding, /pricing, secret Tripay); roadmap P0–P3. Docs-only, tanpa deploy.
+
+## P1 — rekonsiliasi manual order + kelola plan/addon (2026-09-05)
+- Commit 33c3cd5 (main ff), deploy wavio Version a4876989.
+- POST /api/platform/orders/[id]/mark-paid (platform_admin) → finalizePaidOrder jalur sama callback Tripay (idempoten); gatewayRef=manual:<admin>; UI tombol "Tandai lunas" per order pending di /platform/orders. Efek per kind: aktivasi tenant/grant addon/isi kredit — dipakai saat Tripay down/transfer manual.
+- Katalog plan: POST /api/platform/plans (create); PUT [id] diperluas name/tagline/priceDisplay/kind; PlansTable: form "Tambah plan" + edit nama/priceDisplay inline.
+- Addon: route GET/POST /api/platform/addons + PUT [key]; halaman /platform/addons + menu sidebar "Addon"; AddonsTable buat/edit harga-nama/arsip.
+- Arsip = isActive=false (kolom sdh ada, tanpa migrasi) → hilang otomatis dari catalog publik/checkout; tenant pemakai lama tak terpengaruh.
+- Parser pure (parsePlanCreateBody/parseAddonCreateBody) + 6 unit test (platform-catalog.test.ts). 996 test hijau, tsc+lint bersih.
+- Smoke live: POST plans / GET addons / POST mark-paid unauth → 401; /platform/addons & /platform/orders → 307 (redirect login); /api/public/catalog 200.
