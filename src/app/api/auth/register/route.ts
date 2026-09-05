@@ -1,6 +1,7 @@
 import { registerTenantOwner, validateRegisterInput, EmailAlreadyTakenError } from "@/lib/register";
 import { signIn } from "@/lib/auth";
 import { getPublicCatalog } from "@/lib/catalog";
+import { postJson } from "@/lib/http";
 
 // Turnstile siteverify — bila env belum terisi (dev/sandbox), izinkan.
 async function verifyTurnstile(token: unknown): Promise<boolean> {
@@ -8,12 +9,10 @@ async function verifyTurnstile(token: unknown): Promise<boolean> {
   if (!url) return true; // belum dikonfigurasi → izinkan utk dev/sandbox
   if (typeof token !== "string" || !token) return false;
   try {
-    // Kontrak worker siteverify = JSON { token } (sama seperti login page).
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
+    // postJson menjamin body JSON { token } + Content-Type json — kontrak
+    // worker siteverify (sama seperti login page). Regresi: dulu body dikirim
+    // raw string → request.json() di worker gagal → captcha selalu ditolak.
+    const res = await postJson(url, { token });
     if (!res.ok) return false;
     const data = (await res.json()) as { success?: boolean };
     return data.success === true;
