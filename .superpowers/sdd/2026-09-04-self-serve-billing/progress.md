@@ -62,6 +62,38 @@ Task 6: complete (commits d9b5c22..HEAD, review clean — billingRenewal.ts + sy
 - [x] npx tsc --noEmit bersih
 - [x] npm run test → 963 hijau (119 file)
 - [x] npm run lint → hanya 4 error pra-ada (dashboard channels/labels/profile)
-- [ ] Migrasi Neon 2026-09-04-self-serve-billing.sql di-apply ke production (idempotent; butuh persetujuan)
-- [ ] D1: kolom activatedAt (prisma/d1-schema.sql) di-apply ke wavio-auth
-- [ ] Deploy: merge → npm run deploy + deploy ulang workers/d1-resync
+- [x] Migrasi Neon 2026-09-04-self-serve-billing.sql di-apply ke production (idempotent; 20 statement OK) + verifikasi objek
+- [x] D1: kolom activatedAt di-apply ke wavio-auth (ALTER TABLE + backfill 3 tenant dari Neon)
+- [x] Deploy: merge → npm run deploy + deploy ulang workers/d1-resync (4 kolom tenant)
+- [ ] Secret Tripay di worker wavio (TRIPAY_MODE/API_KEY/PRIVATE_KEY/MERCHANT_CODE) + .env — DITUNDA: Tripay sedang menutup pendaftaran (per 2026-09-05). Re-check pendaftaran Tripay nanti; sebelum itu alur checkout/order belum bisa diuji end-to-end (paywall self-serve nonaktif sementara).
+
+## Deploy ke production (2026-09-05)
+- Merge `feat/self-serve-billing` → main (fast-forward, tip cdefbb5).
+- `npm run deploy`: wavio Version ce579d08-f427-4613-8693-c0402f318395 live di wavio.satupintudigital.co.id.
+- `npx wrangler deploy --config workers/d1-resync/wrangler.jsonc`: d1-resync-wavio Version 5ca89919-4434-4e34-a0f5-677a60e4211b (spec tenant 4 kolom + activatedAt).
+- Smoke test live: / 200, /register 200, /checkout 200, /api/public/catalog 200 (data plan+addon dari Neon), /login 200, /dashboard/langganan & /platform/orders 307 (redirect login, wajar), /pricing 404 (bukan route — pricing adalah seksi di landing /).
+- D1 wavio-auth tetap konsisten: 3 tenant activatedAt terisi; write-through main kini 4 kolom sehingga tidak menimpa activatedAt.
+
+## E2E live registrasi publik (2026-09-05) + bug turnstile fixed
+- E2E Chrome asli (puppeteer-core) di production: register akun unik → plan Latte otomatis terseleksi → turnstile resolved → redirect /checkout?plan=… → POST /api/devices 403 "Tenant belum aktif" (TENANT_PENDING) → /api/billing/my pending:true → /dashboard/langganan banner "Akunmu belum aktif" + menu hanya Beranda/Langganan/Profil (operasional tersembunyi). Semua PASS.
+- BUG DITEMUKAN: route register POST token turnstile sbg raw string ke siteverify worker → request.json() gagal → captcha SELALU ditolak (registrasi publik tidak mungkin lolos). Diperbaiki commit e1fbc90 (kirim JSON { token }, kontrak sama dgn login page) + 1 test regresi. Sudah di-deploy (wavio Version 5a74f8ef).
+- Cleanup E2E: tenant uji dihapus dari Neon + D1 (tidak ada sisa data test).
+
+## Helper fetch terpusat postJson (2026-09-05)
+- src/lib/http.ts: postJson(url, body, init?, fetchImpl?) — method selalu POST; body SELALU JSON.stringify; Content-Type application/json DIPAKSA (tidak bisa ditimpa header custom); fetchImpl injectable utk unit test. Mencegah regresi bug raw-body (register route pernah kirim token sbg raw string → siteverify selalu tolak).
+- Route register dipakai sbg contoh pertama (ganti fetch manual). 5 test baru src/lib/http.test.ts (body stringify, primitive string dibungkus literal, header merge content-type dipaksa, init lain diteruskan, return Response).
+- Catatan: endpoint HMAC (webhook-delivery, nalaniagaSso) sengaja TIDAK pakai helper — butuh raw body sama persis utk signature; komentar di http.ts menjelaskan.
+- Commit a890d2a + style fix 4b03e23 (type alias utk PostJsonInit — lint). 969 test hijau (+5), tsc bersih, lint bersih. Deploy: wavio Version bfc65513. Smoke live: /register 200, /checkout 200, /api/public/catalog 200.
+
+## Apply migrasi Neon + D1 (2026-09-05)
+- Neon production (ep-silent-block-azloxik2/neondb): `node prisma/apply-migration.mjs prisma/migrations/2026-09-04-self-serve-billing.sql` → 20 statement OK (idempotent).
+- Verifikasi objek: kolom baru ada (Plan.kind/isPublic/sortOrder, Tenant.activatedAt/planPeriodEnd, TenantAddon.activeUntil); tabel Addon/Order/TenantBalance/CreditLedger + index; Plan Espresso→prepaid, Latte/Mocha subscription (isPublic true); Addon ter-seed (random_delay Rp25rb, remove_watermark, campaign); 3 tenant backfill activatedAt=createdAt.
+- D1 wavio-auth (remote): `ALTER TABLE Tenant ADD COLUMN activatedAt TEXT` (CREATE TABLE IF NOT EXISTS di d1-schema.sql tak cukup utk tabel lama) + UPDATE backfill 3 tenant (Toko Budi, Wavio Demo, Wavio Platform) dari nilai Neon.
+- Catatan urutan deploy: kode main SAAT INI masih menulis Tenant 3 kolom (tenantStore.ts, workers/d1-resync 3 kolom) — INSERT OR REPLACE akan menimpa activatedAt ke NULL. Wajib deploy kode feat/self-serve-billing + d1-resync 4 kolom SEBELUM ada operasi tulis Tenant (suspend/plan) pasca-migrasi.
+
+## Refactor: openwa & tripay pakai helper jsonFetch/postJson (2026-09-05)
+- http.ts: tambah jsonFetch(method POST/PUT/PATCH, url, body, init, fetchImpl); postJson jadi wrapper jsonFetch("POST"). +3 test jsonFetch (PUT/PATCH body+content-type; postJson≡jsonFetch POST). http.test.ts root kini 8 test.
+- openwa.ts: request() menyerialisasi body TERSTRUKTUR via jsonFetch (single source of truth); ~35 call site berhenti memanggil JSON.stringify manual (kirim objek langsung). init.body bertipe unknown; GET/DELETE tanpa body tetap fetch biasa + header X-API-Key. Import relatif ./http (konvensi modul ini).
+- tripay.ts: tripayFetch pakai postJson utk body create (signature Tripay TIDAK terikat raw body — dari method+merchant_ref+amount); GET status/channels tetap fetch biasa. payments.test.ts assertion header diubah ke Headers.get (robust thd Headers instance dari postJson) + assert content-type.
+- Tidak disentuh (sengaja): nalaniagaSso/webhookDelivery (HMAC atas raw body — butuh fetch manual persis), workers/* (unit deploy terpisah, tak bisa import src/lib).
+- Commit c0884ae (branch feat/self-serve-billing). 972 test hijau (+3), tsc bersih, lint bersih (5 file berubah). Catatan: npm run test dari root ikut menjalankan .worktrees → artefak double-run (alias @/ nyampur tree) — verifikasi full suite selalu dari dalam worktree.
