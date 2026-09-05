@@ -9,4 +9,16 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
+  test: {
+    // Worktree git (git worktree) berisi checkout lain dari repo yang sama —
+    // menjalankannya dari root akan mencampur dua pohon kode dalam satu proses
+    // (alias @/ resolve ke src root), membuat test hijau tampak gagal. Full
+    // suite sebuah checkout harus dijalankan dari direktori checkout itu sendiri.
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.worktrees/**",
+      "**/coverage/**",
+    ],
+  },
 });
