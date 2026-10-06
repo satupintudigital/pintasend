@@ -29,27 +29,32 @@ WhatsApp pasien.
 ```
 satusehat-dicom-router (queue consumer)
   │ processForward(): STOW-RS ✓ + ImagingStudy ✓ → markSuccess()
+  │ payload sudah mengandung tenant_id, study_uid, order_id, patient_id,
+  │   modality, accession_number, study_description, environment, imaging_study_id
   │ fire-and-forget POST /internal/dicom-forward-success
-  │   (service binding ORDER_WORKER, header X-Gateway-Secret)
+  │   (ORDER_WORKER service binding, header X-Gateway-Secret)
   ▼
 order-worker
-  │ 1. studies(study_instance_uid) → order_id, tenant_id
-  │ 2. orders(id) → patient_id, patient_name, modality, accession_number
-  │ 3. MASTER_DATA_WORKER GET /patients/{patient_id} → phone
-  │ 4. link = RADIOLOGY_PORTAL_URL_TEMPLATE.replace("{study_uid}", uid)
-  │ 5. idempotency: INSERT radiology_notifications(study_uid UNIQUE)
-  │ 6. POST {WAVIO_BASE_URL}/v1/integrations/imagestro/radiology-ready
-  │      Authorization: Bearer {WAVIO_API_KEY}
-  │      Idempotency-Key: imagestro-radiology:{study_uid}
+  │ payload.patient_id → MASTER_DATA_WORKER GET /patients/{id} (X-Tenant-ID)
+  │   → patient_name + phone        (kalau patient_id null → skip + record failed)
+  │ link = RADIOLOGY_PORTAL_URL_TEMPLATE.replace("{study_uid}", study_uid)
+  │ idempotency: INSERT radiology_notifications(study_uid UNIQUE, ON CONFLICT skip)
+  │ POST {WAVIO_BASE_URL}/v1/integrations/imagestro/radiology-ready
+  │   Authorization: Bearer {WAVIO_API_KEY}
+  │   Idempotency-Key: imagestro-radiology:{study_uid}
   ▼
 wavio (Cloudflare Workers / OpenNext)
   │ verifyApiKey (tenant-scoped) → validasi zod payload
   │ render pesan Indonesia → executeSendMessage()
-  │   (reuse: rate limit, kuota bulanan, gate kredit, device ready,
-  │    watermark footnote, random delay, message log, Idempotency-Key)
+  │   (reuse: kuota, gate kredit, device ready, watermark, message log, Idempotency-Key KV)
   ▼
 OpenWA → WhatsApp pasien
 ```
+
+> Catatan: `DicomForwardPayload` sudah mengandung `patient_id`, `order_id`,
+> `modality`, `accession_number`, `study_description` — sehingga order-worker
+> **tidak** perlu lookup `studies`/`orders`; cukup satu panggilan master-data
+> untuk dapatkan nama + phone.
 
 Isi pesan WhatsApp (template v1):
 
@@ -96,19 +101,20 @@ segmen modality/nama). `link` wajib (validasi 400 kalau kosong/bukan URL).
   route internal baru `POST /internal/dicom-forward-success`:
   - verifikasi `X-Gateway-Secret` == `env.GATEWAY_SHARED_SECRET` (pola
     `validateGatewaySecret` di dicom-router);
-  - terima `{ tenant_id, study_uid, imaging_study_id?, environment? }`;
+  - terima payload `DicomForwardPayload`-like `{ tenant_id, study_uid, order_id,
+    patient_id?, accession_number?, modality?, study_description?, environment?,
+    imaging_study_id? }`;
   - delegasi ke `radiology-notify` service.
 - **`cloudflare/order-worker/src/services/radiology-notify.ts`** — service:
-  1. `SELECT id, order_id, tenant_id FROM studies WHERE study_instance_uid = ?`
-  2. `SELECT patient_id, patient_name, modality, accession_number FROM orders WHERE id = ?`
-  3. `env.MASTER_DATA_WORKER.fetch(GET /patients/{patient_id})` dengan header
-     `X-Tenant-ID` (pola `ensurePatient` di `complete-flow.ts`) → ambil `phone`
-  4. kalau phone kosong → log + return (tidak bisa notifikasi)
-  5. `INSERT INTO radiology_notifications (...)` — `study_uid` UNIQUE sebagai
-     idempotency sisi sumber (ON CONFLICT DO NOTHING → sudah pernah, skip)
-  6. bangun link dari `env.RADIOLOGY_PORTAL_URL_TEMPLATE`
-  7. `fetch(WAVIO_BASE_URL + endpoint)` dengan retry 2× (backoff 1s/3s) untuk
-     5xx/timeout; update status record (`sent`/`failed` + `wavio_message_id`)
+  1. kalau `payload.patient_id` kosong → record `failed` (reason `no_patient_id`) + log, return
+  2. `env.MASTER_DATA_WORKER.fetch(GET /patients/{patient_id})` header `X-Tenant-ID: tenant_id`
+     → parse `name` + `phone`
+  3. kalau phone kosong → record `failed` (reason `no_phone`) + log, return
+  4. `INSERT INTO radiology_notifications (...) ON CONFLICT (study_uid) DO NOTHING;`
+     kalau conflict → sudah notif, skip (idempotency sisi sumber)
+  5. link = `env.RADIOLOGY_PORTAL_URL_TEMPLATE.replace("{study_uid}", study_uid)`
+  6. `fetch(WAVIO_BASE_URL + endpoint)` retry 2× (backoff 1s/3s) untuk 5xx/timeout;
+     update status record (`sent`/`failed` + `wavio_message_id` + `last_error`)
 - **`cloudflare/order-worker/wrangler.jsonc`** — vars: `WAVIO_BASE_URL`
   (mis. `https://wavio.satupintudigital.co.id`),
   `RADIOLOGY_PORTAL_URL_TEMPLATE` (mis.
