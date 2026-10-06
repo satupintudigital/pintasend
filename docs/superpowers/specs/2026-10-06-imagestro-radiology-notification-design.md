@@ -1,0 +1,159 @@
+# Integrasi Imagestro → Wavio: Notifikasi Hasil Radiologi via WhatsApp
+
+Tanggal: 2026-10-06
+Status: **disetujui (brainstorming)** — menunggu review spec
+Repositori terlibat: `wavio` (gateway WhatsApp) + `Imagestro-PACS` (PACS/router/order-worker)
+
+## Ringkasan
+
+Saat study DICOM berhasil dikirim ke SATUSEHAT (STOW-RS + ImagingStudy berhasil
+dibuat, `dicom_forward_status = success`), pasien menerima notifikasi WhatsApp
+bahwa hasil pemeriksaan radiologinya sudah bisa dilihat melalui aplikasi
+Satusehat Atua, lengkap dengan link ke portal pasien Imagestro.
+
+Notifikasi dikirim melalui **Wavio** (gateway WhatsApp OpenWA) — Imagestro
+memanggil endpoint khusus Wavio, Wavio yang mengirimkan pesan ke nomor
+WhatsApp pasien.
+
+## Keputusan desain (hasil clarifying questions)
+
+| Keputusan | Pilihan |
+|---|---|
+| Channel | WhatsApp via Wavio (OpenWA) |
+| Trigger | DICOM forward ke SATUSEHAT SUCCESS |
+| Link | Template URL konfigurasi per deployment (placeholder `{study_uid}`) → portal pasien Imagestro |
+| Nomor pasien | Diresolve oleh Imagestro (`studies`→`orders.patient_id` → `MASTER_DATA_WORKER` `GET /patients/{id}` → `phone`) |
+
+## Arsitektur & alur data
+
+```
+satusehat-dicom-router (queue consumer)
+  │ processForward(): STOW-RS ✓ + ImagingStudy ✓ → markSuccess()
+  │ fire-and-forget POST /internal/dicom-forward-success
+  │   (service binding ORDER_WORKER, header X-Gateway-Secret)
+  ▼
+order-worker
+  │ 1. studies(study_instance_uid) → order_id, tenant_id
+  │ 2. orders(id) → patient_id, patient_name, modality, accession_number
+  │ 3. MASTER_DATA_WORKER GET /patients/{patient_id} → phone
+  │ 4. link = RADIOLOGY_PORTAL_URL_TEMPLATE.replace("{study_uid}", uid)
+  │ 5. idempotency: INSERT radiology_notifications(study_uid UNIQUE)
+  │ 6. POST {WAVIO_BASE_URL}/v1/integrations/imagestro/radiology-ready
+  │      Authorization: Bearer {WAVIO_API_KEY}
+  │      Idempotency-Key: imagestro-radiology:{study_uid}
+  ▼
+wavio (Cloudflare Workers / OpenNext)
+  │ verifyApiKey (tenant-scoped) → validasi zod payload
+  │ render pesan Indonesia → executeSendMessage()
+  │   (reuse: rate limit, kuota bulanan, gate kredit, device ready,
+  │    watermark footnote, random delay, message log, Idempotency-Key)
+  ▼
+OpenWA → WhatsApp pasien
+```
+
+Isi pesan WhatsApp (template v1):
+
+```
+Hasil pemeriksaan radiologi {modality} atas nama {patient_name} sudah tersedia.
+Lihat hasilnya melalui aplikasi Satusehat Atua: {link}
+
+{footnote watermark platform, jika addon remove_watermark tidak aktif}
+```
+
+Aturan rendering: `modality` dan `patient_name` opsional — kalau kosong,
+kalimat dipangkas jadi `Hasil pemeriksaan radiologi sudah tersedia.` (tanpa
+segmen modality/nama). `link` wajib (validasi 400 kalau kosong/bukan URL).
+
+## Komponen
+
+### wavio (repo ini)
+
+- **`src/app/v1/integrations/imagestro/radiology-ready/route.ts`** — route baru.
+  Auth: `Authorization: Bearer <API key>` via `verifyApiKey` (pola sama dengan
+  `src/app/v1/messages/route.ts`). Response shape mengikuti `executeSendMessage`
+  (`{ ok, deviceId, to, messageId, ... }`).
+- **`src/lib/imagestro.ts`** — service layer:
+  - `parseRadiologyReadyPayload(body)` — validasi zod: `to` (nomor WhatsApp,
+    format 628…/08…), `study_uid` (string, wajib), `patient_name?`,
+    `modality?`, `accession_number?`, `link` (URL, wajib).
+  - `renderRadiologyReadyMessage(data)` — template pesan Indonesia di atas.
+  - `executeRadiologyReadyNotification(req, ctx)` — bangun synthetic Request
+    (`{ to, text }`) + `Idempotency-Key: imagestro-radiology:{study_uid}`,
+    delegasi ke `executeSendMessage`.
+- **Unit test** — `src/lib/imagestro.test.ts` + `route.test.ts` (pola vitest
+  yang sudah ada: mock `verifyApiKey`, `executeSendMessage`).
+
+### Imagestro-PACS
+
+- **`cloudflare/satusehat-dicom-router/src/handlers/process-forward.ts`** —
+  setelah `markSuccess(...)`, panggil `notifyOrderWorker(env, payload,
+  imagingStudyId)` — fetch tanpa di-await (fire-and-forget) dengan `.catch()`
+  yang log error; **tidak** mengagalkan forward yang sudah sukses (jangan
+  return `'retry'`).
+- **`cloudflare/satusehat-dicom-router/wrangler.jsonc`** — tambah service
+  binding `ORDER_WORKER` (service `order-worker`) di semua environment.
+- **`cloudflare/order-worker/src/routes/internal/dicom-forward-success.ts`** —
+  route internal baru `POST /internal/dicom-forward-success`:
+  - verifikasi `X-Gateway-Secret` == `env.GATEWAY_SHARED_SECRET` (pola
+    `validateGatewaySecret` di dicom-router);
+  - terima `{ tenant_id, study_uid, imaging_study_id?, environment? }`;
+  - delegasi ke `radiology-notify` service.
+- **`cloudflare/order-worker/src/services/radiology-notify.ts`** — service:
+  1. `SELECT id, order_id, tenant_id FROM studies WHERE study_instance_uid = ?`
+  2. `SELECT patient_id, patient_name, modality, accession_number FROM orders WHERE id = ?`
+  3. `env.MASTER_DATA_WORKER.fetch(GET /patients/{patient_id})` dengan header
+     `X-Tenant-ID` (pola `ensurePatient` di `complete-flow.ts`) → ambil `phone`
+  4. kalau phone kosong → log + return (tidak bisa notifikasi)
+  5. `INSERT INTO radiology_notifications (...)` — `study_uid` UNIQUE sebagai
+     idempotency sisi sumber (ON CONFLICT DO NOTHING → sudah pernah, skip)
+  6. bangun link dari `env.RADIOLOGY_PORTAL_URL_TEMPLATE`
+  7. `fetch(WAVIO_BASE_URL + endpoint)` dengan retry 2× (backoff 1s/3s) untuk
+     5xx/timeout; update status record (`sent`/`failed` + `wavio_message_id`)
+- **`cloudflare/order-worker/wrangler.jsonc`** — vars: `WAVIO_BASE_URL`
+  (mis. `https://wavio.satupintudigital.co.id`),
+  `RADIOLOGY_PORTAL_URL_TEMPLATE` (mis.
+  `https://portal.atua.id/studies/{study_uid}`); secret: `WAVIO_API_KEY`.
+- **Migrasi SQL** (Neon, order-worker DB) — tabel `radiology_notifications`:
+  `id uuid v7 PK, tenant_id, study_uid UNIQUE, order_id, patient_phone, link,
+  status ('pending'|'sent'|'failed'), attempts, last_error, wavio_message_id,
+  created_at, updated_at`.
+
+## Error handling
+
+| Titik | Perilaku |
+|---|---|
+| dicom-router → order-worker | fire-and-forget; error di-catch + console.error. Forward sudah SUCCESS — jangan `retry` antrian. |
+| phone pasien kosong | skip + log (warn). Record tetap dibuat dengan status `failed` + alasan `no_phone`. |
+| order-worker → wavio 5xx/timeout | retry 2×; tetap gagal → record `failed` (target reconciler cron fase 2). |
+| wavio 402 (saldo habis) / 429 (kuota) | record `failed` + error detail; terlihat di log/audit. |
+| Idempotency | dua lapis: UNIQUE `study_uid` di `radiology_notifications` + `Idempotency-Key` di wavio (KV idempotency store). Double-event → respons replay, tidak ada WA ganda. |
+
+## Testing
+
+- **wavio**: unit test `imagestro.ts` (validasi payload: valid, missing fields,
+  nomor invalid, link bukan URL; rendering pesan; pembentukan Idempotency-Key)
+  dan route test (auth 401, success path, delegasi). Pola: `src/app/v1/messages/route.test.ts`.
+- **Imagestro**: unit test `radiology-notify.ts` (link building, mapping payload,
+  skip tanpa phone, idempotency ON CONFLICT) dengan DB mock; test internal route
+  (secret salah → 401).
+
+## Non-goals (v1)
+
+- Reconciler cron untuk notifikasi yang gagal (fase 2 — tabel
+  `radiology_notifications` sudah jadi targetnya).
+- Per-tenant mapping wavio API key (v1: satu konfigurasi global per deployment
+  order-worker).
+- Notifikasi untuk gagal forward / validasi upload saja.
+- Halaman portal pasien baru (link mengarah ke portal yang sudah ada/dikonfigurasi).
+
+## Referensi kode
+
+- Wavio: `src/app/v1/messages/route.ts` (auth + delegasi), `src/lib/sendMessage.ts`
+  (`executeSendMessage`, idempotency, credit gate), `src/lib/authStore.ts`
+  (`verifyApiKey`).
+- Imagestro: `cloudflare/satusehat-dicom-router/src/handlers/process-forward.ts`
+  (`markSuccess`), `cloudflare/order-worker/src/routes/satusehat.ts`
+  (`GET /orders/dicom-forward-status` — pola lookup studies/orders),
+  `cloudflare/order-worker/src/services/complete-flow.ts` (`ensurePatient` —
+  pola panggil MASTER_DATA_WORKER), `cloudflare/notification-worker/src/middleware/auth.ts`
+  (pola service-binding trust).
