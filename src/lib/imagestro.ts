@@ -12,6 +12,9 @@ export interface RadiologyReadyPayload {
   study_uid: string;
   link: string;
   patient_name?: string;
+  gender?: string;
+  procedure_name?: string;
+  facility_name?: string;
   modality?: string;
   accession_number?: string;
   study_description?: string;
@@ -59,6 +62,9 @@ export function validateRadiologyReadyPayload(body: unknown): ValidateResult {
       study_uid: studyUid,
       link,
       patient_name: str(b.patient_name) || undefined,
+      gender: str(b.gender) || undefined,
+      procedure_name: str(b.procedure_name) || undefined,
+      facility_name: str(b.facility_name) || undefined,
       modality: str(b.modality) || undefined,
       accession_number: str(b.accession_number) || undefined,
       study_description: str(b.study_description) || undefined,
@@ -66,14 +72,53 @@ export function validateRadiologyReadyPayload(body: unknown): ValidateResult {
   };
 }
 
-/** Template pesan v1 — segmen modality/nama dihilangkan bila kosong. */
-export function renderRadiologyReadyMessage(d: RadiologyReadyPayload): string {
-  const parts: string[] = [];
-  if (d.modality) parts.push(d.modality);
-  if (d.patient_name) parts.push(`atas nama ${d.patient_name}`);
-  const middle = parts.length > 0 ? ` ${parts.join(" ")}` : "";
+/**
+ * Salam menurut jam WIB (UTC+7 — tanpa DST, aman dihitung manual).
+ * Pagi < 11, Siang 11–14, Sore 15–17, Malam ≥ 18.
+ */
+export function getTimeGreeting(now: Date = new Date()): string {
+  const wibHour = (now.getUTCHours() + 7) % 24;
+  if (wibHour < 11) return "Pagi";
+  if (wibHour < 15) return "Siang";
+  if (wibHour < 18) return "Sore";
+  return "Malam";
+}
+
+const FEMALE_GENDER = new Set(["p", "f", "female", "wanita", "perempuan"]);
+const MALE_GENDER = new Set(["l", "m", "male", "pria", "laki-laki", "lakilaki"]);
+
+/** Sapaan sesuai gender — fallback netral "Bapak/Ibu" bila tidak dikenali. */
+export function honorificForGender(gender?: string): string {
+  const g = (gender ?? "").trim().toLowerCase();
+  if (FEMALE_GENDER.has(g)) return "Ibu";
+  if (MALE_GENDER.has(g)) return "Bapak";
+  return "Bapak/Ibu";
+}
+
+/**
+ * Template pesan v2 — salam waktu + sapaan gender + nama pemeriksaan + faskes.
+ *
+ * Selamat {Pagi|Siang|Sore|Malam} {Bapak|Ibu|Bapak/Ibu} {nama},
+ * Hasil pemeriksaan {procedure} di {faskes} sudah tersedia.
+ * Lihat hasilnya melalui aplikasi Satusehat Atua: {link}
+ *
+ * Segmen opsional dihilangkan bila kosong; procedure fallback berurutan:
+ * procedure_name → study_description → modality → "radiologi".
+ */
+export function renderRadiologyReadyMessage(
+  d: RadiologyReadyPayload,
+  now: Date = new Date(),
+): string {
+  const greeting = getTimeGreeting(now);
+  const address = d.patient_name
+    ? ` ${honorificForGender(d.gender)} ${d.patient_name}`
+    : "";
+  const procedure =
+    d.procedure_name || d.study_description || d.modality || "radiologi";
+  const facility = d.facility_name ? ` di ${d.facility_name}` : "";
   return [
-    `Hasil pemeriksaan radiologi${middle} sudah tersedia.`,
+    `Selamat ${greeting}${address},`,
+    `Hasil pemeriksaan ${procedure}${facility} sudah tersedia.`,
     `Lihat hasilnya melalui aplikasi Satusehat Atua: ${d.link}`,
   ].join("\n");
 }
