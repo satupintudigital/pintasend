@@ -44,12 +44,18 @@ export function PlatformSidebar() {
             key={it.href}
             href={it.href}
             aria-current={active ? "page" : undefined}
-            className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-              active ? "bg-surface-2 text-fg font-semibold" : "text-fg-muted hover:bg-surface-2/60 hover:text-fg"
+            className={`group flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
+              active 
+                ? "bg-surface-2 text-fg font-semibold shadow-sm shadow-accent/10"
+                : "text-fg-muted hover:bg-surface-2/60 hover:text-fg hover:shadow-sm"
             }`}
           >
-            <it.icon size={17} className={active ? "text-accent-bright" : undefined} />
-            {it.label}
+            <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
+              active ? "bg-accent/10 text-accent-bright" : "text-fg-faint group-hover:bg-accent/10 group-hover:text-accent-bright"
+            }`}>
+              <it.icon size={16} weight={active ? "duotone" : "regular"} />
+            </span>
+            <span className="truncate">{it.label}</span>
           </Link>
         );
       })}

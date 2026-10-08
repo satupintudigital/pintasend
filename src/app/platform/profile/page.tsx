@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { changePassword } from "@/lib/platformChangePassword";
-import { FormState } from "@/lib/platformChangePassword";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { PlatformPage } from "@/components/platform/PlatformPage";
 import { PasswordForm } from "@/components/platform/PasswordForm";
 
@@ -13,7 +13,11 @@ export default async function ProfilePage() {
   const name = session.user.name ?? session.user.email ?? "";
 
   return (
-    <PlatformPage title="Profil & Keamanan">
+    <PlatformPage
+      title="Profil & Keamanan"
+      description="Kelola informasi akun dan ubah password untuk keamanan akses platform."
+      action={{ label: "Kembali ke Platform", href: "/platform" }}
+    >
       <PasswordForm initialEmail={email} userName={name} />
     </PlatformPage>
   );
