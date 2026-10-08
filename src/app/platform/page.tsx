@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ChartLineUp, Stack, UsersThree } from "@phosphor-icons/react/ssr";
 import { getPlatformMetrics, listTenants } from "@/lib/platform";
 import { Spotlight } from "@/components/Spotlight";
+export const dynamic = 'force-dynamic';
 
 export default async function PlatformHome() {
   const [metrics, tenantPage] = await Promise.all([
