@@ -1,7 +1,4 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
-import { auth } from "@/lib/auth";
-import { redirect } from "next/navigation";
+import { auth, redirect } from "@/lib/auth";
 import { PlatformPage } from "@/components/platform/PlatformPage";
 import { PasswordForm } from "@/components/platform/PasswordForm";
 
