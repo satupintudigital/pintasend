@@ -70,7 +70,11 @@ export interface TenantDetailRow {
 export async function getTenantDetail(id: string): Promise<TenantDetailRow | null> {
   const rows = await query<TenantDetailRow>(
     `SELECT t.id, t.name, t."createdAt", t."suspendedAt", t."planId", p.name AS "planName",
-            t."delayEnabled", t."messageRetentionDays",
+            t."delayEnabled",
+            // Kolom messageRetentionDays (migrasi 2026-08-21) mungkin belum ada di
+            // production database. Pakai COALESCE agar tidak error kalau kolom
+            // belum di-migrate — default 30 hari sesuai Prisma schema.
+            COALESCE(t."messageRetentionDays", 30) AS "messageRetentionDays",
             EXISTS(SELECT 1 FROM "TenantAddon" a
                    WHERE a."tenantId" = t.id AND a.key = 'random_delay' AND ${tenantAddonActiveWhere("a")}) AS "delayAddonActive",
             EXISTS(SELECT 1 FROM "TenantAddon" a
