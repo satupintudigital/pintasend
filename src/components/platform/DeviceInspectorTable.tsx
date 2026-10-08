@@ -22,6 +22,9 @@ export interface PlatformDeviceRow {
   status: string;
   phoneNumber: string | null;
   openwaSessionId: string;
+  messagesIn: number;
+  messagesOut: number;
+  messagesTotal: number;
   updatedAt: string;
   createdAt: string;
 }
@@ -142,6 +145,8 @@ export function DeviceInspectorTable({
                 <th className="px-4 py-3 font-medium">Device & Tenant</th>
                 <th className="px-4 py-3 font-medium">Nomor WhatsApp</th>
                 <th className="px-4 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium text-center">Pesan Masuk (In)</th>
+                <th className="px-4 py-3 font-medium text-center">Pesan Keluar (Out)</th>
                 <th className="px-4 py-3 font-medium">Session ID</th>
                 <th className="px-4 py-3 font-medium text-right">Aksi</th>
               </tr>
@@ -149,7 +154,7 @@ export function DeviceInspectorTable({
             <tbody className="divide-y divide-surface-2">
               {devices.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-fg-muted">
+                  <td colSpan={7} className="px-4 py-8 text-center text-fg-muted">
                     Tidak ada device ditemukan.
                   </td>
                 </tr>
@@ -181,6 +186,16 @@ export function DeviceInspectorTable({
                         >
                           {isReady ? <CheckCircle size={12} /> : isPairing ? <Warning size={12} /> : <XCircle size={12} />}
                           <span className="capitalize">{d.status}</span>
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center font-mono text-xs">
+                        <span className="inline-flex items-center rounded-md bg-blue-500/10 px-2 py-0.5 text-blue-400 border border-blue-500/20">
+                          {Number(d.messagesIn || 0).toLocaleString("id-ID")}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-center font-mono text-xs">
+                        <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-emerald-400 border border-emerald-500/20">
+                          {Number(d.messagesOut || 0).toLocaleString("id-ID")}
                         </span>
                       </td>
                       <td className="px-4 py-3.5 font-mono text-xs text-fg-faint">

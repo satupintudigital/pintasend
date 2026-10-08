@@ -516,6 +516,9 @@ export interface PlatformDeviceRow {
   status: string;
   phoneNumber: string | null;
   openwaSessionId: string;
+  messagesIn: number;
+  messagesOut: number;
+  messagesTotal: number;
   updatedAt: string;
   createdAt: string;
 }
@@ -555,7 +558,10 @@ export async function listAllPlatformDevices(params: {
       args,
     ),
     query<PlatformDeviceRow>(
-      `SELECT d.id, d.label, d."tenantId", t.name AS "tenantName", d.status, d.phone AS "phoneNumber", d."openwaSessionId", d."updatedAt", d."createdAt"
+      `SELECT d.id, d.label, d."tenantId", t.name AS "tenantName", d.status, d.phone AS "phoneNumber", d."openwaSessionId", d."updatedAt", d."createdAt",
+              (SELECT COUNT(*)::int FROM "MessageLog" m WHERE m."deviceId" = d.id AND m.direction = 'incoming') AS "messagesIn",
+              (SELECT COUNT(*)::int FROM "MessageLog" m WHERE m."deviceId" = d.id AND m.direction = 'outgoing') AS "messagesOut",
+              (SELECT COUNT(*)::int FROM "MessageLog" m WHERE m."deviceId" = d.id) AS "messagesTotal"
        FROM "Device" d JOIN "Tenant" t ON t.id = d."tenantId"
        ${where} ORDER BY d."updatedAt" DESC LIMIT $${args.length + 1} OFFSET $${args.length + 2}`,
       [...args, limit, offset],
