@@ -30,7 +30,7 @@ export default async function PlatformHome() {
         Ringkasan Platform
       </h1>
 
-      <div className="mt-10 grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((s) => (
           <div key={s.label} className="group relative overflow-hidden rounded-2xl border border-line/60 bg-surface p-5 shadow-sm shadow-ink/5 transition-all hover:border-accent/30 hover:shadow-lg hover:shadow-accent/10">
             <div className="absolute inset-0 bg-gradient-to-br from-accent/5 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
@@ -38,6 +38,22 @@ export default async function PlatformHome() {
               <p className="text-xs font-medium uppercase tracking-widest text-fg-faint">{s.label}</p>
               <p className="bk-tabular mt-2 font-display text-3xl sm:text-4xl font-bold tracking-tight text-fg">
                 {s.value}
+              </p>
+              <div className="mt-2 h-1 w-8 rounded-full bg-accent" />
+            </div>
+          </div>
+        ))}
+        {[
+          { label: "MRR", value: `Rp ${metrics.financial.mrr.toLocaleString("id-ID")}` },
+          { label: "Total Revenue MTD", value: `Rp ${metrics.financial.totalRevenueMtd.toLocaleString("id-ID")}` },
+          { label: "Total Paid Orders", value: metrics.financial.totalOrdersPaid },
+        ].map((f) => (
+          <div key={f.label} className="group relative overflow-hidden rounded-2xl border border-accent/40 bg-accent/5 p-5 shadow-sm shadow-ink/5 transition-all hover:border-accent/60 hover:shadow-lg hover:shadow-accent/10">
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="relative">
+              <p className="text-xs font-medium uppercase tracking-widest text-accent-bright">{f.label}</p>
+              <p className="bk-tabular mt-2 font-display text-2xl sm:text-3xl font-bold tracking-tight text-fg">
+                {f.value}
               </p>
               <div className="mt-2 h-1 w-8 rounded-full bg-accent" />
             </div>

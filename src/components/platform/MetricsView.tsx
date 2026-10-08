@@ -5,6 +5,12 @@ interface MetricsViewProps {
     messagesPerDay: { day: string; count: number }[];
     deviceStatus: { status: string; count: number }[];
     topTenants: { id: string; name: string; messages: number }[];
+    financial: {
+      mrr: number;
+      totalRevenueMtd: number;
+      totalOrdersPaid: number;
+      prepaidVolume: number;
+    };
   };
 }
 
@@ -15,6 +21,26 @@ export function MetricsView({ initial }: MetricsViewProps) {
 
   return (
     <div className="space-y-8">
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[
+          { label: "MRR", value: `Rp ${initial.financial.mrr.toLocaleString("id-ID")}` },
+          { label: "Total Revenue MTD", value: `Rp ${initial.financial.totalRevenueMtd.toLocaleString("id-ID")}` },
+          { label: "Total Paid Orders", value: initial.financial.totalOrdersPaid },
+          { label: "Prepaid Volume (Msg)", value: initial.financial.prepaidVolume.toLocaleString("id-ID") },
+        ].map((f) => (
+          <div key={f.label} className="group relative overflow-hidden rounded-2xl border border-accent/40 bg-accent/5 p-5 shadow-sm shadow-ink/5 transition-all hover:border-accent/60 hover:shadow-lg hover:shadow-accent/10">
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="relative">
+              <p className="text-xs font-medium uppercase tracking-widest text-accent-bright">{f.label}</p>
+              <p className="bk-tabular mt-2 font-display text-2xl sm:text-3xl font-bold tracking-tight text-fg">
+                {f.value}
+              </p>
+              <div className="mt-2 h-1 w-8 rounded-full bg-accent" />
+            </div>
+          </div>
+        ))}
+      </section>
+
       <section className="rounded-2xl border border-line bg-surface p-6">
         <h2 className="font-display text-lg font-semibold tracking-tight">
           Pesan per hari (30 hari)

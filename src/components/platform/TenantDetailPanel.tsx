@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CheckCircle, Warning } from "@phosphor-icons/react";
+import { ArrowRight, CheckCircle, Warning, UserSwitch, Coins, CalendarPlus } from "@phosphor-icons/react";
 
 interface TenantDetail {
   id: string;
@@ -374,6 +374,85 @@ export function TenantDetailPanel({ tenantId, initial }: TenantDetailPanelProps)
               Aktif
             </span>
           )}
+          <button
+            type="button"
+            onClick={async () => {
+              setActionError("");
+              try {
+                const res = await fetch(`/api/platform/tenants/${tenantId}/impersonate`, { method: "POST" });
+                const data = (await res.json().catch(() => ({}))) as { error?: string; redirectTo?: string };
+                if (!res.ok) throw new Error(data.error || "Gagal impersonasi tenant");
+                router.push(data.redirectTo || "/dashboard");
+                router.refresh();
+              } catch (e: unknown) {
+                setActionError(e instanceof Error ? e.message : "Terjadi kesalahan");
+              }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-300 transition-all hover:bg-amber-500/20 active:scale-[0.97]"
+          >
+            <UserSwitch size={16} weight="bold" />
+            Impersonate
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              const amountStr = prompt("Masukkan nominal saldo (Rp) untuk ditambah:", "50000");
+              if (!amountStr) return;
+              const amount = parseInt(amountStr, 10);
+              if (isNaN(amount) || amount <= 0) {
+                alert("Nominal tidak valid");
+                return;
+              }
+              const reason = prompt("Alasan penyesuaian saldo:", "Topup manual superadmin");
+              if (!reason) return;
+              try {
+                const res = await fetch(`/api/platform/tenants/${tenantId}/adjust-credit`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ amount, reason }),
+                });
+                const data = (await res.json().catch(() => ({}))) as { error?: string };
+                if (!res.ok) throw new Error(data.error || "Gagal menambah saldo");
+                alert("Saldo berhasil ditambah!");
+                router.refresh();
+              } catch (e: unknown) {
+                alert(e instanceof Error ? e.message : "Terjadi kesalahan");
+              }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent-bright transition-all hover:bg-accent/20 active:scale-[0.97]"
+          >
+            <Coins size={16} weight="bold" />
+            Tambah Saldo
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              const daysStr = prompt("Perpanjang aktif berapa hari:", "30");
+              if (!daysStr) return;
+              const days = parseInt(daysStr, 10);
+              if (isNaN(days) || days <= 0) {
+                alert("Jumlah hari tidak valid");
+                return;
+              }
+              try {
+                const res = await fetch(`/api/platform/tenants/${tenantId}/extend-period`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ days }),
+                });
+                const data = (await res.json().catch(() => ({}))) as { error?: string };
+                if (!res.ok) throw new Error(data.error || "Gagal memperpanjang masa aktif");
+                alert("Masa aktif berhasil diperpanjang!");
+                router.refresh();
+              } catch (e: unknown) {
+                alert(e instanceof Error ? e.message : "Terjadi kesalahan");
+              }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-line px-4 py-2 text-sm font-semibold text-fg-muted transition-all hover:border-accent/40 hover:text-fg active:scale-[0.97]"
+          >
+            <CalendarPlus size={16} weight="bold" />
+            Perpanjang Aktif
+          </button>
           <button
             type="button"
             onClick={toggleStatus}

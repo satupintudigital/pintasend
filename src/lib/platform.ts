@@ -187,12 +187,18 @@ export interface PlatformMetrics {
   messagesPerDay: { day: string; count: number }[];
   deviceStatus: { status: string; count: number }[];
   topTenants: { id: string; name: string; messages: number }[];
+  financial: {
+    mrr: number;
+    totalRevenueMtd: number;
+    totalOrdersPaid: number;
+    prepaidVolume: number;
+  };
 }
 
 // Metrik lintas tenant — agregasi Neon. Dipakai halaman /platform (ringkasan)
 // dan /platform/metrics. Jalur admin, bukan hot path.
 export async function getPlatformMetrics(): Promise<PlatformMetrics> {
-  const [messagesPerDay, deviceStatus, topTenants] = await Promise.all([
+  const [messagesPerDay, deviceStatus, topTenants, financialRows] = await Promise.all([
     query<{ day: string; count: number }>(
       `SELECT TO_CHAR("createdAt" AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') AS day, COUNT(*)::int AS count
        FROM "MessageLog" WHERE "createdAt" >= now() - interval '30 days'
@@ -206,8 +212,26 @@ export async function getPlatformMetrics(): Promise<PlatformMetrics> {
        FROM "MessageLog" m JOIN "Tenant" t ON t.id = m."tenantId"
        GROUP BY t.id, t.name ORDER BY messages DESC LIMIT 5`,
     ),
+    query<{ mrr: number; totalRevenueMtd: number; totalOrdersPaid: number; prepaidVolume: number }>(
+      `SELECT 
+         (SELECT COALESCE(SUM(p."priceMonthly"), 0)::int FROM "Tenant" t JOIN "Plan" p ON p.id = t."planId" WHERE t."suspendedAt" IS NULL AND p.kind = 'subscription') AS mrr,
+         (SELECT COALESCE(SUM(amount), 0)::int FROM "Order" WHERE status = 'paid' AND "paidAt" >= date_trunc('month', now())) AS "totalRevenueMtd",
+         (SELECT COUNT(*)::int FROM "Order" WHERE status = 'paid' AND "paidAt" >= date_trunc('month', now())) AS "totalOrdersPaid",
+         (SELECT COALESCE(SUM("creditMessages"), 0)::int FROM "Order" WHERE status = 'paid' AND kind = 'topup' AND "paidAt" >= date_trunc('month', now())) AS "prepaidVolume"`
+    ),
   ]);
-  return { messagesPerDay, deviceStatus, topTenants };
+  const fin = financialRows[0] || { mrr: 0, totalRevenueMtd: 0, totalOrdersPaid: 0, prepaidVolume: 0 };
+  return {
+    messagesPerDay,
+    deviceStatus,
+    topTenants,
+    financial: {
+      mrr: Number(fin.mrr || 0),
+      totalRevenueMtd: Number(fin.totalRevenueMtd || 0),
+      totalOrdersPaid: Number(fin.totalOrdersPaid || 0),
+      prepaidVolume: Number(fin.prepaidVolume || 0),
+    },
+  };
 }
 
 export interface PlanPatch {

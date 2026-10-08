@@ -5,6 +5,8 @@ import { getTenantActivation } from "@/lib/tenantGate";
 import { SignOutButton } from "@/components/dashboard/SignOutButton";
 import { SidebarNav } from "@/components/dashboard/SidebarNav";
 import { Logo } from "@/components/Logo";
+import { ImpersonationBanner } from "@/components/dashboard/ImpersonationBanner";
+import { queryOne } from "@/lib/db";
 
 function Brand() {
   return <Logo className="h-9 md:h-10" />;
@@ -16,12 +18,15 @@ export default async function DashboardLayout({
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  const impersonatedId = session.user.impersonatedTenantId;
+  const tenantInfo = impersonatedId
+    ? await queryOne<{ name: string }>('SELECT name FROM "Tenant" WHERE id = $1', [impersonatedId]).catch(() => null)
+    : null;
+
   const hasCampaign = session.user.tenantId
     ? await tenantHasCampaignAddon(session.user.tenantId).catch(() => false)
     : false;
 
-  // Tenant pending (activatedAt NULL) → menu operasional disembunyikan;
-  // owner/tenant_admin tetap bisa mengakses halaman Langganan utk aktivasi.
   const activation = session.user.tenantId
     ? await getTenantActivation(session.user.tenantId).catch(() => ({ pending: false }))
     : { pending: false };
@@ -75,7 +80,10 @@ export default async function DashboardLayout({
         </div>
 
         <main className="min-w-0 flex-1 bg-ink-2 p-6 md:p-10">
-          <div className="mx-auto max-w-6xl">{children}</div>
+          <div className="mx-auto max-w-6xl space-y-6">
+            {impersonatedId && <ImpersonationBanner tenantName={tenantInfo?.name} />}
+            {children}
+          </div>
         </main>
       </div>
     </div>

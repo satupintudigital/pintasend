@@ -2,24 +2,27 @@ import NextAuth, { type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { queryD1One } from "@/lib/d1";
+import { cookies } from "next/headers";
 
 declare module "next-auth" {
   interface User {
     role?: string;
     tenantId?: string;
+    impersonatedTenantId?: string | null;
+    originalAdminRole?: string | null;
   }
   interface Session {
     user: {
       id: string;
       role: string;
       tenantId: string;
+      impersonatedTenantId?: string | null;
+      originalAdminRole?: string | null;
     } & DefaultSession["user"];
   }
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  // Diperlukan saat di belakang reverse proxy / Workers: Auth.js v5 menolak
-  // host selain localhost-dev tanpa flag ini (error UntrustedHost).
   trustHost: true,
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
@@ -48,8 +51,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           [email],
         );
         if (!user) return null;
-        // Tenant nonaktif (suspended) → tolak login. Pesan generik ("Email atau
-        // password salah") sengaja dipakai agar status akun tidak bocor.
         if (user.suspendedAt) return null;
 
         const ok = await bcrypt.compare(password, user.passwordHash);
@@ -66,19 +67,40 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.role = user.role ?? "owner";
         token.tenantId = user.tenantId;
+      }
+      // Check cookies for impersonation if request context allows
+      try {
+        const cookieStore = await cookies();
+        const impCookie = cookieStore.get("impersonatedTenantId")?.value;
+        const origRoleCookie = cookieStore.get("originalAdminRole")?.value;
+        if (token.role === "platform_admin" || origRoleCookie === "platform_admin") {
+          if (impCookie) {
+            token.impersonatedTenantId = impCookie;
+            token.originalAdminRole = origRoleCookie || (token.role === "platform_admin" ? "platform_admin" : "owner");
+            token.tenantId = impCookie;
+            token.role = "owner"; // impersonated tenant owner view
+          } else {
+            token.impersonatedTenantId = null;
+            token.originalAdminRole = null;
+          }
+        }
+      } catch {
+        // cookies not available in certain contexts
       }
       return token;
     },
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.role = token.role as string;
-        session.user.tenantId = token.tenantId as string;
+        session.user.role = (token.impersonatedTenantId ? "owner" : token.role) as string;
+        session.user.tenantId = (token.impersonatedTenantId || token.tenantId) as string;
+        session.user.impersonatedTenantId = token.impersonatedTenantId as string | null;
+        session.user.originalAdminRole = token.originalAdminRole as string | null;
       }
       return session;
     },
