@@ -544,7 +544,7 @@ export async function listAllPlatformDevices(params: {
     const escaped = q.replace(/[%_\\]/g, (m) => `\\${m}`);
     args.push(`%${escaped}%`);
     const p = `$${args.length}`;
-    conditions.push(`(d.label ILIKE ${p} OR d."phoneNumber" ILIKE ${p} OR t.name ILIKE ${p})`);
+    conditions.push(`(d.label ILIKE ${p} OR d.phone ILIKE ${p} OR t.name ILIKE ${p})`);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -555,7 +555,7 @@ export async function listAllPlatformDevices(params: {
       args,
     ),
     query<PlatformDeviceRow>(
-      `SELECT d.id, d.label, d."tenantId", t.name AS "tenantName", d.status, d."phoneNumber", d."openwaSessionId", d."updatedAt", d."createdAt"
+      `SELECT d.id, d.label, d."tenantId", t.name AS "tenantName", d.status, d.phone AS "phoneNumber", d."openwaSessionId", d."updatedAt", d."createdAt"
        FROM "Device" d JOIN "Tenant" t ON t.id = d."tenantId"
        ${where} ORDER BY d."updatedAt" DESC LIMIT $${args.length + 1} OFFSET $${args.length + 2}`,
       [...args, limit, offset],
