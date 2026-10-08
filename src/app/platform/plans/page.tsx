@@ -1,5 +1,6 @@
 import { listPlans } from "@/lib/platform";
 import { PlansTable } from "@/components/platform/PlansTable";
+export const dynamic = 'force-dynamic';
 
 export default async function PlatformPlans() {
   const plans = await listPlans();

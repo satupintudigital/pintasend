@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "@phosphor-icons/react/ssr";
 import { getTenantDetail, listPlans } from "@/lib/platform";
 import { listUsersPaginated } from "@/lib/authStore";
+export const dynamic = 'force-dynamic';
 import { TenantDetailPanel } from "@/components/platform/TenantDetailPanel";
 
 export default async function PlatformTenantDetail({

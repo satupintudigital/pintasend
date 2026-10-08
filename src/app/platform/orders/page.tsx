@@ -1,5 +1,6 @@
 import { listPlatformOrders } from "@/lib/platform";
 import { OrdersTable } from "@/components/platform/OrdersTable";
+export const dynamic = 'force-dynamic';
 
 export default async function PlatformOrders() {
   const orders = await listPlatformOrders();
