@@ -1,6 +1,7 @@
 import { listAddons } from "@/lib/platform";
 import { AddonsTable } from "@/components/platform/AddonsTable";
 
+export const dynamic = 'force-dynamic';
 export default async function PlatformAddons() {
   const addons = await listAddons();
   return (
