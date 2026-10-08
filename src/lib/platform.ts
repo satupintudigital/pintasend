@@ -507,3 +507,65 @@ export async function updateAddon(key: string, patch: AddonPatch): Promise<boole
   );
   return rows.length > 0;
 }
+
+export interface PlatformDeviceRow {
+  id: string;
+  label: string;
+  tenantId: string;
+  tenantName: string;
+  status: string;
+  phoneNumber: string | null;
+  openwaSessionId: string;
+  updatedAt: string;
+  createdAt: string;
+}
+
+export async function listAllPlatformDevices(params: {
+  q?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{ devices: PlatformDeviceRow[]; total: number; page: number; limit: number }> {
+  const limit = Math.min(100, Math.max(1, params.limit ?? 20));
+  const page = Math.max(1, params.page ?? 1);
+  const offset = limit * (page - 1);
+  const q = (params.q ?? "").trim();
+  const status = (params.status ?? "").trim();
+
+  const conditions: string[] = [];
+  const args: unknown[] = [];
+
+  if (status) {
+    args.push(status);
+    conditions.push(`d.status = $${args.length}`);
+  }
+
+  if (q) {
+    const escaped = q.replace(/[%_\\]/g, (m) => `\\${m}`);
+    args.push(`%${escaped}%`);
+    const p = `$${args.length}`;
+    conditions.push(`(d.label ILIKE ${p} OR d."phoneNumber" ILIKE ${p} OR t.name ILIKE ${p})`);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  const [countRows, deviceRows] = await Promise.all([
+    query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count FROM "Device" d JOIN "Tenant" t ON t.id = d."tenantId" ${where}`,
+      args,
+    ),
+    query<PlatformDeviceRow>(
+      `SELECT d.id, d.label, d."tenantId", t.name AS "tenantName", d.status, d."phoneNumber", d."openwaSessionId", d."updatedAt", d."createdAt"
+       FROM "Device" d JOIN "Tenant" t ON t.id = d."tenantId"
+       ${where} ORDER BY d."updatedAt" DESC LIMIT $${args.length + 1} OFFSET $${args.length + 2}`,
+      [...args, limit, offset],
+    ),
+  ]);
+
+  return {
+    devices: deviceRows,
+    total: Number(countRows[0]?.count ?? 0),
+    page,
+    limit,
+  };
+}

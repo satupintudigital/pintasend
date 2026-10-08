@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   ChartLineUp,
   ClipboardText,
+  DeviceMobile,
   GearSix,
   House,
   Invoice,
@@ -21,6 +22,7 @@ const items = [
   { href: "/platform/plans", label: "Plan", icon: Stack },
   { href: "/platform/addons", label: "Addon", icon: PuzzlePiece },
   { href: "/platform/tenants", label: "Tenant", icon: UsersThree },
+  { href: "/platform/devices", label: "Devices", icon: DeviceMobile },
   { href: "/platform/broadcasts", label: "Broadcast", icon: Megaphone },
   { href: "/platform/orders", label: "Orders", icon: Receipt },
   { href: "/platform/invoices", label: "Invoice", icon: Invoice },

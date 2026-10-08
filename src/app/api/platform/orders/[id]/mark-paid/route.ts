@@ -7,6 +7,7 @@ import {
   type SessionLike,
 } from "@/lib/abac";
 import { finalizePaidOrder, getOrderAnyScope } from "@/lib/billing";
+import { recordAuditFromSession } from "@/lib/audit";
 
 // ─── POST /api/platform/orders/[id]/mark-paid ───────────────────────────────
 // Rekonsiliasi MANUAL (platform admin): menandai order pending sebagai lunas
@@ -16,7 +17,6 @@ import { finalizePaidOrder, getOrderAnyScope } from "@/lib/billing";
 //   first/renewal_subscription → assign plan + activatedAt,
 //   addon → grant TenantAddon sampai akhir periode,
 //   topup → aktivasi Espresso + isi kredit pesan.
-// gatewayRef dicatat "manual:<admin>" agar bisa dilacak siapa yang menandai.
 
 function requirePlatformAdmin(session: SessionLike | null): Response | null {
   const p = parsePrincipal(session);
@@ -47,13 +47,21 @@ export async function POST(
     const actor = { id: session?.user?.id ?? "platform", name: session?.user?.email ?? "platform" };
     const res = await finalizePaidOrder(
       id,
-      { gatewayRef: `manual:${actor.name}`, payMethod: "manual" },
+      { payMethod: "manual_admin", paidAt: new Date().toISOString() },
       actor,
     );
     if (!res.ok) {
       console.error("platform/orders mark-paid: finalize gagal", res.error);
       return Response.json({ error: res.error ?? "Gagal menandai lunas" }, { status: 500 });
     }
+
+    await recordAuditFromSession(session, {
+      action: "order.manual_mark_paid",
+      targetId: id,
+      targetType: "order",
+      meta: { tenantId: order.tenantId, amount: order.amount, kind: order.kind },
+    });
+
     return Response.json({ ok: true, orderId: id });
   } catch (e) {
     console.error("platform/orders mark-paid:", e);
