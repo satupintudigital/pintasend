@@ -42,6 +42,8 @@ import {
   updateMessageDeliveryStatus,
 } from "@/lib/messageStore";
 import { getRequestId, logEvent } from "@/lib/requestLogger";
+import { getBotRulesCached, matchBotRule } from "@/lib/botRules";
+import { openwa } from "@/lib/openwa";
 import {
   deliverWebhookOnce,
   enqueueWebhookDelivery,
@@ -181,8 +183,36 @@ export async function POST(req: Request) {
         (typeof media.mimetype === "string" ? media.mimetype : "") ||
         (typeof d.mimetype === "string" ? d.mimetype : null),
     }).catch((e) => logEvent("error", "webhook_log_failed", requestId, { tenantId: device.tenantId, detail: String(e) }));
-  }
 
+    if (
+      !Boolean(d.fromMe) &&
+      typeof d.chatId === "string" &&
+      !d.chatId.includes("@g.us") &&
+      !d.chatId.includes("status")
+    ) {
+      try {
+        const rules = await getBotRulesCached(device.tenantId);
+        const matched = matchBotRule(rules, bodyText);
+        if (matched) {
+          const chatId = typeof d.chatId === "string" ? d.chatId : (typeof d.from === "string" ? d.from : "");
+          if (chatId) {
+            await openwa.sendText(sessionId, chatId, matched.response);
+            logEvent("info", "bot_rule_matched", requestId, {
+              tenantId: device.tenantId,
+              ruleId: matched.id,
+              ruleName: matched.name,
+              chatId,
+            });
+          }
+        }
+      } catch (botErr) {
+        logEvent("error", "bot_rule_execution_failed", requestId, {
+          tenantId: device.tenantId,
+          detail: String(botErr),
+        });
+      }
+    }
+  }
   // 2c. Ack pengiriman: `message.ack` (delivered/read) & `message.failed`
   //     (failed) memajukan status pesan KELUAR di riwayat. Ditempatkan SEBELUM
   //     cek konfigurasi webhook agar status riwayat tetap ter-update walau

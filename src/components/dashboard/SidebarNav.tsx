@@ -15,6 +15,7 @@ import {
   Tag,
   Radio,
   UserCircle,
+  Robot,
 } from "@phosphor-icons/react";
 
 const items = [
@@ -22,9 +23,11 @@ const items = [
   { href: "/dashboard/devices", label: "Device", icon: Devices },
   { href: "/dashboard/pesan", label: "Riwayat Pesan", icon: ChatCircleText },
   { href: "/dashboard/labels", label: "Labels", icon: Tag },
+  { href: "/dashboard/bot", label: "Auto-Reply Bot", icon: Robot },
   { href: "/dashboard/channels", label: "Channels", icon: Radio },
   { href: "/dashboard/profile", label: "Profil", icon: UserCircle },
 ];
+
 
 // Langganan (billing self-serve) — owner & tenant_admin; TETAP tampil saat
 // tenant pending agar aktivasi bisa diselesaikan.

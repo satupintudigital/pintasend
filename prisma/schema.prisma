@@ -555,3 +555,18 @@ model LabelContact {
   @@index([tenantId, chatId])
   @@index([labelId])
 }
+
+model BotRule {
+  id        String   @id @default(uuid(7))
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  keyword   String
+  matchType String   @default("exact") // "exact" | "contains" | "starts_with"
+  response  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+
+  @@index([tenantId])
+}
