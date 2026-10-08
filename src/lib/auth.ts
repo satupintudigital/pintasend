@@ -77,15 +77,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       try {
         const cookieStore = await cookies();
         const impCookie = cookieStore.get("impersonatedTenantId")?.value;
-        const origRoleCookie = cookieStore.get("originalAdminRole")?.value;
-        if (token.role === "platform_admin" || origRoleCookie === "platform_admin") {
+        const origRole = (token.originalAdminRole as string) || (token.role === "platform_admin" ? "platform_admin" : null);
+
+        if (origRole === "platform_admin" || token.role === "platform_admin") {
           if (impCookie) {
             token.impersonatedTenantId = impCookie;
-            token.originalAdminRole = origRoleCookie || (token.role === "platform_admin" ? "platform_admin" : "owner");
+            token.originalAdminRole = "platform_admin";
             token.tenantId = impCookie;
             token.role = "owner"; // impersonated tenant owner view
           } else {
+            // Restore original platform_admin role when cookie is deleted or empty
             token.impersonatedTenantId = null;
+            if (token.originalAdminRole === "platform_admin") {
+              token.role = "platform_admin";
+            }
             token.originalAdminRole = null;
           }
         }

@@ -17,8 +17,7 @@ export function ImpersonationBanner({ tenantName }: ImpersonationBannerProps) {
     try {
       const res = await fetch("/api/auth/exit-impersonate", { method: "POST" });
       if (!res.ok) throw new Error("Gagal keluar dari impersonasi");
-      router.push("/platform");
-      router.refresh();
+      window.location.href = "/platform";
     } catch (e) {
       alert(e instanceof Error ? e.message : "Terjadi kesalahan");
       setLoading(false);

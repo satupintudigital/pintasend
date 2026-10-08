@@ -9,9 +9,20 @@ export async function POST() {
   const cookieStore = await cookies();
   const impId = cookieStore.get("impersonatedTenantId")?.value;
 
+  cookieStore.set("impersonatedTenantId", "", {
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+    httpOnly: true,
+  });
+  cookieStore.set("originalAdminRole", "", {
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+    httpOnly: true,
+  });
   cookieStore.delete("impersonatedTenantId");
   cookieStore.delete("originalAdminRole");
-
   if (impId) {
     await recordAuditFromSession(session, {
       tenantId: impId,
