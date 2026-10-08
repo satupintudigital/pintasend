@@ -38,7 +38,7 @@ describe("POST /v1/messages/send-template", () => {
   it("delegasi to + templateName + vars + deviceId + X-Request-Id echo", async () => {
     const res = await post(
       { to: "081234567890", templateName: "pesanan_baru", vars: { orderId: "1234" }, deviceId: "dev9" },
-      { "x-request-id": "req-t-1", authorization: "Bearer wavio_abc" },
+      { "x-request-id": "req-t-1", authorization: "Bearer pintasend_abc" },
     );
 
     expect(res.status).toBe(200);

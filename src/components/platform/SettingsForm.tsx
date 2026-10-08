@@ -20,16 +20,16 @@ const FIELDS: {
   {
     key: "platform_name",
     label: "Nama platform",
-    desc: "Nama produk yang tampil di email & antarmuka (default: Wavio).",
+    desc: "Nama produk yang tampil di email & antarmuka (default: PintaSend).",
     type: "text",
-    placeholder: "Wavio",
+    placeholder: "PintaSend",
   },
   {
     key: "watermark_footnote",
     label: "Watermark footnote",
     desc: "Footnote iklan di setiap pesan keluar. Kosongkan untuk memakai bawaan platform.",
     type: "textarea",
-    placeholder: "via Wavio - https://wavio.satupintudigital.co.id",
+    placeholder: "via PintaSend - https://pintasend.satupintudigital.co.id",
   },
   {
     key: "allow_public_registration",

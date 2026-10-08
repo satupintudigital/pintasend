@@ -26,7 +26,7 @@ const mockedList = vi.mocked(listPlatformSettings);
 const mockedSet = vi.mocked(setPlatformSetting);
 
 const platformSession = {
-  user: { id: "u-p", email: "platform@wavio.test", role: "platform_admin", tenantId: "t-platform" },
+  user: { id: "u-p", email: "platform@pintasend.test", role: "platform_admin", tenantId: "t-platform" },
 };
 const ownerSession = {
   user: { id: "u1", email: "owner@x.y", role: "owner", tenantId: "t1" },
@@ -52,7 +52,7 @@ describe("GET /api/platform/settings", () => {
 
   it("200 daftar setting", async () => {
     mockedAuth.mockResolvedValue(platformSession as never);
-    mockedList.mockResolvedValue([{ key: "platform_name", value: '"Wavio"', updatedBy: null, updatedAt: "x" }] as never);
+    mockedList.mockResolvedValue([{ key: "platform_name", value: '"PintaSend"', updatedBy: null, updatedAt: "x" }] as never);
     const res = await GET();
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -76,7 +76,7 @@ describe("PUT /api/platform/settings", () => {
   it("200 upsert — setPlatformSetting dipanggil", async () => {
     mockedAuth.mockResolvedValue(platformSession as never);
     mockedSet.mockResolvedValue(true);
-    const res = await PUT(jsonReq({ key: "platform_name", value: "Wavio Pro" }));
+    const res = await PUT(jsonReq({ key: "platform_name", value: "PintaSend Pro" }));
     expect(res.status).toBe(200);
     expect(mockedSet).toHaveBeenCalledWith(expect.objectContaining({ key: "platform_name" }));
   });

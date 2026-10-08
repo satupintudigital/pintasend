@@ -1,6 +1,6 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "message-retention-wavio",
+  "name": "message-retention-pintasend",
   "main": "worker.js",
   "compatibility_date": "2026-08-17",
   "compatibility_flags": ["nodejs_compat"],

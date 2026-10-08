@@ -56,7 +56,7 @@ describe("normalizeChatId", () => {
 
   it("nomor asing (bukan 62) tetap lolos sebagai 62… jika panjang sesuai", () => {
     // 65… dianggap salah format karena bukan 62/8/0 di awal — untuk MVP
-    // Wavio fokus nomor Indonesia; format lain ditolak.
+    // PintaSend fokus nomor Indonesia; format lain ditolak.
     expect(normalizeChatId("6591234567890")).toBe("");
   });
 

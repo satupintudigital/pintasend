@@ -100,7 +100,7 @@ function ConnectWizard() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-ink-2 px-4 text-fg">
       <div className="w-full max-w-md rounded-2xl border border-line bg-surface p-8 text-center shadow-[0_30px_80px_-40px_rgba(15,23,42,0.15)]">
-        <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">Wavio × NalaNiaga</p>
+        <p className="font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">PintaSend × NalaNiaga</p>
         <h1 className="mt-3 text-2xl font-bold">Hubungkan WhatsApp</h1>
         {storeName && (
           <p className="mt-1 text-sm text-fg-muted">

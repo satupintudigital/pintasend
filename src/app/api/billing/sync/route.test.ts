@@ -27,7 +27,7 @@ const mockedMarkExpired = vi.mocked(markOrderExpiredFromGateway);
 const mockedProvider = vi.mocked(getPaymentProvider);
 
 const platformSession = {
-  user: { id: "u-p", email: "platform@wavio.test", role: "platform_admin", tenantId: "t-platform" },
+  user: { id: "u-p", email: "platform@pintasend.test", role: "platform_admin", tenantId: "t-platform" },
 };
 const ownerSession = {
   user: { id: "u1", email: "owner@x.id", role: "owner", tenantId: "t1" },

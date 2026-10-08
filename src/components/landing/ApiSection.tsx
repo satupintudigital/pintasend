@@ -28,19 +28,19 @@ const samples: Sample[] = [
   {
     id: "kirim",
     label: "Kirim pesan",
-    raw: `curl -X POST https://wavio.satupintudigital.co.id/v1/messages \\
-  -H "Authorization: Bearer $WAVIO_KEY" \\
+    raw: `curl -X POST https://pintasend.satupintudigital.co.id/v1/messages \\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\
   -d '{"to":"6281234567890","text":"Pesanan #1234 sudah dikirim"}'`,
     tokens: [
       ["k", "curl"],
       ["plain", " "],
       ["f", "-X POST"],
       ["plain", " "],
-      ["s", "https://wavio.satupintudigital.co.id/v1/messages"],
+      ["s", "https://pintasend.satupintudigital.co.id/v1/messages"],
       ["plain", " \\\n  "],
       ["f", "-H"],
       ["plain", " "],
-      ["s", '"Authorization: Bearer $WAVIO_KEY"'],
+      ["s", '"Authorization: Bearer $PINTSEND_KEY"'],
       ["plain", " \\\n  "],
       ["f", "-d"],
       ["plain", " "],

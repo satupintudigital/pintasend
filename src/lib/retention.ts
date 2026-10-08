@@ -1,8 +1,8 @@
 import { query, queryOne } from "@/lib/db";
 import { uuidv7 } from "@/lib/uuidv7";
 
-// Kebijakan retensi pesan Wavio (lihat Justifikasi-Retensi-30-Hari.md & DPA §5.7):
-//   - Default: 30 hari (kebijakan Wavio).
+// Kebijakan retensi pesan PintaSend (lihat Justifikasi-Retensi-30-Hari.md & DPA §5.7):
+//   - Default: 30 hari (kebijakan PintaSend).
 //   - >30 hari HANYA bila ada RetentionRequest approved (instruksi tertulis tenant).
 //   - Batas atas perpanjangan: 365 hari — di atas itu butuh kebijakan formal tersendiri.
 export const DEFAULT_MESSAGE_RETENTION_DAYS = 30;

@@ -383,7 +383,7 @@ export default function ReportPage() {
                     htmlFor="tenantRef"
                     className="mb-1.5 block text-sm font-medium text-fg"
                   >
-                    Email / ID Akun Wavio Terkait{" "}
+                    Email / ID Akun PintaSend Terkait{" "}
                     <span className="text-fg-faint text-xs">(opsional)</span>
                   </label>
                   <div className="relative">
@@ -394,7 +394,7 @@ export default function ReportPage() {
                       id="tenantRef"
                       name="tenantRef"
                       maxLength={200}
-                      placeholder="email atau nama akun Wavio"
+                      placeholder="email atau nama akun PintaSend"
                       className="w-full rounded-xl border border-line-soft bg-ink-2/80 py-2.5 pl-10 pr-4 text-sm text-fg placeholder:text-fg-faint/40 transition-colors focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/20"
                     />
                   </div>

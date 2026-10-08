@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-Run **two OpenWA instances** side-by-side — one Baileys, one whatsapp-web.js — behind a **single Wavio gateway**. Tenants choose the engine per device. The gateway routes API calls to the correct instance based on the device's engine assignment.
+Run **two OpenWA instances** side-by-side — one Baileys, one whatsapp-web.js — behind a **single PintaSend gateway**. Tenants choose the engine per device. The gateway routes API calls to the correct instance based on the device's engine assignment.
 
 ### Benefits
 
@@ -25,7 +25,7 @@ Run **two OpenWA instances** side-by-side — one Baileys, one whatsapp-web.js �
 
 ```
                     ┌─────────────────────────────────────────┐
-                    │              Wavio Gateway              │
+                    │              PintaSend Gateway              │
                     │  (Next.js + Cloudflare Workers)         │
                     │                                         │
                     │  ┌─────────────────────────────────┐   │
@@ -146,7 +146,7 @@ volumes:
 
 ---
 
-## Wavio Code Changes
+## PintaSend Code Changes
 
 ### 1. Engine Router (`src/lib/engineRouter.ts`) — NEW
 
@@ -326,14 +326,14 @@ curl http://localhost:2785/api/health  # Baileys
 curl http://localhost:2786/api/health  # whatsapp-web.js
 ```
 
-### Phase 3: Update Wavio Gateway
+### Phase 3: Update PintaSend Gateway
 
 ```bash
 # Update environment variables
 OPENWA_BAILEYS_URL=http://openwa-baileys:2785
 OPENWA_WEBJS_URL=http://openwa-webjs:2786
 
-# Deploy updated Wavio
+# Deploy updated PintaSend
 npm run deploy
 ```
 

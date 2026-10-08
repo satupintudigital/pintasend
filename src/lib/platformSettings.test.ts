@@ -4,6 +4,7 @@ import {
   platformSettingType,
   getPlatformSetting,
   setPlatformSetting,
+  PLATFORM_SETTING_DEFAULTS,
   listPlatformSettings,
   encodeSettingValue,
 } from "./platformSettings";
@@ -43,7 +44,7 @@ describe("platformSettings", () => {
   it("getPlatformSetting: fallback default bila baris kosong", async () => {
     q.mockResolvedValueOnce([]);
     const v = await getPlatformSetting("platform_name");
-    expect(v).toBe("Wavio");
+    expect(v).toBe(PLATFORM_SETTING_DEFAULTS.platform_name);
     expect(q.mock.calls[0][1]).toEqual(["platform_name"]);
   });
 
@@ -58,13 +59,13 @@ describe("platformSettings", () => {
     q.mockResolvedValueOnce([{ key: "platform_name" }]);
     await setPlatformSetting({
       key: "platform_name",
-      value: JSON.stringify("Wavio Pro"),
+      value: JSON.stringify("PintaSend Pro"),
       updatedBy: "u1",
     });
     const sql = q.mock.calls[0][0] as string;
     expect(sql).toContain('INSERT INTO "PlatformSetting"');
     expect(sql).toContain("ON CONFLICT");
-    expect(q.mock.calls[0][1]).toEqual(["platform_name", '"Wavio Pro"', "u1"]);
+    expect(q.mock.calls[0][1]).toEqual(["platform_name", '"PintaSend Pro"', "u1"]);
   });
 
   it("listPlatformSettings: seluruh baris dikembalikan", async () => {

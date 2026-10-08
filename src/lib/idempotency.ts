@@ -2,7 +2,7 @@
 // retry (mis. timeout setelah kirim sukses, lalu request diulang).
 //
 // Desain:
-//   - KV (binding WAVIO_CACHE) — sama seperti deviceCache; TTL 24 jam (Stripe
+//   - KV (binding PINTSEND_CACHE) — sama seperti deviceCache; TTL 24 jam (Stripe
 //     memakai window yang sama). Key: `idem:{tenantId}:{key}`.
 //   - Hanya respons SUKSES yang direkam. Kegagalan (502/5xx) TIDAK direkam
 //     sehingga client yang retry dengan key yang sama akan mencoba kirim ulang
@@ -62,7 +62,7 @@ export async function getIdempotencyRecord(
   tenantId: string,
   idemKey: string,
 ): Promise<IdempotencyRecord | null> {
-  const kv = await getBinding<KvLike>("WAVIO_CACHE");
+  const kv = await getBinding<KvLike>("PINTSEND_CACHE");
   const raw = await kv.get(cacheKey(tenantId, idemKey));
   if (!raw) return null;
   try {
@@ -82,7 +82,7 @@ export async function setIdempotencyRecord(
   idemKey: string,
   record: IdempotencyRecord,
 ): Promise<void> {
-  const kv = await getBinding<KvLike>("WAVIO_CACHE");
+  const kv = await getBinding<KvLike>("PINTSEND_CACHE");
   await kv.put(cacheKey(tenantId, idemKey), JSON.stringify(record), {
     expirationTtl: IDEMPOTENCY_TTL_S,
   });

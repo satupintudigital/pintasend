@@ -9,9 +9,9 @@ import { BackToTop } from "@/components/docs/BackToTop";
 import { AmbientParallax } from "@/components/AmbientParallax";
 
 export const metadata: Metadata = {
-  title: "Dokumentasi — Wavio",
+  title: "Dokumentasi — PintaSend",
   description:
-    "Dokumentasi API Wavio: mulai cepat, referensi endpoint, dan panduan integrasi pihak ketiga untuk mengirim notifikasi WhatsApp.",
+    "Dokumentasi API PintaSend: mulai cepat, referensi endpoint, dan panduan integrasi pihak ketiga untuk mengirim pesan WhatsApp.",
 };
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
@@ -32,7 +32,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
       <header className="sticky top-0 z-40 border-b border-line-soft bg-ink/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
           <Link href="/" className="group flex items-center gap-2.5">
-            <LogoMark />
+            <LogoMark className="h-9 md:h-10" />
             <span className="ml-1 rounded-md border border-line-soft bg-surface-2 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-fg-faint">
               Docs
             </span>
@@ -67,7 +67,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         <DocsPager />
 
         <footer className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-line-soft pt-6 text-xs text-fg-faint sm:flex-row">
-          <p>© 2026 Wavio · Satu Pintu Digital</p>
+          <p>© 2026 PintaSend · Satu Pintu Digital</p>
           <div className="flex gap-6">
             <Link href="/privacy" className="transition-colors hover:text-fg">
               Kebijakan Privasi

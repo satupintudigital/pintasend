@@ -41,7 +41,7 @@ const UUIDV7_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a
 describe("GET /v1/addons/remove-watermark", () => {
   it("auth Bearer → delegasi ke service dengan ctx + echo X-Request-Id", async () => {
     const res = await GET(new Request("http://x/v1/addons/remove-watermark", {
-      headers: { "x-request-id": "req-g-1", authorization: "Bearer wavio_abc" },
+      headers: { "x-request-id": "req-g-1", authorization: "Bearer pintasend_abc" },
     }));
 
     expect(res.headers.get("x-request-id")).toBe("req-g-1");
@@ -63,7 +63,7 @@ describe("GET /v1/addons/remove-watermark", () => {
   it("error service (429) → status + Retry-After + X-Request-Id", async () => {
     executeGetMock.mockResolvedValue({ ok: false, status: 429, error: "Terlalu banyak", retryAfterSec: 30 });
     const res = await GET(new Request("http://x/v1/addons/remove-watermark", {
-      headers: { authorization: "Bearer wavio_abc" },
+      headers: { authorization: "Bearer pintasend_abc" },
     }));
     expect(res.status).toBe(429);
     expect(res.headers.get("retry-after")).toBe("30");
@@ -76,7 +76,7 @@ describe("POST /v1/addons/remove-watermark", () => {
     return POST(
       new Request("http://x/v1/addons/remove-watermark", {
         method: "POST",
-        headers: { "content-type": "application/json", "x-request-id": "req-p-1", authorization: "Bearer wavio_abc" },
+        headers: { "content-type": "application/json", "x-request-id": "req-p-1", authorization: "Bearer pintasend_abc" },
         body: body === undefined ? undefined : JSON.stringify(body),
       }),
     );

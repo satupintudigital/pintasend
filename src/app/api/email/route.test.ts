@@ -41,7 +41,7 @@ function post(body: unknown): Promise<Response> {
 }
 
 const validBody = {
-  from: "Wavio <noreply@wavio.satupintudigital.co.id>",
+  from: "PintaSend <noreply@pintasend.satupintudigital.co.id>",
   to: "user@example.com",
   subject: "Halo",
   html: "<p>Hai</p>",
@@ -144,7 +144,7 @@ describe("POST /api/email", () => {
     expect(await res.json()).toEqual({ error: "Html wajib diisi, maksimal 100000 karakter" });
   });
 
-  it("200 — from default wavio saat from tidak dikirim", async () => {
+  it("200 — from default saat from tidak dikirim", async () => {
     const res = await post({
       to: validBody.to,
       subject: validBody.subject,
@@ -154,14 +154,14 @@ describe("POST /api/email", () => {
     expect(await res.json()).toEqual({ email: { id: "em_123" } });
     expect(mockedSendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: "Wavio <noreply@wavio.satupintudigital.co.id>",
+        from: expect.stringContaining("noreply@pintasend.satupintudigital.co.id"),
         to: ["user@example.com"],
       }),
     );
   });
 
   it("200 — fallback EMAIL_FROM saat from tidak dikirim", async () => {
-    process.env.EMAIL_FROM = "Wavio <noreply@env.co>";
+    process.env.EMAIL_FROM = "PintaSend <noreply@env.co>";
     const res = await post({
       to: validBody.to,
       subject: validBody.subject,
@@ -169,7 +169,7 @@ describe("POST /api/email", () => {
     });
     expect(res.status).toBe(200);
     expect(mockedSendEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ from: "Wavio <noreply@env.co>" }),
+      expect.objectContaining({ from: "PintaSend <noreply@env.co>" }),
     );
   });
 
@@ -182,7 +182,7 @@ describe("POST /api/email", () => {
     });
     expect(res.status).toBe(200);
     expect(mockedSendEmail).toHaveBeenCalledWith({
-      from: "Wavio <noreply@wavio.satupintudigital.co.id>",
+      from: validBody.from,
       to: ["a@x.co", "b@x.co"],
       subject: "Halo",
       html: "<p>Hai</p>",

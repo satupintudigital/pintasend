@@ -1,5 +1,5 @@
 // Verifikasi E2E fitur OpenWA v0.22 yang baru disematkan — menjalankan KODE
-// WAVIO ASLI (bukan curl) terhadap OpenWA live:
+// PINTSEND ASLI (bukan curl) terhadap OpenWA live:
 //   location/contact/poll → react → bulk (kirim + status) → history.
 //
 // Guna: npx tsx scripts/verify-new-features.mts <sessionUuid> [nomorTujuanUji]
@@ -28,14 +28,14 @@ async function main() {
   const loc = await openwa.sendLocation(sessionId, chatId, {
     latitude: -6.2088,
     longitude: 106.8456,
-    description: "Uji Wavio: lokasi toko",
+    description: "Uji PintaSend: lokasi toko",
   });
   console.log("      ✓", JSON.stringify(loc));
 
   // 2. Contact
   console.log("[2/6] send-contact ...");
   const con = await openwa.sendContact(sessionId, chatId, {
-    contactName: "CS Uji Wavio",
+    contactName: "CS Uji PintaSend",
     contactNumber: "628111222333",
   });
   console.log("      ✓", JSON.stringify(con));
@@ -43,7 +43,7 @@ async function main() {
   // 3. Poll
   console.log("[3/6] send-poll ...");
   const poll = await openwa.sendPoll(sessionId, chatId, {
-    name: "Uji Wavio: pilih yang mana?",
+    name: "Uji PintaSend: pilih yang mana?",
     options: ["Pilihan A", "Pilihan B", "Pilihan C"],
     allowMultipleAnswers: false,
   });
@@ -66,8 +66,8 @@ async function main() {
   console.log("[5/6] send-bulk ...");
   const bulk = await openwa.sendBulk(sessionId, {
     messages: [
-      { chatId, type: "text", content: { text: "Uji Wavio: broadcast item 1" } },
-      { chatId, type: "text", content: { text: "Uji Wavio: broadcast item 2" } },
+      { chatId, type: "text", content: { text: "Uji PintaSend: broadcast item 1" } },
+      { chatId, type: "text", content: { text: "Uji PintaSend: broadcast item 2" } },
     ],
     options: { delayBetweenMessages: 1500 },
   });

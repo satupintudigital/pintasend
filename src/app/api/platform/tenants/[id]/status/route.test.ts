@@ -14,7 +14,7 @@ const mockedSuspend = vi.mocked(setTenantSuspended);
 const mockedAudit = vi.mocked(recordAuditFromSession);
 
 const platformSession = {
-  user: { id: "u-p", email: "platform@wavio.test", role: "platform_admin", tenantId: "t-platform" },
+  user: { id: "u-p", email: "platform@pintasend.test", role: "platform_admin", tenantId: "t-platform" },
 };
 
 const params = { params: Promise.resolve({ id: "t1" }) };

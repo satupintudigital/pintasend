@@ -45,7 +45,7 @@ describe("POST /v1/messages/react", () => {
   it("200 — delegasi chatId + messageId + emoji + X-Request-Id", async () => {
     const res = await post(
       { chatId: "6281234567890@c.us", messageId: "msg-1", emoji: "👍", deviceId: "dev9" },
-      { "x-request-id": "req-r", authorization: "Bearer wavio_abc" },
+      { "x-request-id": "req-r", authorization: "Bearer pintasend_abc" },
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("x-request-id")).toBe("req-r");

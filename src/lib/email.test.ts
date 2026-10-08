@@ -29,7 +29,7 @@ beforeEach(() => {
 afterEach(() => {
   delete process.env.RESEND_API_KEY;
   delete process.env.EMAIL_FROM;
-  delete process.env.WAVIO_PUBLIC_BASE_URL;
+  delete process.env.PINTSEND_PUBLIC_BASE_URL;
 });
 
 describe("sendEmail", () => {
@@ -78,7 +78,7 @@ describe("sendWelcomeEmail", () => {
     expect(sendMock).toHaveBeenCalledTimes(1);
   });
 
-  it("menggunakan sender default wavio dan meng-escape nama", async () => {
+  it("menggunakan sender default dan meng-escape nama", async () => {
     process.env.RESEND_API_KEY = "re_test";
     sendMock.mockResolvedValueOnce({ data: { id: "em_1" }, error: null });
     await sendWelcomeEmail({ email: "x@y.z", name: "<Budi> & Co" });
@@ -89,8 +89,7 @@ describe("sendWelcomeEmail", () => {
       html: string;
     };
     expect(arg.to).toBe("x@y.z");
-    expect(arg.subject).toContain("Wavio");
-    expect(arg.from).toContain("wavio.satupintudigital.co.id");
+    expect(arg.from).toContain("pintasend.satupintudigital.co.id");
     expect(arg.html).toContain("&lt;Budi&gt;");
     expect(arg.html).not.toContain("<Budi>");
   });

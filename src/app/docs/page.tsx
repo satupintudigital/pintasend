@@ -12,9 +12,9 @@ import { Reveal } from "@/components/Reveal";
 import { AmbientParallax } from "@/components/AmbientParallax";
 
 export const metadata: Metadata = {
-  title: "Ringkasan & Mulai Cepat — Wavio",
+  title: "Ringkasan & Mulai Cepat — PintaSend",
   description:
-    "Mulai pakai Wavio dalam 3 langkah: buat API key, sambungkan device WhatsApp, lalu kirim pesan lewat satu endpoint REST.",
+    "Mulai pakai PintaSend dalam 3 langkah: buat API key, sambungkan device WhatsApp, lalu kirim pesan lewat satu endpoint REST.",
 };
 
 /* ── Mock mini UI di dalam kartu langkah (bukan ikon generik semata) ── */
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 function KeyMock() {
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg border border-line-soft bg-ink-2 px-3 py-2 font-mono text-xs">
-      <span className="truncate text-fg-muted">wavio_2f9c8a1b4d7e0a3c</span>
+      <span className="truncate text-fg-muted">pintasend_2f9c8a1b4d7e0a3c</span>
       <span className="shrink-0 tracking-widest text-accent-bright">••••</span>
     </div>
   );
@@ -115,7 +115,7 @@ export default function DocsIndex() {
             className="bk-enter-blur mt-5 max-w-[58ch] leading-relaxed text-fg-muted"
             style={{ animationDelay: "80ms" }}
           >
-            Wavio menghubungkan nomor WhatsApp ke aplikasi apa pun lewat satu API
+            PintaSend menghubungkan nomor WhatsApp ke aplikasi apa pun lewat satu API
             sederhana. Kirim notifikasi transaksi, konfirmasi pesanan, atau pesan
             otomatis — dalam hitungan menit.
           </p>
@@ -221,10 +221,10 @@ export default function DocsIndex() {
                 <CodeBlock
                   lang="bash"
                   code={`# Ganti dengan API key milikmu (dashboard → API Key)
-WAVIO_KEY="wavio_2f9c8a1b4d7e0a3c"
+PINTSEND_KEY="pintasend_2f9c8a1b4d7e0a3c"
 
-curl -X POST https://wavio.satupintudigital.co.id/v1/messages \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+curl -X POST https://pintasend.satupintudigital.co.id/v1/messages \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{
     "to": "6281234567890",
@@ -241,10 +241,10 @@ curl -X POST https://wavio.satupintudigital.co.id/v1/messages \\\\
               <div className="mt-3">
                 <CodeBlock
                   lang="js"
-                  code={`const res = await fetch("https://wavio.satupintudigital.co.id/v1/messages", {
+                  code={`const res = await fetch("https://pintasend.satupintudigital.co.id/v1/messages", {
   method: "POST",
   headers: {
-    "Authorization": \`Bearer \${process.env.WAVIO_KEY}\`,
+    "Authorization": \`Bearer \${process.env.PINTSEND_KEY}\`,
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
@@ -283,7 +283,7 @@ console.log(data); // { ok: true, messageId: "3EB0F2A1…" }`}
           <Callout type="info" title="Nomor yang didukung">
             <p>
               Gunakan format internasional <code className="font-mono">62812…</code> atau
-              lokal <code className="font-mono">0812…</code> — Wavio menormalisasi
+              lokal <code className="font-mono">0812…</code> — PintaSend menormalisasi
               otomatis. Nomor <strong>harus</strong> terdaftar di WhatsApp.
             </p>
           </Callout>

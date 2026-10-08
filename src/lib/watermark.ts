@@ -1,12 +1,12 @@
 // Watermark footnote pesan keluar — media iklan platform.
 //
 // Setiap pesan yang dikirim melalui POST /v1/messages (termasuk yang berasal
-// dari integrasi NalaNiaga via gateway Wavio) otomatis disisipkan footnote
+// dari integrasi NalaNiaga via gateway PintaSend) otomatis disisipkan footnote
 // iklan di akhir teks/caption. Footnote DIHAPUS bila tenant memiliki addon
 // "remove_watermark" aktif (TenantAddon) — fitur berbayar yang di-grant
 // platform admin.
 //
-// Teks footnote bisa di-override per lingkungan via env WAVIO_WATERMARK_FOOTNOTE
+// Teks footnote bisa di-override per lingkungan via env PINTSEND_WATERMARK_FOOTNOTE
 // (mis. kampanye promosi berbeda). Kosong/tidak diset → default bawaan.
 
 import { query } from "@/lib/db";
@@ -18,7 +18,7 @@ import { tenantAddonActiveWhere } from "@/lib/tenantConfig";
 export const WATERMARK_ADDON_KEY: string = REMOVE_WATERMARK_ADDON_KEY;
 
 /** Footnote default (media iklan) - dipakai bila env tidak diset. */
-export const DEFAULT_WATERMARK_FOOTNOTE = "via Wavio - https://wavio.satupintudigital.co.id";
+export const DEFAULT_WATERMARK_FOOTNOTE = "via PintaSend - https://pintasend.satupintudigital.co.id";
 
 // Cache footnote global (per proses) — setting platform jarang berubah; TTL
 // pendek menjaga hot path kirim pesan tetap 0 Neon query (query hanya sekali
@@ -36,7 +36,7 @@ const FOOTNOTE_SEPARATOR = "\n\n";
 
 /** Teks footnote aktif (env override, fallback default). "" = watermark nonaktif. */
 export function getWatermarkFootnote(env: Record<string, string | undefined> = process.env): string {
-  const raw = env.WAVIO_WATERMARK_FOOTNOTE;
+  const raw = env.PINTSEND_WATERMARK_FOOTNOTE;
   if (typeof raw === "string" && raw.trim()) return raw.trim();
   return DEFAULT_WATERMARK_FOOTNOTE;
 }
@@ -49,7 +49,7 @@ export function getWatermarkFootnote(env: Record<string, string | undefined> = p
 export async function resolveWatermarkFootnote(
   env: Record<string, string | undefined> = process.env,
 ): Promise<string> {
-  const raw = env.WAVIO_WATERMARK_FOOTNOTE;
+  const raw = env.PINTSEND_WATERMARK_FOOTNOTE;
   if (typeof raw === "string" && raw.trim()) return raw.trim();
 
   const now = Date.now();

@@ -55,7 +55,7 @@ describe("GET /v1/messages/batch/:batchId", () => {
   });
 
   it("200 — delegasi ke OpenWA dengan session device tenant", async () => {
-    const res = await get("batch-1", { authorization: "Bearer wavio_abc" });
+    const res = await get("batch-1", { authorization: "Bearer pintasend_abc" });
     expect(res.status).toBe(200);
     expect(getBatchStatusMock).toHaveBeenCalledWith("sess-1", "batch-1");
     expect(await res.json()).toEqual({ batch: { batchId: "batch-1", status: "processing", progress: { sent: 1, total: 2 } } });

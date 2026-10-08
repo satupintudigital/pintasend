@@ -32,11 +32,11 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
   if (!body) return Response.json({ error: "Body JSON tidak valid" }, { status: 400 });
 
-  // from: opsional → fallback EMAIL_FROM (env) / sender wavio.satupintudigital.co.id
+  // from: opsional → fallback EMAIL_FROM (env) / sender pintasend.satupintudigital.co.id
   // (domain yang diverifikasi di Resend). Sandbox sender onboarding@resend.dev
   // sengaja TIDAK dipakai sebagai fallback — hanya untuk tes awal.
   const rawFrom = typeof body.from === "string" ? body.from.trim() : "";
-  const from = rawFrom || process.env.EMAIL_FROM || "Wavio <noreply@wavio.satupintudigital.co.id>";
+  const from = rawFrom || process.env.EMAIL_FROM || "PintaSend <noreply@pintasend.satupintudigital.co.id>";
   if (from.length > 200 || !isEmail(emailPart(from))) {
     return Response.json({ error: "From tidak valid" }, { status: 400 });
   }

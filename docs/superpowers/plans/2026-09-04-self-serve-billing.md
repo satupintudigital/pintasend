@@ -4,7 +4,7 @@
 >
 > Spec acuan: `docs/superpowers/specs/2026-09-04-self-serve-billing-design.md` (commit `0e0e1d6`). Kerjakan TDD (red→green) per task; tiap task diakhiri `tsc` + `vitest run <file>` hijau + commit. Ledger progres: `.superpowers/sdd/2026-09-04-self-serve-billing/progress.md` (buat saat Task 0).
 
-**Goal:** User bisa mandiri membeli paket Wavio — registrasi publik, checkout Tripay (closed payment), aktivasi otomatis tenant, invoice bulanan ber-link, dan paket per-pesan (Espresso) prepaid.
+**Goal:** User bisa mandiri membeli paket PintaSend — registrasi publik, checkout Tripay (closed payment), aktivasi otomatis tenant, invoice bulanan ber-link, dan paket per-pesan (Espresso) prepaid.
 
 **Architecture:** Katalog dinamis dari DB (`Plan` + `Addon` baru + `PlatformSetting` harga). Order-centric billing: `Order` = instrument bayar (snapshot item, `merchant_ref` Tripay = order.id); `Invoice` tetap registri bulanan dan order renewal menaut ke invoice. Tenant baru disimpan dgn `activatedAt = NULL` (pending) dan gate via blokir API key + device connect; owner boleh login untuk menyelesaikan checkout. Gateway dipisah di `lib/payments.ts` (interface) + `lib/providers/tripay.ts`.
 
@@ -18,7 +18,7 @@
 - Key addon wajib impor dari `@/lib/addonKeys` (single source) — dilarang literal `'remove_watermark'|'random_delay'|'campaign'` di query baru.
 - Periode bulan memakai util `monthPeriodRange`/`currentMonthStartIso` dari `@/lib/monthPeriod` (WIB).
 - Setiap order/pembayaran idempoten: finalisasi hanya transisi `pending → paid` (guard status), callback ganda aman.
-- Migration idempotent (`IF NOT EXISTS` / guard), pola `prisma/migrations/2026-09-04-*.sql`. Jangan menyentuh `wavio-schema.sql` (dump regenerasi deploy).
+- Migration idempotent (`IF NOT EXISTS` / guard), pola `prisma/migrations/2026-09-04-*.sql`. Jangan menyentuh `pintasend-schema.sql` (dump regenerasi deploy).
 - Audit: aksi mutasi penting dicatat `audit.record` (pola `src/lib/audit.ts`; lihat pemakaian di route platform).
 - Bahasa kode: Indonesia utk komentar/error user-facing (konsisten repo).
 
@@ -27,7 +27,7 @@
 ### Task 0: Worktree + baseline verifikasi
 
 **Files:**
-- Create: (direktori baru via git) — jalankan di root `wavio/`
+- Create: (direktori baru via git) — jalankan di root `pintasend/`
 - Modify: tidak ada
 
 **Interfaces:**
@@ -35,12 +35,12 @@
 
 - [ ] **Step 1: Buat worktree + branch**
 ```bash
-cd "/e/Project/Satu Pintu Digital/wavio"
+cd "/e/Project/Satu Pintu Digital/pintasend"
 git worktree add .worktrees/feat-self-serve-billing -b feat/self-serve-billing main
 ```
 - [ ] **Step 2: Buat ledger SDD**
 ```bash
-cd "/e/Project/Satu Pintu Digital/wavio/.worktrees/feat-self-serve-billing"
+cd "/e/Project/Satu Pintu Digital/pintasend/.worktrees/feat-self-serve-billing"
 mkdir -p .superpowers/sdd/2026-09-04-self-serve-billing
 echo "# SDD — Self-Serve Billing (2026-09-04)" > .superpowers/sdd/2026-09-04-self-serve-billing/progress.md
 ```
@@ -157,7 +157,7 @@ WHERE NOT EXISTS (SELECT 1 FROM "Addon" WHERE key = 'campaign');
 ```sql
 ALTER TABLE Tenant ADD COLUMN activatedAt TEXT;
 ```
-(baris CREATE TABLE asli juga diberi `activatedAt TEXT,`; file ini utk database D1 `wavio-auth` — eksekusi deploy dijelaskan Task 14).
+(baris CREATE TABLE asli juga diberi `activatedAt TEXT,`; file ini utk database D1 `pintasend-auth` — eksekusi deploy dijelaskan Task 14).
 - [ ] **Step 4: Sinkron `prisma/seed.ts`** — seed Plan menambah `kind:'subscription'|'prepaid'` & `isPublic/sortOrder` (Espresso: prepaid, sort 0; Latte sort 1; Mocha sort 2), dan INSERT Addon seed (pola ON CONFLICT id DO NOTHING yang sudah ada).
 - [ ] **Step 5: Verifikasi**
 Run: `npx tsc --noEmit` + `npm run test 2>&1 | tail -3` + `node -e "JSON.parse(require('fs').readFileSync('prisma/migrations/2026-09-04-self-serve-billing.sql','utf8'))"` (pastikan tidak error sintaks)
@@ -496,14 +496,14 @@ export async function registerTenantOwner(input: RegisterInput): Promise<{ tenan
 - Modify: `.env.example` (tambah `TRIPAY_MODE`, `TRIPAY_API_KEY`, `TRIPAY_PRIVATE_KEY`, `TRIPAY_MERCHANT_CODE` placeholder + komentar sandbox; pola section `🔗 TRIPAY (self-serve billing)`)
 - Modify: `README.md` (fitur billing + env Tripay + catatan deploy worker d1-resync + migrasi baru)
 - Modify: `src/app/docs/api/page.tsx` (seksi endpoint publik/auth/billing: `/api/public/catalog`, `/api/auth/register`, `/api/billing/*`)
-- Modify: `docs/wavio-fitur-review.md` (tandai gap jual paket tertutup — tambah baris ringkas)
+- Modify: `docs/pintasend-fitur-review.md` (tandai gap jual paket tertutup — tambah baris ringkas)
 
 **Verifikasi akhir (wajib sebelum commit):**
 - [ ] `npx tsc --noEmit` bersih
 - [ ] `npm run test` → seluruh suite hijau (baseline 849 + test baru)
 - [ ] `npm run lint` → hanya problem pra-ada (file dashboard channels/labels lama) yang tersisa
 - [ ] Migration `2026-09-04-self-serve-billing.sql` di-apply ke Neon production + verifikasi objek (idempotent; `node prisma/apply-migration.mjs prisma/migrations/2026-09-04-self-serve-billing.sql` pola lama — cek nama script apply yang dipakai di repo; jalankan setelah persetujuan, dokumentasikan di ledger)
-- [ ] D1: `npx wrangler d1 execute wavio-auth --file prisma/d1-schema.sql` (atau pola deploy D1 yang dipakai — verifikasi di repo) supaya kolom `activatedAt` ada di D1
+- [ ] D1: `npx wrangler d1 execute pintasend-auth --file prisma/d1-schema.sql` (atau pola deploy D1 yang dipakai — verifikasi di repo) supaya kolom `activatedAt` ada di D1
 - [ ] Update ledger `.superpowers/sdd/2026-09-04-self-serve-billing/progress.md` (semua task + verifikasi)
 - [ ] **Commit** `docs(billing): env tripay, docs api, readme, review fitur + d1 resync`
 
@@ -511,7 +511,7 @@ export async function registerTenantOwner(input: RegisterInput): Promise<{ tenan
 
 ## Setelah plan (manual, bukan bagian task otomatis)
 
-1. **Kredensial Tripay sandbox** dari user: `TRIPAY_MODE=sandbox`, `TRIPAY_API_KEY`, `TRIPAY_PRIVATE_KEY`, `TRIPAY_MERCHANT_CODE` → `.env` + secret worker wavio (bila route callback butuh di Worker, env dibaca process.env — pasang sbg secret Cloudflare bila prod).
+1. **Kredensial Tripay sandbox** dari user: `TRIPAY_MODE=sandbox`, `TRIPAY_API_KEY`, `TRIPAY_PRIVATE_KEY`, `TRIPAY_MERCHANT_CODE` → `.env` + secret worker pintasend (bila route callback butuh di Worker, env dibaca process.env — pasang sbg secret Cloudflare bila prod).
 2. Deploy: merge `feat/self-serve-billing` → main, `npm run deploy`, deploy ulang `workers/d1-resync`, jalankan migrasi Neon+D1 (Task 14).
 3. E2E sandbox manual (spec §11): daftar akun → checkout QRIS2/BRIVA sandbox → bayar via simulator Tripay → tenant aktif; top-up; Espresso saldo 0 ditolak; renewal periode habis.
 

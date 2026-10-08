@@ -141,7 +141,7 @@ export async function POST(req: Request) {
     }
   }
   if (!device) {
-    // Session tidak terdaftar di Wavio — ack diam-diam agar OpenWA tidak retry
+    // Session tidak terdaftar di PintaSend — ack diam-diam agar OpenWA tidak retry
     // berulang (log untuk investigasi).
     logEvent("error", "webhook_unknown_session", requestId, { sessionId });
     return Response.json({ ok: true, skipped: "unknown session" }, { headers: { "x-request-id": requestId } });

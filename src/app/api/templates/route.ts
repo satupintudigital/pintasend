@@ -13,7 +13,7 @@ interface CanonicalTemplateRow {
   syncedAt: string | null;
 }
 
-// Daftar template untuk dashboard tenant. Canonical catalog Wavio menjadi
+// Daftar template untuk dashboard tenant. Canonical catalog PintaSend menjadi
 // sumber utama sehingga nama physical OpenWA (mis. nala_new_order_v4) tidak
 // pernah bocor ke UI. Device baru/offline tetap terlihat sebagai pending.
 // Bila tenant belum memiliki catalog canonical, pertahankan fallback legacy

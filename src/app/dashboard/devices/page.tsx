@@ -258,7 +258,7 @@ export default function DevicesPage() {
   }
 
   async function deleteDevice(id: string, label: string) {
-    if (!window.confirm(`Hapus device "${label}"? Nomor WhatsApp akan ter-logout dari Wavio.`)) return;
+    if (!window.confirm(`Hapus device "${label}"? Nomor WhatsApp akan ter-logout dari PintaSend.`)) return;
     try {
       await fetch(`/api/devices/${id}`, { method: "DELETE" });
       loadDevices();

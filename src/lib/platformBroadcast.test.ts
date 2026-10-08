@@ -23,7 +23,7 @@ describe("createPlatformBroadcast", () => {
     q.mockResolvedValueOnce([{ id: "b1" }]);
     const res = await createPlatformBroadcast(
       { name: "Pengumuman", messageBody: "Halo semua", targetMode: "ready_devices", tenantIds: [], scheduledAt: null },
-      { email: "platform@wavio.test" },
+      { email: "platform@pintasend.test" },
     );
     expect(res.id).toBe("b1");
     const sql = q.mock.calls[0][0] as string;

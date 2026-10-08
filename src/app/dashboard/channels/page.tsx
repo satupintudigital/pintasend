@@ -163,7 +163,7 @@ export default function ChannelsPage() {
             <p className="mt-6 font-mono text-xs uppercase tracking-[0.2em] text-accent-bright">Belum ada device</p>
             <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight">Hubungkan device dulu</h2>
             <p className="mx-auto mt-2 max-w-sm text-sm text-fg-muted">
-              Hubungkan nomor WhatsApp ke Wavio untuk membuat channel.
+              Hubungkan nomor WhatsApp ke PintaSend untuk membuat channel.
             </p>
           </div>
         ) : channelsLoading ? (

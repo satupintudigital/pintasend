@@ -1,6 +1,6 @@
 # PostHog Self-driving Setup Report
 
-**Project:** Wavio  
+**Project:** PintaSend  
 **Date:** 2026-08-22  
 **Inbox:** https://eu.posthog.com/project/242725/inbox
 
@@ -8,7 +8,7 @@
 
 ## Summary
 
-PostHog Self-driving has been configured for Wavio. Session Replay, Error Tracking, and Support were enabled; six signal sources were wired to the inbox; the scout troop was tuned to five scouts; and two Replay Vision scanners were created to watch the device connection flow and rage-click sessions. Findings will start appearing in the [Self-driving inbox](https://eu.posthog.com/project/242725/inbox) within approximately 30 minutes.
+PostHog Self-driving has been configured for PintaSend. Session Replay, Error Tracking, and Support were enabled; six signal sources were wired to the inbox; the scout troop was tuned to five scouts; and two Replay Vision scanners were created to watch the device connection flow and rage-click sessions. Findings will start appearing in the [Self-driving inbox](https://eu.posthog.com/project/242725/inbox) within approximately 30 minutes.
 
 ---
 
@@ -129,11 +129,11 @@ A Replay Vision scanner is an LLM that watches individual session recordings on 
 | Scanner | Type | Query scope | Sampling | Monthly credits (est.) | Status |
 |---|---|---|---|---|---|
 | Device connection breakage | monitor | Sessions with `$current_url` containing `/connect` | 50% | 0 (no recordings yet) | **created** |
-| Wavio dashboard rage clicks | monitor | Sessions containing a `$rageclick` event | 100% | 0 (no recordings yet) | **created** |
+| PintaSend dashboard rage clicks | monitor | Sessions containing a `$rageclick` event | 100% | 0 (no recordings yet) | **created** |
 
-**Device connection breakage** watches the `/connect` flow — the highest-value completion step in Wavio, where a broken QR code, a stalled wizard, or a silent form failure would block a user from using the product entirely. It looks for: QR code failing to load, connection wizard not advancing after a scan, error toasts or alerts after a step, the dashboard staying blank after setup, and form submits with no response.
+**Device connection breakage** watches the `/connect` flow — the highest-value completion step in PintaSend, where a broken QR code, a stalled wizard, or a silent form failure would block a user from using the product entirely. It looks for: QR code failing to load, connection wizard not advancing after a scan, error toasts or alerts after a step, the dashboard staying blank after setup, and form submits with no response.
 
-**Wavio dashboard rage clicks** watches any session where a rage-click was recorded, looking for users repeatedly hammering an unresponsive connect button, retrying API key copy with no feedback, clicking campaign send with no confirmation, or hitting the webhook test button without any visible response.
+**PintaSend dashboard rage clicks** watches any session where a rage-click was recorded, looking for users repeatedly hammering an unresponsive connect button, retrying API key copy with no feedback, clicking campaign send with no confirmation, or hitting the webhook test button without any visible response.
 
 The project has 0 recordings at setup time. Both scanners are armed and will begin working as soon as sessions start recording.
 

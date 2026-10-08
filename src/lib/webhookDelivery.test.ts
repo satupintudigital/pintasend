@@ -22,7 +22,7 @@ const delivery = {
   tenantId: "t1",
   webhookId: "wh1",
   event: "message.received",
-  url: "https://client.example.com/webhooks/wavio",
+  url: "https://client.example.com/webhooks/pintasend",
   payload: '{"event":"message.received","data":{"body":"halo"}}',
   signature: "sha256=abc123",
 };
@@ -63,7 +63,7 @@ describe("enqueueWebhookDelivery — INSERT outbox (pending)", () => {
     expect(argObj).toContain("t1");
     expect(argObj).toContain("wh1");
     expect(argObj).toContain("message.received");
-    expect(argObj).toContain("https://client.example.com/webhooks/wavio");
+    expect(argObj).toContain("https://client.example.com/webhooks/pintasend");
     expect(argObj).toContain(delivery.payload);
     expect(argObj).toContain("sha256=abc123");
   });
@@ -80,8 +80,8 @@ describe("deliverWebhookOnce — fetch sinkron ke client", () => {
     const [url, init] = fetchImpl.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(delivery.url);
     const headers = init.headers as Record<string, string>;
-    expect(headers["x-wavio-signature"]).toBe("sha256=abc123");
-    expect(headers["x-wavio-event"]).toBe("message.received");
+    expect(headers["x-pintasend-signature"]).toBe("sha256=abc123");
+    expect(headers["x-pintasend-event"]).toBe("message.received");
     expect(init.body).toBe(delivery.payload);
   });
 

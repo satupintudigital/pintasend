@@ -32,7 +32,7 @@ function jsonReq(body: unknown, env?: Record<string, string>): Request {
   if (env) Object.assign(process.env, env);
   // restore di afterEach
   (jsonReq as unknown as { env?: NodeJS.ProcessEnv }).env = prev;
-  return new Request("http://wavio.test/api/auth/register", {
+  return new Request("http://pintasend.test/api/auth/register", {
     method: "POST",
     body: JSON.stringify(body),
     headers: { "Content-Type": "application/json" },

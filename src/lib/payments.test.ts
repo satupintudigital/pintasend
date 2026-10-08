@@ -44,7 +44,7 @@ describe("createPaymentProvider", () => {
       customerEmail: "owner@contoh.id",
       items: [{ name: "Paket Latte", price: 150000, quantity: 1 }],
       method: "BRIVA0",
-      returnUrl: "https://wavio.test/checkout/ord-1",
+      returnUrl: "https://pintasend.test/checkout/ord-1",
       expiryMinutes: 1440,
     });
 
@@ -134,7 +134,7 @@ describe("createPaymentProvider", () => {
       customerEmail: "a@b.id",
       items: [{ name: "Top-up", price: 10000, quantity: 1 }],
       method: "QRIS2",
-      returnUrl: "https://wavio.test/x",
+      returnUrl: "https://pintasend.test/x",
       expiryMinutes: 60,
     });
     const [url] = fetchMock.mock.calls[0] as [string];

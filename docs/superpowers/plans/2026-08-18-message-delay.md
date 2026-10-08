@@ -17,8 +17,8 @@
 - Fitur aktif = `Tenant.delayEnabled AND (Plan.includesDelay OR TenantAddon('random_delay').active)`.
 - `insertMessageLog` tetap best-effort (gagal log ≠ gagal kirim).
 - D1 (`verifyApiKey`, login, device ingest) TIDAK berubah — config delay hanya dibaca di jalur `v1/messages` (Neon).
-- `wavio-schema.sql` (skema dasar lama, belum punya Plan) TIDAK diubah — migrasi incremental memakai `prisma/migrations/*.sql`.
-- Semua command dijalankan dari direktori `wavio/`.
+- `pintasend-schema.sql` (skema dasar lama, belum punya Plan) TIDAK diubah — migrasi incremental memakai `prisma/migrations/*.sql`.
+- Semua command dijalankan dari direktori `pintasend/`.
 
 ---
 
@@ -121,7 +121,7 @@ Ganti blok insert plan:
   }
 ```
 
-- [ ] **Step 4: Verifikasi** — `npx tsc --noEmit` (di `wavio/`) → harus sukses (schema.prisma bukan input tsc, tapi memastikan tidak ada regresi).
+- [ ] **Step 4: Verifikasi** — `npx tsc --noEmit` (di `pintasend/`) → harus sukses (schema.prisma bukan input tsc, tapi memastikan tidak ada regresi).
 - [ ] **Step 5: Commit**
 
 ```bash
@@ -1092,7 +1092,7 @@ git commit -m "docs: random delay (anti-spam) di referensi API"
 
 **Files:** (tidak ada perubahan — validasi)
 
-- [ ] **Step 1: Jalankan semua check paralel** (dari `wavio/`)
+- [ ] **Step 1: Jalankan semua check paralel** (dari `pintasend/`)
 
 ```bash
 npx tsc --noEmit

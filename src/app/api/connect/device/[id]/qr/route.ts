@@ -1,6 +1,6 @@
 import { authenticateConnect } from "@/lib/nalaniagaSso";
 import { getDeviceForTenant } from "@/lib/devices";
-import { openwa } from "@/lib/openwa";
+import { openwa, OpenwaError } from "@/lib/openwa";
 import { getRequestId, logEvent } from "@/lib/requestLogger";
 
 // Resolve tenant SSO dari storeId (sama dengan verify) — idempotent.
@@ -20,7 +20,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const device = await getDeviceForTenant(id, tenant.id);
   if (!device) return Response.json({ error: "Device tidak ditemukan" }, { status: 404 });
 
-  const { qrCode, status } = await openwa.getQr(device.openwaSessionId);
-  logEvent("info", "connect_qr", requestId, { deviceId: id, status });
-  return Response.json({ qrCode, status });
+  try {
+    const { qrCode, status } = await openwa.getQr(device.openwaSessionId);
+    logEvent("info", "connect_qr", requestId, { deviceId: id, status });
+    return Response.json({ qrCode, status });
+  } catch (e) {
+    if (e instanceof OpenwaError) {
+      return Response.json({ qrCode: null, status: "initializing" }, { status: 200 });
+    }
+    return Response.json({ error: "Gagal mengambil QR" }, { status: 500 });
+  }
 }

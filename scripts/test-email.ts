@@ -5,8 +5,8 @@ import { sendEmail } from "../src/lib/email";
 
 async function main() {
   const { id } = await sendEmail({
-    from: "Wavio <noreply@wavio.satupintudigital.co.id>",
-    to: "wavio@satupintudigital.co.id",
+    from: "PintaSend <noreply@pintasend.satupintudigital.co.id>",
+    to: "pintasend@satupintudigital.co.id",
     subject: "Hello World",
     html: "<p>Congrats on sending your <strong>first email</strong>!</p>",
   });

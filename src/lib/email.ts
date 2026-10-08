@@ -1,4 +1,4 @@
-// Klien email Resend — satu-satunya jalur pengiriman email di Wavio.
+// Klien email Resend — satu-satunya jalur pengiriman email di PintaSend.
 // API key dibaca dari env RESEND_API_KEY (bukan hardcode), mengikuti pola
 // modul integrasi lain (lihat openwa.ts). Import relatif agar ikut ter-test
 // di vitest (alias @/ tidak di-resolve di sana).
@@ -67,7 +67,7 @@ function escHtml(s: string): string {
 }
 
 function appBaseUrl(): string {
-  return process.env.WAVIO_PUBLIC_BASE_URL ?? "https://wavio.satupintudigital.co.id";
+  return process.env.PINTSEND_PUBLIC_BASE_URL ?? "https://pintasend.satupintudigital.co.id";
 }
 
 // Email selamat datang untuk user baru (dipanggil dari alur pembuatan akun:
@@ -76,22 +76,22 @@ function appBaseUrl(): string {
 // cukup di-log. Pembuatan akun harus tetap sukses apa pun status email.
 export async function sendWelcomeEmail(input: { email: string; name: string }): Promise<void> {
   if (!process.env.RESEND_API_KEY) return; // email belum dikonfigurasi → skip
-  const from = process.env.EMAIL_FROM || "Wavio <noreply@wavio.satupintudigital.co.id>";
+  const from = process.env.EMAIL_FROM || "PintaSend <noreply@pintasend.satupintudigital.co.id>";
   const firstName = escHtml(input.name.trim().split(/\s+/)[0] || input.name);
   const loginUrl = `${appBaseUrl()}/login`;
   const html = [
     "<div style=\"font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1a1a1a;line-height:1.6\">",
-    '  <h2 style="margin:0 0 16px;font-size:22px">Selamat datang di Wavio 👋</h2>',
+    '  <h2 style="margin:0 0 16px;font-size:22px">Selamat datang di PintaSend 👋</h2>',
     `  <p>Hai ${firstName},</p>`,
-    "  <p>Akun Wavio kamu sudah aktif. Wavio adalah API gateway WhatsApp untuk bisnis — kelola device, kirim pesan, dan pantau semuanya dari satu dashboard.</p>",
+    "  <p>Akun PintaSend kamu sudah aktif. PintaSend adalah AI gateway multi-kanal (WhatsApp, Telegram Bot, SMS) untuk bisnis — kirim pesan dan biarkan AI menjawab pelanggan 24/7, semuanya dari satu dashboard.</p>",
     `  <p style="margin:24px 0"><a href="${loginUrl}" style="display:inline-block;background:#10b981;color:#022c22;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:600">Masuk ke dashboard</a></p>`,
     `  <p style="color:#666;font-size:13px">Kalau tombol di atas tidak berfungsi, buka langsung: <a href="${loginUrl}">${loginUrl}</a></p>`,
     '  <hr style="border:none;border-top:1px solid #eee;margin:24px 0">',
-    '  <p style="color:#999;font-size:12px">— Tim Wavio · Satu Pintu Digital</p>',
+    '  <p style="color:#999;font-size:12px">— Tim PintaSend · Satu Pintu Digital</p>',
     "</div>",
   ].join("\n");
   try {
-    await sendEmail({ from, to: input.email, subject: "Selamat datang di Wavio 👋", html });
+    await sendEmail({ from, to: input.email, subject: "Selamat datang di PintaSend 👋", html });
   } catch (e) {
     console.error("sendWelcomeEmail:", e);
   }

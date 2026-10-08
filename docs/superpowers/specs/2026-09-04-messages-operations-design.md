@@ -6,7 +6,7 @@
 
 ## Overview
 
-Add message manipulation capabilities to Wavio's public v1 API and dashboard. These map directly to OpenWA v0.23 REST endpoints.
+Add message manipulation capabilities to PintaSend's public v1 API and dashboard. These map directly to OpenWA v0.23 REST endpoints.
 
 ## New API Endpoints
 

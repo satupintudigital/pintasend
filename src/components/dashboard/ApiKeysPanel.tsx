@@ -312,7 +312,7 @@ export function ApiKeysPanel() {
             <div className="mt-4 rounded-xl border border-line-soft bg-surface-2/60 p-4 font-mono text-xs leading-relaxed text-fg-muted">
               <p className="text-fg-faint">Contoh penggunaan:</p>
               <pre className="mt-2 overflow-x-auto">
-{`curl -X POST https://wavio.satupintudigital.co.id/v1/messages \\
+{`curl -X POST https://pintasend.satupintudigital.co.id/v1/messages \\
   -H "Authorization: Bearer ${created.raw.slice(0, 14)}…" \\
   -H "Content-Type: application/json" \\
   -d '{"to":"6281234567890","text":"Halo!"}'`}

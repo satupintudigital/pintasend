@@ -4,9 +4,9 @@ import { Callout, CodeBlock } from "@/components/docs/primitives";
 import { Reveal } from "@/components/Reveal";
 
 export const metadata: Metadata = {
-  title: "Integrasi Pihak Ketiga — Wavio",
+  title: "Integrasi Pihak Ketiga — PintaSend",
   description:
-    "Panduan mengintegrasikan Wavio dari toko online, CRM, kasir, atau internal tool — dengan contoh Node.js, cURL, Python, dan PHP.",
+    "Panduan mengintegrasikan PintaSend dari toko online, CRM, kasir, atau internal tool — dengan contoh Node.js, cURL, Python, dan PHP.",
 };
 
 export default function DocsIntegrations() {
@@ -23,7 +23,7 @@ export default function DocsIntegrations() {
         className="bk-enter-blur mt-5 max-w-[58ch] leading-relaxed text-fg-muted"
         style={{ animationDelay: "80ms" }}
       >
-        Wavio dirancang agar mudah diintegrasikan dari aplikasi apa pun: toko online, CRM,
+        PintaSend dirancang agar mudah diintegrasikan dari aplikasi apa pun: toko online, CRM,
         sistem kasir, atau internal tool. Satu API key, satu endpoint, dan notifikasi
         WhatsApp langsung terkirim ke pelangganmu.
       </p>
@@ -36,7 +36,7 @@ export default function DocsIntegrations() {
               Studi kasus: NalaNiaga
             </h2>
             <p className="mt-2 max-w-[65ch] text-sm leading-relaxed text-fg-muted">
-              NalaNiaga (platform manajemen toko) mengintegrasikan Wavio agar notifikasi
+              NalaNiaga (platform manajemen toko) mengintegrasikan PintaSend agar notifikasi
               transaksi pelanggan terkirim otomatis ke WhatsApp — misalnya saat pesanan
               baru masuk atau status pesanan berubah. Pemilik toko menghubungkan nomornya
               lewat **wizard SSO** (tanpa isi form manual), lalu NalaNiaga mengirim via API.
@@ -44,9 +44,9 @@ export default function DocsIntegrations() {
             </p>
             <ol className="relative mt-5 space-y-3">
               {[
-                "Pemilik toko memilih gateway Wavio di pengaturan integrasi NalaNiaga dan klik \"Hubungkan via Wavio\" — NalaNiaga menerbitkan token SSO (berlaku 10 menit).",
-                "Browser diarahkan ke halaman /connect Wavio: token diverifikasi, tenant NalaNiaga dibuat otomatis, lalu pemilik scan kode QR untuk menautkan nomor WhatsApp.",
-                "Saat device siap, Wavio memanggil callback NalaNiaga dengan API key + webhook secret khusus toko — konfigurasi selesai otomatis.",
+                "Pemilik toko memilih gateway PintaSend di pengaturan integrasi NalaNiaga dan klik \"Hubungkan via PintaSend\" — NalaNiaga menerbitkan token SSO (berlaku 10 menit).",
+                "Browser diarahkan ke halaman /connect PintaSend: token diverifikasi, tenant NalaNiaga dibuat otomatis, lalu pemilik scan kode QR untuk menautkan nomor WhatsApp.",
+                "Saat device siap, PintaSend memanggil callback NalaNiaga dengan API key + webhook secret khusus toko — konfigurasi selesai otomatis.",
                 "Saat event toko terjadi (order baru, pembayaran, pengiriman), NalaNiaga memanggil POST /v1/messages dengan nomor pelanggan.",
               ].map((item, i) => (
                 <li key={i} className="relative flex gap-3.5">
@@ -62,10 +62,10 @@ export default function DocsIntegrations() {
                 lang="js"
                 code={`// Contoh: kirim notifikasi order dari NalaNiaga (Node.js)
 async function sendOrderNotification(order) {
-  const res = await fetch("https://wavio.satupintudigital.co.id/v1/messages", {
+  const res = await fetch("https://pintasend.satupintudigital.co.id/v1/messages", {
     method: "POST",
     headers: {
-      "Authorization": \`Bearer \${store.wavioApiKey}\`,
+      "Authorization": \`Bearer \${store.pintasendApiKey}\`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -89,7 +89,7 @@ async function sendOrderNotification(order) {
                   NalaNiaga memakai JWT SSO (secret bersama) untuk mengarahkan pemilik toko
                   ke halaman{" "}
                   <code className="font-mono">/connect</code>{" "}
-                  Wavio; API key + webhook secret dibuat otomatis dan dikirim kembali via
+                  PintaSend; API key + webhook secret dibuat otomatis dan dikirim kembali via
                   callback — pemilik toko tidak perlu membuat akun atau menyalin kredensial
                   secara manual.
                 </p>
@@ -98,7 +98,7 @@ async function sendOrderNotification(order) {
             <div className="mt-4">
               <Callout type="info" title="Isolasi per tenant">
                 <p>
-                  Setiap akun Wavio terisolasi. API key toko A tidak bisa mengirim dari
+                  Setiap akun PintaSend terisolasi. API key toko A tidak bisa mengirim dari
                   device toko B, dan nomor pelanggan tidak pernah bocor antar tenant.
                 </p>
               </Callout>
@@ -123,8 +123,8 @@ async function sendOrderNotification(order) {
                 <div className="mt-3">
                   <CodeBlock
                     lang="bash"
-                    code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                    code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/messages \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{"to":"6281234567890","text":"Pesanan #1234 sudah dikirim"}'`}
                   />
@@ -140,9 +140,9 @@ async function sendOrderNotification(order) {
 import requests
 
 resp = requests.post(
-    "https://wavio.satupintudigital.co.id/v1/messages",
+    "https://pintasend.satupintudigital.co.id/v1/messages",
     headers={
-        "Authorization": f"Bearer {os.environ['WAVIO_KEY']}",
+        "Authorization": f"Bearer {os.environ['PINTSEND_KEY']}",
         "Content-Type": "application/json",
     },
     json={"to": "6281234567890", "text": "Pesanan #1234 sudah dikirim"},
@@ -158,12 +158,12 @@ print(resp.json())  # {"ok": true, "messageId": "3EB0F2A1…"}`}
                   <CodeBlock
                     lang="php"
                     code={`<?php
-$ch = curl_init("https://wavio.satupintudigital.co.id/v1/messages");
+$ch = curl_init("https://pintasend.satupintudigital.co.id/v1/messages");
 curl_setopt_array($ch, [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST => true,
     CURLOPT_HTTPHEADER => [
-        "Authorization: Bearer " . getenv("WAVIO_KEY"),
+        "Authorization: Bearer " . getenv("PINTSEND_KEY"),
         "Content-Type: application/json",
     ],
     CURLOPT_POSTFIELDS => json_encode([
@@ -190,7 +190,7 @@ echo json_encode($result); // {"ok": true, "messageId": "3EB0F2A1…"}
             <p className="mt-2 max-w-[65ch] text-sm leading-relaxed text-fg-muted">
               Aktifkan di <strong>Dashboard → Webhook</strong>: isi URL endpoint-mu dan
               pilih event. Setiap kali pelanggan mengirim pesan atau status device
-              berubah, Wavio mem-POST event ke URL tersebut. Contoh verifikasi signature
+              berubah, PintaSend mem-POST event ke URL tersebut. Contoh verifikasi signature
               di Node.js:
             </p>
             <div className="mt-4">
@@ -202,9 +202,9 @@ const app = express();
 
 // Raw body WAJIB (bukan JSON yang sudah di-parse) — signature dihitung atas
 // body mentah. Pakai express.raw({ type: "application/json" }).
-app.post("/webhooks/wavio", express.raw({ type: "application/json" }), (req, res) => {
-  const secret = process.env.WAVIO_WEBHOOK_SECRET; // dari Dashboard → Webhook
-  const sig = req.headers["x-wavio-signature"];    // format: sha256=<hex>
+app.post("/webhooks/pintasend", express.raw({ type: "application/json" }), (req, res) => {
+  const secret = process.env.PINTSEND_WEBHOOK_SECRET; // dari Dashboard → Webhook
+  const sig = req.headers["x-pintasend-signature"];    // format: sha256=<hex>
   const expected = "sha256=" +
     crypto.createHmac("sha256", secret).update(req.body).digest("hex");
 

@@ -45,7 +45,7 @@ afterEach(() => vi.restoreAllMocks());
 describe("executeGetProfile", () => {
   it("returns profile for ready device", async () => {
     vi.mocked(queryD1One).mockResolvedValue(mockDevice);
-    vi.mocked(openwa.getProfile).mockResolvedValue({ name: "Wavio Bot", about: "Automated", phone: "6281234567890" });
+    vi.mocked(openwa.getProfile).mockResolvedValue({ name: "PintaSend Bot", about: "Automated", phone: "6281234567890" });
 
     const r = await executeGetProfile("dev1", ctx);
     expect(r).toMatchObject({ ok: true, status: 200 });

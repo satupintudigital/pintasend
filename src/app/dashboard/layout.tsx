@@ -7,7 +7,7 @@ import { SidebarNav } from "@/components/dashboard/SidebarNav";
 import { Logo } from "@/components/Logo";
 
 function Brand() {
-  return <Logo />;
+  return <Logo className="h-9 md:h-10" />;
 }
 
 export default async function DashboardLayout({

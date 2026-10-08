@@ -1,4 +1,4 @@
-// SSO wizard NalaNiaga → Wavio. Verifikasi JWT HS256 (secret bersama
+// SSO wizard NalaNiaga → PintaSend. Verifikasi JWT HS256 (secret bersama
 // NALANIAGA_SSO_SECRET), helper auth endpoint connect, dan pengiriman callback
 // (HMAC + retry + SSRF guard). Dipakai route /api/connect/* & halaman /connect.
 
@@ -18,7 +18,7 @@ export interface SsoClaims {
 }
 
 function ssoSecretKey(): Uint8Array {
-  return new TextEncoder().encode(process.env.NALANIAGA_SSO_SECRET || "");
+  return new TextEncoder().encode(process.env.NALANIAGA_SSO_SECRET || process.env.PINTSEND_SSO_SECRET || "");
 }
 
 /** Hanya untuk test — issue token sama dengan sisi NalaNiaga. */
@@ -100,7 +100,7 @@ export async function deliverConnectCallback(
 ): Promise<{ ok: boolean; status: number }> {
   const requestId = getRequestId(new Request("http://connect/complete"));
   const raw = JSON.stringify(payload);
-  const secret = process.env.NALANIAGA_SSO_SECRET || "";
+  const secret = process.env.NALANIAGA_SSO_SECRET || process.env.PINTSEND_SSO_SECRET || "";
   const signature = `sha256=${await hmacSha256Hex(secret, raw)}`;
 
   if (!isSafeWebhookUrl(claims.callbackUrl)) {
@@ -116,7 +116,7 @@ export async function deliverConnectCallback(
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-wavio-signature": signature,
+          "x-pintasend-signature": signature,
           "x-request-id": requestId,
         },
         body: raw,

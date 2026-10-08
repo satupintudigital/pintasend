@@ -12,7 +12,7 @@ await c.query('DELETE FROM "Campaign" WHERE id LIKE \'e2e-send-%\'');
 await c.query(
   `INSERT INTO "Campaign" (id, "tenantId", "deviceId", name, status, "messageBody", "minDelaySec", "maxDelaySec")
    VALUES ($1::text, $2::text, 'e2e-device-test-0001', 'E2E Kirim Uji', 'draft',
-     'Halo {{nama}}! Ini pesan uji modul Campaign dari Wavio.', 3, 4)
+     'Halo {{nama}}! Ini pesan uji modul Campaign dari PintaSend.', 3, 4)
    ON CONFLICT (id) DO NOTHING`,
   [CAMP, T],
 );

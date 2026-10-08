@@ -1,5 +1,5 @@
 // ─── Helper fetch HTTP terpusat ────────────────────────────────────────────
-// Satu-satunya jalur request JSON ke endpoint eksternal (app Wavio).
+// Satu-satunya jalur request JSON ke endpoint eksternal (app PintaSend).
 // Kontrak dijamin di sini sehingga tidak bisa salah lagi:
 //   - jsonFetch/postJson (POST/PUT/PATCH): body SELALU di-JSON.stringify
 //     (tidak pernah mengirim string telanjang yang membuat request.json() di

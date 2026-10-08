@@ -25,7 +25,7 @@ const mockedStart = vi.mocked(startPlatformBroadcast);
 const mockedCancel = vi.mocked(cancelPlatformBroadcast);
 
 const platformSession = {
-  user: { id: "u-p", email: "platform@wavio.test", role: "platform_admin", tenantId: "t-platform" },
+  user: { id: "u-p", email: "platform@pintasend.test", role: "platform_admin", tenantId: "t-platform" },
 };
 const ownerSession = {
   user: { id: "u1", email: "owner@x.y", role: "owner", tenantId: "t1" },
@@ -62,7 +62,7 @@ describe("POST /api/platform/broadcasts", () => {
     expect(res.status).toBe(201);
     expect(mockedCreate).toHaveBeenCalledWith(
       expect.objectContaining({ name: "Pengumuman" }),
-      { email: "platform@wavio.test" },
+      { email: "platform@pintasend.test" },
     );
   });
 

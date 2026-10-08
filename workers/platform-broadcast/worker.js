@@ -31,8 +31,8 @@ function sleep(ms) {
 }
 
 function footnote(env) {
-  const raw = String(env.WAVIO_WATERMARK_FOOTNOTE ?? "").trim();
-  return raw || "via Wavio - https://wavio.satupintudigital.co.id";
+  const raw = String(env.PINTSEND_WATERMARK_FOOTNOTE ?? "").trim();
+  return raw || "via PintaSend - https://pintasend.satupintudigital.co.id";
 }
 
 function withFootnote(text, foot) {

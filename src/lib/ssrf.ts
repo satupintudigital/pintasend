@@ -1,4 +1,4 @@
-// Guard SSRF best-effort untuk URL webhook milik client (Wavio akan fetch URL
+// Guard SSRF best-effort untuk URL webhook milik client (PintaSend akan fetch URL
 // ini saat meneruskan event). Tidak ada resolusi DNS (Workers tidak punya
 // node:dns yang andal) — guard ini menangkap:
 //   1. Protokol non-http(s)

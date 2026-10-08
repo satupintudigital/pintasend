@@ -3,7 +3,7 @@
 
 // Key mentah hanya ditampilkan SEKALI saat dibuat — setelah itu hanya hash
 // (SHA-256) yang disimpan. Prefix utk identifikasi visual di dashboard.
-export const API_KEY_PREFIX = "wavio_";
+export const API_KEY_PREFIX = "pintasend_";
 
 export function generateApiKeyRaw(): { raw: string; prefix: string } {
   const bytes = new Uint8Array(24);

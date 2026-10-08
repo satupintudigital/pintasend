@@ -1,5 +1,5 @@
 // ─── Attribute-Based Access Control (role gate terpusat) ─────────────────────
-// Single source of truth untuk otorisasi role di seluruh route Wavio.
+// Single source of truth untuk otorisasi role di seluruh route PintaSend.
 // Tujuan: menghilangkan duplikasi blok `role !== "platform_admin"` yang tersebar
 // di 20+ route & menjaga konsistensi kebijakan akses saat role bertambah.
 //

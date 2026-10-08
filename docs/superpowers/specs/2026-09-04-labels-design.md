@@ -7,10 +7,10 @@
 ## Overview
 
 Dual-layer label system:
-1. **Wavio-local labels** — stored in Neon, used for CRM segmentation, campaign audience filtering, dashboard organization
+1. **PintaSend-local labels** — stored in Neon, used for CRM segmentation, campaign audience filtering, dashboard organization
 2. **OpenWA label sync** — bidirectional sync with WhatsApp's native label system (visible in WhatsApp dashboard)
 
-Wavio-local labels are the primary source of truth. OpenWA sync is optional per-label.
+PintaSend-local labels are the primary source of truth. OpenWA sync is optional per-label.
 
 ## Data Model
 
@@ -212,10 +212,10 @@ POST /v1/labels/:labelId/chats/bulk
 ### Bidirectional Sync (webhook-driven)
 - Listen to `label.chat.added` and `label.chat.removed` webhook events from OpenWA
 - When OpenWA reports a label-chat change → sync to Neon `LabelContact`
-- When Wavio adds/removes a chat from a label → sync to OpenWA (if synced)
+- When PintaSend adds/removes a chat from a label → sync to OpenWA (if synced)
 
 ### Sync Conflict Resolution
-- **Wavio is source of truth** for label name/color
+- **PintaSend is source of truth** for label name/color
 - **OpenWA is source of truth** for label-chat associations (since WhatsApp users can also manage labels from their phone)
 - Neon `LabelContact` is the canonical record; OpenWA is the operational store
 

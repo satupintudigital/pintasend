@@ -37,7 +37,7 @@ function cacheKey(deviceId: string): string {
 }
 
 export async function getCachedDevice(deviceId: string): Promise<DeviceCacheValue | null> {
-  const kv = await getBinding<KvLike>("WAVIO_CACHE");
+  const kv = await getBinding<KvLike>("PINTSEND_CACHE");
   const raw = await kv.get(cacheKey(deviceId));
   if (!raw) return null;
   try {
@@ -50,7 +50,7 @@ export async function getCachedDevice(deviceId: string): Promise<DeviceCacheValu
 }
 
 export async function setCachedDevice(device: DeviceCacheValue): Promise<void> {
-  const kv = await getBinding<KvLike>("WAVIO_CACHE");
+  const kv = await getBinding<KvLike>("PINTSEND_CACHE");
   const value: StoredValue = { device, ts: Date.now() };
   await kv.put(cacheKey(device.id), JSON.stringify(value), {
     expirationTtl: KV_TTL_SAFETY_S,
@@ -58,7 +58,7 @@ export async function setCachedDevice(device: DeviceCacheValue): Promise<void> {
 }
 
 export async function deleteCachedDevice(deviceId: string): Promise<void> {
-  const kv = await getBinding<KvLike>("WAVIO_CACHE");
+  const kv = await getBinding<KvLike>("PINTSEND_CACHE");
   await kv.delete(cacheKey(deviceId));
 }
 
@@ -72,7 +72,7 @@ export const WEBHOOK_RECONCILE_COOLDOWN_MS = 5 * 60_000;
 
 export async function shouldReconcileWebhook(deviceId: string): Promise<boolean> {
   try {
-    const kv = await getBinding<KvLike>("WAVIO_CACHE");
+    const kv = await getBinding<KvLike>("PINTSEND_CACHE");
     const key = `device:${deviceId}:whreconcile`;
     const raw = await kv.get(key);
     if (raw) {
@@ -97,7 +97,7 @@ function listCacheKey(tenantId: string): string {
 }
 
 export async function getCachedDeviceList(tenantId: string): Promise<DeviceCacheValue[] | null> {
-  const kv = await getBinding<KvLike>("WAVIO_CACHE");
+  const kv = await getBinding<KvLike>("PINTSEND_CACHE");
   const raw = await kv.get(listCacheKey(tenantId));
   if (!raw) return null;
   try {
@@ -113,13 +113,13 @@ export async function setCachedDeviceList(
   tenantId: string,
   devices: DeviceCacheValue[],
 ): Promise<void> {
-  const kv = await getBinding<KvLike>("WAVIO_CACHE");
+  const kv = await getBinding<KvLike>("PINTSEND_CACHE");
   await kv.put(listCacheKey(tenantId), JSON.stringify({ devices, ts: Date.now() }), {
     expirationTtl: KV_TTL_SAFETY_S,
   });
 }
 
 export async function deleteCachedDeviceList(tenantId: string): Promise<void> {
-  const kv = await getBinding<KvLike>("WAVIO_CACHE");
+  const kv = await getBinding<KvLike>("PINTSEND_CACHE");
   await kv.delete(listCacheKey(tenantId));
 }

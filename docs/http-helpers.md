@@ -15,7 +15,7 @@ Ada **dua** implementasi dengan kontrak identik:
 
 | Lokasi | Untuk | Bahasa |
 |---|---|---|
-| `src/lib/http.ts` | App Wavio (Next.js di Cloudflare Workers) | TypeScript |
+| `src/lib/http.ts` | App PintaSend (Next.js di Cloudflare Workers) | TypeScript |
 | `workers/shared/http.js` | Worker standalone (deploy unit via wrangler) | JavaScript murni |
 
 Worker **tidak bisa** meng-import TS `src/lib` (deploy terpisah), maka helper
@@ -95,7 +95,7 @@ import { postJson, jsonFetch, getJson } from "../shared/http.js";
 Sengaja **tidak** memakai helper:
 
 - `workers/webhook-delivery/worker.js` — kirim raw envelope string + header
-  `x-wavio-signature` (HMAC atas body persis).
+  `x-pintasend-signature` (HMAC atas body persis).
 - `workers/turnstile-siteverify/worker.js` — POST FormData ke Cloudflare.
 - `workers/d1-resync` & `workers/message-retention` — tidak ada HTTP keluar
   (hanya `fetch` handler inbound + DB).
@@ -123,7 +123,7 @@ scope — lihat §4):
 
 ## 4. Scope pemakaian & hasil audit (server-side)
 
-Helper ini dikhususkan untuk **HTTP keluar server-side** (app Wavio di
+Helper ini dikhususkan untuk **HTTP keluar server-side** (app PintaSend di
 Cloudflare Workers maupun worker standalone). Status audit **2026-09-05**:
 
 | Area | Status | Keterangan |
@@ -147,7 +147,7 @@ grep -rln "fetch(" src --include=*.ts --include=*.tsx | grep -v test
 
 ### Client (browser → `/api/*` sendiri): sengaja DI LUAR scope
 
-Halaman & komponen `use client` memanggil route API Wavio sendiri dari
+Halaman & komponen `use client` memanggil route API PintaSend sendiri dari
 browser dgn `fetch` polos. Ini **sengaja bukan** target helper:
 
 1. Receiver adalah route sendiri (`/api/*`) — kita kontrol keduanya; seluruh

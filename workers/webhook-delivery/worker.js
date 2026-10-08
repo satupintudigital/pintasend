@@ -7,7 +7,7 @@
 //
 // Alur per tick:
 //   1. Claim batch pending (status='pending' AND nextAttemptAt <= now) LIMIT 10.
-//   2. Deliver tiap baris (POST, timeout 5 dtk, header x-wavio-signature).
+//   2. Deliver tiap baris (POST, timeout 5 dtk, header x-pintasend-signature).
 //   3. Sukses → status='delivered'. Gagal → attempts+1; jika attempts >= 3 →
 //      status='failed' (dead-letter, baris dipertahankan utk debugging);
 //      else nextAttemptAt = now + backoff(attempts baru).
@@ -37,10 +37,10 @@ async function deliverOnce(url, body, signature, event) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": "Wavio-Webhook/1.0",
-        "x-wavio-signature": signature,
-        "x-wavio-event": event,
-        "x-wavio-delivery-at": new Date().toISOString(),
+        "User-Agent": "PintaSend-Webhook/1.0",
+        "x-pintasend-signature": signature,
+        "x-pintasend-event": event,
+        "x-pintasend-delivery-at": new Date().toISOString(),
       },
       body,
       signal: AbortSignal.timeout(TIMEOUT_MS),

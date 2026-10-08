@@ -6,7 +6,7 @@ import {
   hashBody,
 } from "./idempotency";
 
-// Fake KV binding WAVIO_CACHE — state bertahan antar panggilan (persist dalam test).
+// Fake KV binding PINTSEND_CACHE — state bertahan antar panggilan (persist dalam test).
 const fakeKv = {
   store: new Map<string, string>(),
   get: vi.fn(async (k: string) => fakeKv.store.get(k) ?? null),
@@ -17,7 +17,7 @@ const fakeKv = {
 
 vi.mock("@/lib/cf", () => ({
   getBinding: vi.fn(async (name: string) => {
-    if (name === "WAVIO_CACHE") return fakeKv;
+    if (name === "PINTSEND_CACHE") return fakeKv;
     throw new Error(`binding ${name} tidak ada`);
   }),
 }));

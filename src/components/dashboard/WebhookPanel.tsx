@@ -269,8 +269,8 @@ export function WebhookPanel() {
           </h1>
           <p className="mt-2 max-w-xl text-sm text-fg-muted">
             Terima <strong>pesan masuk</strong> dan perubahan{" "}
-            <strong>status device</strong> secara realtime. Wavio meneruskan event ke URL-mu
-            dengan tanda tangan <code className="font-mono text-accent-bright">x-wavio-signature</code>{" "}
+            <strong>status device</strong> secara realtime. PintaSend meneruskan event ke URL-mu
+            dengan tanda tangan <code className="font-mono text-accent-bright">x-pintasend-signature</code>{" "}
             (HMAC-SHA256) agar bisa diverifikasi.
           </p>
         </div>
@@ -319,12 +319,12 @@ export function WebhookPanel() {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 className={fieldClass}
-                placeholder="https://api.tokomu.com/webhooks/wavio"
+                placeholder="https://api.tokomu.com/webhooks/pintasend"
                 maxLength={500}
                 required
               />
               <p className="mt-1.5 text-xs text-fg-faint">
-                Wavio akan mem-POST event ke URL ini. Pastikan menerima method POST.
+                PintaSend akan mem-POST event ke URL ini. Pastikan menerima method POST.
               </p>
             </div>
 
@@ -498,8 +498,8 @@ export function WebhookPanel() {
                 )}
               </div>
               <p className="mt-1.5 text-xs text-fg-faint">
-                Dipakai Wavio untuk menandatangani delivery (
-                <code className="font-mono">x-wavio-signature</code>). Mengganti secret akan
+                Dipakai PintaSend untuk menandatangani delivery (
+                <code className="font-mono">x-pintasend-signature</code>). Mengganti secret akan
                 memutus verifikasi lama di endpoint-mu — perbarui di sisi client.
               </p>
             </div>
@@ -595,12 +595,12 @@ export function WebhookPanel() {
                 </li>
                 <li className="flex gap-2.5">
                   <span className="text-accent-bright">✓</span>
-                  Delivery keluar ditandatangani <code className="font-mono">x-wavio-signature</code> —
+                  Delivery keluar ditandatangani <code className="font-mono">x-pintasend-signature</code> —
                   verifikasi di sisi-mu agar aman dari pemalsuan.
                 </li>
                 <li className="flex gap-2.5">
                   <span className="text-accent-bright">✓</span>
-                  Jika endpoint-mu down, Wavio mencoba mengirim sekali dan mencatat kegagalan.
+                  Jika endpoint-mu down, PintaSend mencoba mengirim sekali dan mencatat kegagalan.
                 </li>
               </ul>
             </div>

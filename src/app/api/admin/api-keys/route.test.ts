@@ -35,7 +35,7 @@ describe("POST /api/admin/api-keys — audit apikey.create", () => {
     mockedAuth.mockResolvedValue(ownerSession as never);
     mockedCreate.mockResolvedValue({
       id: "k1",
-      key: "wavio_xxx",
+      key: "pintasend_xxx",
       label: "Prod",
       tenantId: "t1",
     } as never);

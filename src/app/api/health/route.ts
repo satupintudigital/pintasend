@@ -1,6 +1,6 @@
 import { queryD1 } from "@/lib/d1";
 
-// Rute diagnostik publik: userCount dihitung dari D1 (wavio-auth) — tidak
+// Rute diagnostik publik: userCount dihitung dari D1 (pintasend-auth) — tidak
 // menyentuh Neon sama sekali, sehingga health check tidak memicu active compute
 // time Neon.
 //

@@ -1,10 +1,10 @@
 // Template pesan standar NalaNiaga + seeding ke session OpenWA.
 //
 // Katalog ini adalah cermin `seed-templates.js` di server (NalaNiaga/OpenWA):
-// template yang di-provision untuk toko NalaNiaga. Wavio menyalinnya ke sisi
+// template yang di-provision untuk toko NalaNiaga. PintaSend menyalinnya ke sisi
 // klien agar seeding otomatis bisa dilakukan saat device dibuat (tanpa harus
 // mengeksekusi script di server). Sumber kebenaran pembuatan tetap OpenWA —
-// Wavio hanya memanggil POST /api/sessions/:id/templates.
+// PintaSend hanya memanggil POST /api/sessions/:id/templates.
 
 import { openwa } from "./openwa";
 
@@ -29,11 +29,11 @@ export interface NalaTemplate {
  * 7 template standar NalaNiaga (sama dengan seed-templates.js di server).
  *
  * Setiap footer menyertakan placeholder `{{watermark}}` di paling akhir:
- * send-template mengirim `vars.watermark` berisi footnote iklan Wavio (atau
+ * send-template mengirim `vars.watermark` berisi footnote iklan PintaSend (atau
  * string kosong bila tenant punya addon remove_watermark), sehingga placeholder
  * ini terisi footnote — atau hilang bersih tanpa trailing newline saat
  * watermark nonaktif. `renderTemplate` OpenWA mengganti placeholder yang
- * dikenali di vars dan membiarkan yang tidak dikenali literal, jadi Wavio
+ * dikenali di vars dan membiarkan yang tidak dikenali literal, jadi PintaSend
  * SELALU mengirim kunci watermark (nilai "" sekalipun).
  */
 export const NALA_TEMPLATES: readonly NalaTemplate[] = [

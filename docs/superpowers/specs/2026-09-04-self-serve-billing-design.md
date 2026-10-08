@@ -1,4 +1,4 @@
-# Wavio — Self-Serve Billing & Katalog Produk (Design Spec)
+# PintaSend — Self-Serve Billing & Katalog Produk (Design Spec)
 
 Dibuat: 2026-09-04
 Status: **draft untuk review** — menutup gap "paket/produk untuk dijual ke user" (lanjutan
@@ -11,7 +11,7 @@ platform owner/superadmin; catatan plan lama: *payment gateway nyata = proyek te
 
 ## 1. Latar & Gap
 
-Saat ini Wavio **belum bisa menjual** paket ke user secara mandiri:
+Saat ini PintaSend **belum bisa menjual** paket ke user secara mandiri:
 
 - Landing `src/components/landing/Pricing.tsx` menampilkan harga **hardcoded**
   (Espresso Rp400/pesan, Latte Rp150rb/bln 500 pesan, Mocha Rp300rb/bln unlimited,
@@ -298,7 +298,7 @@ Tripay (dari docs developer resmi):
 
 ### 6.1 Registrasi publik `POST /api/auth/register`
 Body `{ name, email, password, tenantName, planId?, addonKeys?[] }`:
-1. Validasi (email format, password ≥ 8, nama tenant ≥ 3; rate-limit KV WAVIO_RATE_LIMIT
+1. Validasi (email format, password ≥ 8, nama tenant ≥ 3; rate-limit KV PINTSEND_RATE_LIMIT
    + Turnstile? — lihat §9 keputusan: pasang Turnstile di form registrasi).
 2. Cek email belum ada (User) → 409.
 3. Transaksi: create `Tenant` (name, `activatedAt=NULL`) + `User` role `owner`

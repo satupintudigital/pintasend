@@ -1,4 +1,4 @@
-// Akses bucket R2 (binding WAVIO_MEDIA) dari kode server Next.js di atas
+// Akses bucket R2 (binding PINTSEND_MEDIA) dari kode server Next.js di atas
 // OpenNext Cloudflare Worker. Memakai getCloudflareContext — cara resmi membaca
 // binding di runtime Worker (env). Hanya berfungsi saat berjalan di Worker;
 // di luar runtime Cloudflare (mis. unit test / build) tidak dipanggil.
@@ -15,16 +15,16 @@ interface R2BucketLike {
   ): Promise<unknown>;
 }
 
-/** Simpan objek media ke bucket WAVIO_MEDIA; melempar bila binding tidak ada. */
+/** Simpan objek media ke bucket PINTSEND_MEDIA; melempar bila binding tidak ada. */
 export async function putMediaObject(
   key: string,
   data: Uint8Array,
   contentType: string,
 ): Promise<void> {
   const { env } = await getCloudflareContext({ async: true });
-  const bucket = (env as unknown as { WAVIO_MEDIA?: R2BucketLike }).WAVIO_MEDIA;
+  const bucket = (env as unknown as { PINTSEND_MEDIA?: R2BucketLike }).PINTSEND_MEDIA;
   if (!bucket) {
-    throw new Error("Binding R2 WAVIO_MEDIA tidak tersedia");
+    throw new Error("Binding R2 PINTSEND_MEDIA tidak tersedia");
   }
   await bucket.put(key, data, {
     httpMetadata: { contentType: contentType || "application/octet-stream" },

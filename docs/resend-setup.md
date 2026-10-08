@@ -1,6 +1,6 @@
-# Setup Email Resend (Wavio)
+# Setup Email Resend (PintaSend)
 
-Setup lengkap email transaksional Wavio via Resend: akun, API key, integrasi
+Setup lengkap email transaksional PintaSend via Resend: akun, API key, integrasi
 kode, verifikasi domain pengirim, dan **DMARC**.
 
 Alur sekali jalan: daftar akun → API key → buat domain di Resend → tambah
@@ -13,11 +13,11 @@ records DNS di Cloudflare → verifikasi → (disarankan) DMARC.
 - Satu akun Resend gratis **per produk** (free plan: 3.000 email/bulan,
   100 email/hari, **1 domain per akun**). NalaNiaga, akuntansi, dst. daftar
   akun sendiri-sendiri — kuota & key tidak saling memakan.
-- Buat API key di <https://resend.com/api-keys>, simpan di `wavio/.env`:
+- Buat API key di <https://resend.com/api-keys>, simpan di `pintasend/.env`:
 
   ```bash
   RESEND_API_KEY="re_xxxxxxxxx"   # ganti dengan key asli
-  EMAIL_FROM="Wavio <noreply@wavio.satupintudigital.co.id>"
+  EMAIL_FROM="PintaSend <noreply@pintasend.satupintudigital.co.id>"
   ```
 
   `EMAIL_FROM` harus dari domain yang sudah diverifikasi (langkah 3).
@@ -41,14 +41,14 @@ records DNS di Cloudflare → verifikasi → (disarankan) DMARC.
 
 ## 3. Verifikasi domain pengirim
 
-Domain Wavio: `wavio.satupintudigital.co.id` (subdomain produk, sudah di
+Domain PintaSend: `pintasend.satupintudigital.co.id` (subdomain produk, sudah di
 Cloudflare — zone `satupintudigital.co.id`).
 
 1. Buat domain di Resend (region `ap-northeast-1` — terdekat dengan mayoritas
    penerima di Indonesia):
 
    ```bash
-   npx tsx scripts/resend-domain.ts create wavio.satupintudigital.co.id
+   npx tsx scripts/resend-domain.ts create pintasend.satupintudigital.co.id
    ```
 
    Catat `<domainId>` dari output.
@@ -75,7 +75,7 @@ Tambahkan **satu TXT record** di Cloudflare (zone `satupintudigital.co.id`):
 
 | Name | Type | Value |
 |---|---|---|
-| `_dmarc.wavio.satupintudigital.co.id` | TXT | `v=DMARC1; p=none; rua=mailto:dmarcreports@wavio.satupintudigital.co.id;` |
+| `_dmarc.pintasend.satupintudigital.co.id` | TXT | `v=DMARC1; p=none; rua=mailto:dmarcreports@pintasend.satupintudigital.co.id;` |
 
 Panduan:
 
@@ -83,7 +83,7 @@ Panduan:
   `quarantine`/`reject` sebelum yakin semua email sah lolos DMARC.
 - `rua` (alamat laporan agregat) harus **inbox sungguhan** yang bisa menerima
   email — boleh beda domain dari yang diverifikasi, mis. `dmarc@satupintudigital.co.id`.
-- Kirim email uji dari semua sumber (Wavio, dsb.), cek header menunjukkan
+- Kirim email uji dari semua sumber (PintaSend, dsb.), cek header menunjukkan
   `dmarc=pass`, lalu naikkan kebijakan bertahap:
   `p=quarantine;` → `p=reject;` (update nilai record yang sama).
 - Referensi lengkap: <https://resend.com/docs/dashboard/domains/dmarc>

@@ -47,7 +47,7 @@ describe("GET /v1/messages/:chatId/history", () => {
     const res = await get(
       "6281234567890@c.us",
       { limit: "50", offset: "100" },
-      { "x-request-id": "req-h", authorization: "Bearer wavio_abc" },
+      { "x-request-id": "req-h", authorization: "Bearer pintasend_abc" },
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("x-request-id")).toBe("req-h");

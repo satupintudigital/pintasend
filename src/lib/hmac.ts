@@ -1,7 +1,7 @@
 // HMAC-SHA256 helper (pure function, WebCrypto — aman di Workers & Node).
 // Dipakai dua arah:
 //   1. Verifikasi signature masuk dari OpenWA  (header `x-openwa-signature`)
-//   2. Menandatangani delivery keluar ke client (header `x-wavio-signature`)
+//   2. Menandatangani delivery keluar ke client (header `x-pintasend-signature`)
 // Format signature: `sha256=<hex>` (sama seperti OpenWA / NalaNiaga consumer).
 
 /** Hitung HMAC-SHA256 dan kembalikan hex lowercase. */

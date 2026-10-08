@@ -7,6 +7,7 @@ import { checkRateLimit } from "./rate-limit";
 import { insertMessageLog } from "./messageStore";
 import { getTenantConfig } from "./tenantConfig";
 import { prepaidSendGate, spendCredit } from "./credit";
+import { DEFAULT_WATERMARK_FOOTNOTE } from "./watermark";
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
 vi.mock("./d1", () => ({ queryD1One: vi.fn() }));
@@ -74,7 +75,7 @@ describe("executeSendTemplate — sukses", () => {
       templateName: "pesanan_baru",
       vars: {
         orderId: "1234",
-        watermark: "\n\nvia Wavio - https://wavio.satupintudigital.co.id",
+        watermark: `\n\n${DEFAULT_WATERMARK_FOOTNOTE}`,
       },
     });
     expect(insertMessageLog).toHaveBeenCalledWith(
@@ -93,7 +94,7 @@ describe("executeSendTemplate — sukses", () => {
     await executeSendTemplate({ to: "6281234567890", templateName: "sapaan_pelanggan" }, ctx);
     expect(openwa.sendTemplate).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", {
       templateName: "sapaan_pelanggan",
-      vars: { watermark: expect.stringContaining("https://wavio.satupintudigital.co.id") },
+      vars: { watermark: expect.stringContaining("https://pintasend.satupintudigital.co.id") },
     });
   });
 
@@ -102,7 +103,7 @@ describe("executeSendTemplate — sukses", () => {
     await executeSendTemplate({ to: "6281234567890", templateName: "x", deviceId: "dev2" }, ctx);
     expect(openwa.sendTemplate).toHaveBeenCalledWith("owa-2", "6281234567890@c.us", {
       templateName: "x",
-      vars: { watermark: expect.stringContaining("https://wavio.satupintudigital.co.id") },
+      vars: { watermark: expect.stringContaining("https://pintasend.satupintudigital.co.id") },
     });
   });
 
@@ -132,7 +133,7 @@ describe("executeSendTemplate — canonical physical binding", () => {
     await executeSendTemplate({ to: "6281234567890", templateName: "pesanan_baru" }, ctx);
     expect(openwa.sendTemplate).toHaveBeenCalledWith("owa-1", "6281234567890@c.us", {
       templateName: "nala_pesanan_baru_v4",
-      vars: { watermark: expect.stringContaining("https://wavio.satupintudigital.co.id") },
+      vars: { watermark: expect.stringContaining("https://pintasend.satupintudigital.co.id") },
     });
   });
 

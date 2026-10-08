@@ -88,7 +88,7 @@ function cacheKey(tenantId: string): string {
 
 async function readCache(tenantId: string): Promise<CachedTenantConfig | null> {
   try {
-    const kv = await getBinding<KvLike>("WAVIO_CACHE");
+    const kv = await getBinding<KvLike>("PINTSEND_CACHE");
     const raw = await kv.get(cacheKey(tenantId));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedTenantConfig;
@@ -101,7 +101,7 @@ async function readCache(tenantId: string): Promise<CachedTenantConfig | null> {
 
 async function writeCache(tenantId: string, config: CachedTenantConfig): Promise<void> {
   try {
-    const kv = await getBinding<KvLike>("WAVIO_CACHE");
+    const kv = await getBinding<KvLike>("PINTSEND_CACHE");
     await kv.put(cacheKey(tenantId), JSON.stringify(config), {
       expirationTtl: KV_TTL_S,
     });
@@ -186,7 +186,7 @@ export async function getTenantConfig(tenantId: string): Promise<CachedTenantCon
 /** Invalidate cache saat config diubah (admin panel). */
 export async function invalidateTenantConfig(tenantId: string): Promise<void> {
   try {
-    const kv = await getBinding<KvLike>("WAVIO_CACHE");
+    const kv = await getBinding<KvLike>("PINTSEND_CACHE");
     await kv.delete(cacheKey(tenantId));
   } catch {
     // ignore

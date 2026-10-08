@@ -1,4 +1,4 @@
-// Wavio template reconciliation worker (HTTP on-demand; tanpa cron agar Neon scale-to-zero).
+// PintaSend template reconciliation worker (HTTP on-demand; tanpa cron agar Neon scale-to-zero).
 // Canonical template sudah diterima oleh API internal dan difan-out menjadi satu
 // job per device. Worker ini hanya memakai operasi OpenWA list/create: versi
 // fisik immutable dibuat sekali, diverifikasi, lalu binding aktif dipindahkan.

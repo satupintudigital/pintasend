@@ -1,6 +1,6 @@
-# Deployment OpenWA (Gateway WhatsApp Wavio)
+# Deployment OpenWA (Gateway WhatsApp PintaSend)
 
-Dokumentasi operasional server **OpenWA** yang dipakai Wavio sebagai gateway WhatsApp.
+Dokumentasi operasional server **OpenWA** yang dipakai PintaSend sebagai gateway WhatsApp.
 Terakhir diperbarui: **20 Agu 2026 — upgrade v0.18.0 → v0.22.0** (349 commit / 4 rilis).
 
 ## Ringkasan
@@ -32,13 +32,13 @@ Browser/Worker ──► https://owa.nalaniaga.id  (Cloudflare Tunnel)
               Engine: Baileys
 ```
 
-- **Wavio** (Cloudflare Workers) hanya memanggil via hostname tunnel `https://owa.nalaniaga.id` —
+- **PintaSend** (Cloudflare Workers) hanya memanggil via hostname tunnel `https://owa.nalaniaga.id` —
   Worker memblokir fetch IP mentah (error 1003). Jangan ubah `OPENWA_BASE_URL` ke IP.
 - **Database:** SQLite (`main.sqlite` + `openwa.sqlite` di volume), bukan Postgres.
 - **Storage media:** S3 (Backblaze B2, bucket `myopenwa`).
 - **Engine:** Baileys (`ENGINE_TYPE=baileys`), `AUTO_START_SESSIONS=true` (session auto-start saat boot).
 - **API key:** admin key auto-generated saat first boot, tersimpan di `/app/data/.api-key`
-  (`owa_k1_...`, 71 karakter). Digunakan Wavio sebagai `OPENWA_ADMIN_KEY`.
+  (`owa_k1_...`, 71 karakter). Digunakan PintaSend sebagai `OPENWA_ADMIN_KEY`.
 
 ## Konfigurasi (`/opt/openwa/.env`)
 
@@ -115,11 +115,11 @@ curl -s -H "X-API-Key: $KEY" https://owa.nalaniaga.id/api/sessions  # via tunnel
 - **v0.19**
   - `API_MASTER_KEY` < 32 karakter ditolak saat boot produksi (key generated 71 char = aman).
   - `POST /sessions/:id/messages/send-catalog` dan `PUT /api/settings` **dihapus** (selalu 501) —
-    Wavio tidak memakainya.
+    PintaSend tidak memakainya.
   - `/api/health` hanya menampilkan `version` untuk caller dengan API key valid.
   - Image ±900 MB lebih kecil; base image `node:22-slim` digest-pinned.
 - **v0.20**
-  - Webhook HMAC secret min 16 karakter (secret Wavio = SHA-256 hex 64 char = aman).
+  - Webhook HMAC secret min 16 karakter (secret PintaSend = SHA-256 hex 64 char = aman).
   - `WEBHOOK_SSRF_PROTECT=false` tidak lagi mengikuti redirect (butuh `WEBHOOK_SSRF_REDIRECTS=true`).
   - Install plugin dari URL wajib pin `#sha256=` saat produksi.
   - Direktori kredensial session di-`0700`; status media jadi inert download.
@@ -141,5 +141,5 @@ curl -s -H "X-API-Key: $KEY" https://owa.nalaniaga.id/api/sessions  # via tunnel
   firewall-cmd --permanent --remove-port=2785/tcp && firewall-cmd --reload # TUTUP
   ```
 - Admin key hanya ada di `/app/data/.api-key` (jangan dibagikan; backup volume mencakupnya).
-- Webhook ke Wavio diverifikasi HMAC (`x-openwa-signature`) — secret diturunkan deterministik
-  dari `OPENWA_WEBHOOK_SECRET` + sessionId (lihat `wavio/src/lib/openwa.ts`).
+- Webhook ke PintaSend diverifikasi HMAC (`x-openwa-signature`) — secret diturunkan deterministik
+  dari `OPENWA_WEBHOOK_SECRET` + sessionId (lihat `pintasend/src/lib/openwa.ts`).

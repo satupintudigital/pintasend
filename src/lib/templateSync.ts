@@ -140,7 +140,7 @@ export function createTemplateSyncDb(): TemplateIngestDb {
         const source = Object.keys(create).length ? create : update;
         await query(
           'INSERT INTO "TenantWhatsAppTemplateSyncJob" (id, "tenantId", "templateId", "deviceId", "canonicalVersion", checksum, status, "attempts", "nextAttemptAt", "createdAt", "updatedAt")\n' +
-            "VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, 0, $8, now(), now())\n" +
+            "VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, 0, $7, now(), now())\n" +
             'ON CONFLICT ("deviceId", "templateId", "canonicalVersion", checksum) DO UPDATE SET status = EXCLUDED.status, "lastError" = NULL, "nextAttemptAt" = EXCLUDED."nextAttemptAt", "updatedAt" = now()',
           [source.tenantId, source.templateId, source.deviceId, source.canonicalVersion, source.checksum, source.status, source.nextAttemptAt],
         );

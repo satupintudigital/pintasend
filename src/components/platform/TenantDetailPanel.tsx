@@ -524,7 +524,7 @@ export function TenantDetailPanel({ tenantId, initial }: TenantDetailPanelProps)
             </p>
             <p className="mt-1 max-w-[52ch] text-sm leading-relaxed text-fg-muted">
               Footnote iklan platform otomatis ditambahkan di akhir setiap pesan
-              keluar melalui Wavio (teks maupun caption media) — media promosi
+              keluar melalui PintaSend (teks maupun caption media) — media promosi
               kami. Dengan addon ini, footnote dihapus dari semua pesan tenant.
             </p>
           </div>

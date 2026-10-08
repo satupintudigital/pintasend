@@ -4,7 +4,7 @@ import { verifyConnectToken, authenticateConnect, INTEGRATION_KEY_LABEL } from "
 const claims = {
   storeId: "store-1",
   storeName: "Toko A",
-  callbackUrl: "https://x.nalaniaga.id/api/webhooks/wavio/callback",
+  callbackUrl: "https://x.nalaniaga.id/api/webhooks/pintasend/callback",
   webhookUrl: "https://x.nalaniaga.id/api/webhooks/whatsapp",
   jti: "jti-1",
 };

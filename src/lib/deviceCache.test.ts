@@ -28,7 +28,7 @@ const fakeKv = {
 // Mock cf.getBinding agar deviceCache memakai fakeKv.
 vi.mock("@/lib/cf", () => ({
   getBinding: vi.fn(async (name: string) => {
-    if (name === "WAVIO_CACHE") return fakeKv;
+    if (name === "PINTSEND_CACHE") return fakeKv;
     throw new Error(`binding ${name} tidak ada`);
   }),
 }));

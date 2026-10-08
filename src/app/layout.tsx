@@ -23,23 +23,24 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://wavio.satupintudigital.co.id"),
-  title: "Wavio — WhatsApp API Gateway untuk Bisnis",
+  metadataBase: new URL("https://pintasend.satupintudigital.co.id"),
+  title: "PintaSend — AI Gateway Multi-Kanal untuk Bisnis",
   description:
-    "Sambungkan nomor WhatsApp, kirim notifikasi transaksi, dan balas pelanggan lewat satu API Wavio.",
+    "Satu platform untuk WhatsApp, Telegram Bot, dan SMS — kirim pesan, dan biarkan AI menjawab pelanggan 24/7 lewat API PintaSend.",
   keywords: [
+    "AI Gateway Multi-Kanal",
     "WhatsApp API",
-    "WhatsApp gateway",
+    "Telegram Bot",
     "notifikasi transaksi",
     "webhook WhatsApp",
     "API Indonesia",
   ],
   openGraph: {
-    title: "Wavio — WhatsApp API Gateway untuk Bisnis",
+    title: "PintaSend — AI Gateway Multi-Kanal untuk Bisnis",
     description:
-      "Kirim pesan WhatsApp, semudah memanggil API. Sambungkan nomor bisnismu dan kirim notifikasi dalam hitungan menit.",
-    url: "https://wavio.satupintudigital.co.id",
-    siteName: "Wavio",
+      "Kirim pesan multi-kanal lewat satu API, dan biarkan AI menjawab pelanggan 24/7. Sambungkan nomor bisnismu dalam hitungan menit.",
+    url: "https://pintasend.satupintudigital.co.id",
+    siteName: "PintaSend",
     locale: "id_ID",
     type: "website",
     images: [
@@ -47,15 +48,15 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "Wavio — WhatsApp API Gateway untuk Bisnis",
+        alt: "PintaSend — AI Gateway Multi-Kanal untuk Bisnis",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Wavio — WhatsApp API Gateway untuk Bisnis",
+    title: "PintaSend — AI Gateway Multi-Kanal untuk Bisnis",
     description:
-      "Kirim pesan WhatsApp, semudah memanggil API. Sambungkan nomor bisnismu dan kirim notifikasi dalam hitungan menit.",
+      "Kirim pesan multi-kanal lewat satu API, dan biarkan AI menjawab pelanggan 24/7. Sambungkan nomor bisnismu dalam hitungan menit.",
     images: ["/og.png"],
   },
 };

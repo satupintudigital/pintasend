@@ -1,13 +1,13 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "d1-resync-wavio",
+  "name": "d1-resync-pintasend",
   "main": "worker.js",
   "compatibility_date": "2026-08-17",
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
     {
-      "binding": "WAVIO_AUTH_DB",
-      "database_name": "wavio-auth",
+      "binding": "PINTSEND_AUTH_DB",
+      "database_name": "pintasend-auth",
       "database_id": "4cd78c5b-64d3-49e4-9ee2-7b112e7b4124"
     }
   ],

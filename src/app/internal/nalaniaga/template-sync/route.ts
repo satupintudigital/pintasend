@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Header sinkronisasi tidak lengkap" }, { status: 401 });
   }
 
-  const secret = process.env.WAVIO_TEMPLATE_SYNC_SECRET ?? process.env.WAVIO_SSO_SECRET ?? "";
+  const secret = process.env.PINTASEND_TEMPLATE_SYNC_SECRET ?? process.env.PINTSEND_TEMPLATE_SYNC_SECRET ?? process.env.PINTSEND_SSO_SECRET ?? "";
   if (!(await verifyTemplateSyncAuth(secret, timestamp, signature, raw))) {
     return Response.json({ error: "Signature tidak valid" }, { status: 401 });
   }
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Body harus berupa JSON" }, { status: 400 });
   }
 
-  const kv = await getBinding<NonceStore>("WAVIO_CACHE");
+  const kv = await getBinding<NonceStore>("PINTSEND_CACHE");
   const nonceKey = `template-sync:${nonce}`;
   if (await kv.get(nonceKey)) {
     return Response.json({ error: "Request sudah pernah diproses" }, { status: 409 });

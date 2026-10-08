@@ -64,7 +64,7 @@ Add support for running two OpenWA engines simultaneously (Baileys + whatsapp-we
 | 4.1 | Create `docker-compose.webjs.yml` for second instance | M |
 | 4.2 | Update production docker-compose with both instances | M |
 | 4.3 | Deploy second OpenWA instance to server | S |
-| 4.4 | Update Wavio environment variables | S |
+| 4.4 | Update PintaSend environment variables | S |
 | 4.5 | Test both instances running simultaneously | S |
 | 4.6 | Monitor memory usage and optimize | M |
 
@@ -127,7 +127,7 @@ Add support for running two OpenWA engines simultaneously (Baileys + whatsapp-we
 If issues arise:
 
 1. **Stop webjs instance:** `docker stop openwa-webjs`
-2. **Revert Wavio config:** Remove webjs endpoint vars
+2. **Revert PintaSend config:** Remove webjs endpoint vars
 3. **Redeploy:** `npm run deploy`
 4. **All devices stay on Baileys** (no data loss)
 

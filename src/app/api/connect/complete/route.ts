@@ -32,7 +32,7 @@ export async function POST(req: Request) {
   const kv = await getBinding<{
     get(k: string): Promise<string | null>;
     put(k: string, v: string, opts?: { expirationTtl?: number }): Promise<void>;
-  }>("WAVIO_CACHE");
+  }>("PINTSEND_CACHE");
   const doneKey = `connect:complete:${claims.jti}`;
   const cached = await kv.get(doneKey).catch(() => null);
   if (cached) {
@@ -114,7 +114,7 @@ export async function POST(req: Request) {
       {
         ...result,
         error:
-          "Koneksi tersimpan di Wavio, tapi pemberitahuan ke NalaNiaga gagal. Silakan coba ulang dari NalaNiaga.",
+          "Koneksi tersimpan di PintaSend, tapi pemberitahuan ke NalaNiaga gagal. Silakan coba ulang dari NalaNiaga.",
       },
       { status: 502 },
     );

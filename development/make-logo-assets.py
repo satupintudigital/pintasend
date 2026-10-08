@@ -1,16 +1,15 @@
-"""Generate display assets from development/logo-wavio.png.
+"""Generate display assets from the canonical PintaSend masters in
+`development/` (repo root).
 
-The original logo has transparent background, a bright cyan-blue icon
-(speech bubble + chart), and the wordmark "Wavio" in dark navy — designed for
-a light surface. The Wavio site is dark (#09090b), so this script:
+Masters (never edited here, brand colors are immutable):
+  - logo-pintasend-ai-clean.png  → light-surface wordmark (navy text) → public/pintasend.png
+  - logo-pintasend-dark.png      → dark-surface wordmark (light text) → used in og.png
+  - logo-pintasend-mark.png      → square mark → src/app/favicon.ico
 
-  1. Recolors the navy wordmark to the site's text color (#f4f4f5),
-     keeping the blue icon untouched  → public/logo-wavio.png
-  2. Crops the icon mark, squares it, and writes it as the favicon
-     (src/app/favicon.ico) so the browser tab matches the new brand.
-
-Discriminator: icon pixels are cyan-dominant (R < 0.45 * G), the wordmark
-is navy (R >= 0.45 * G).
+Outputs:
+  1. public/pintasend.png — wordmark for the light dashboard/nav surface.
+  2. src/app/favicon.ico  — multi-size ICO cropped from the mark.
+  3. public/og.png        — 1200x630 OpenGraph card with the light wordmark.
 """
 
 from pathlib import Path
@@ -18,68 +17,39 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "development" / "logo-wavio.png"
-OUT_LOGO = ROOT / "public" / "logo-wavio.png"
+REPO = ROOT.parent
+MASTERS = REPO / "development"
+
+SRC_LIGHT = MASTERS / "logo-pintasend-ai-clean.png"
+SRC_DARK = MASTERS / "logo-pintasend-dark.png"
+SRC_MARK = MASTERS / "logo-pintasend-mark.png"
+
+OUT_LOGO = ROOT / "public" / "pintasend.png"
 OUT_ICO = ROOT / "src" / "app" / "favicon.ico"
 OUT_OG = ROOT / "public" / "og.png"
 
-LIGHT = (244, 244, 245)  # --color-fg
-LOGO_WIDTH = 720
-
-
-def is_icon_px(r, g, b):
-    """Cyan/blue icon pixels vs navy wordmark pixels."""
-    return g > 0 and r < 0.45 * g
+LOGO_WIDTH = 1000
+ICO_SIZES = [(16, 16), (32, 32), (48, 48), (64, 64)]
 
 
 def main():
-    im = Image.open(SRC).convert("RGBA")
-    w, h = im.size
-    px = im.load()
-
-    # Recolor navy wordmark → light, keep everything else.
-    for y in range(h):
-        for x in range(w):
-            r, g, b, a = px[x, y]
-            if a > 0 and not is_icon_px(r, g, b):
-                px[x, y] = (*LIGHT, a)
-
-    # Downscale for the web (still 3x+ retina at nav sizes).
-    logo = im.resize(
-        (LOGO_WIDTH, round(h * LOGO_WIDTH / w)), Image.LANCZOS
-    )
     OUT_LOGO.parent.mkdir(parents=True, exist_ok=True)
+    OUT_ICO.parent.mkdir(parents=True, exist_ok=True)
+
+    light = Image.open(SRC_LIGHT).convert("RGBA")
+    logo = light.resize(
+        (LOGO_WIDTH, round(light.size[1] * LOGO_WIDTH / light.size[0])), Image.LANCZOS
+    )
     logo.save(OUT_LOGO, optimize=True)
     print("wrote", OUT_LOGO, logo.size)
 
-    # Favicon: tight-crop the icon mark, pad to a square, save multi-size ICO.
-    icon_pts = [
-        (x, y)
-        for y in range(h)
-        for x in range(w)
-        if px[x, y][3] > 40 and is_icon_px(*px[x, y][:3])
-    ]
-    if not icon_pts:
-        raise SystemExit("no icon pixels found")
-    xs = [p[0] for p in icon_pts]
-    ys = [p[1] for p in icon_pts]
-    left, right, top, bottom = min(xs), max(xs), min(ys), max(ys)
-    bw, bh = right - left + 1, bottom - top + 1
-    # Pad to square symmetrically.
-    size = max(bw, bh)
-    cx, cy = (left + right) / 2, (top + bottom) / 2
-    x0 = max(0, round(cx - size / 2))
-    y0 = max(0, round(cy - size / 2))
-    x1 = min(w, x0 + size)
-    y1 = min(h, y0 + size)
-    x0 = max(0, x1 - size)
-    y0 = max(0, y1 - size)
-    mark = im.crop((x0, y0, x1, y1)).resize((256, 256), Image.LANCZOS)
-    OUT_ICO.parent.mkdir(parents=True, exist_ok=True)
-    mark.save(OUT_ICO, sizes=[(16, 16), (32, 32), (48, 48), (64, 64)])
-    print("wrote", OUT_ICO)
+    mark = Image.open(SRC_MARK).convert("RGBA")
+    mark.thumbnail((64, 64), Image.LANCZOS)
+    mark.save(OUT_ICO, format="ICO", sizes=ICO_SIZES)
+    print("wrote", OUT_ICO, mark.size)
 
-    make_og(logo)
+    dark = Image.open(SRC_DARK).convert("RGBA")
+    make_og(dark)
 
 
 def make_og(logo: Image.Image):
@@ -111,9 +81,8 @@ def make_og(logo: Image.Image):
     for x in range(200, W, 200):
         d.line([(x, 0), (x, H)], fill=(255, 255, 255, 12))
 
-    # Logo lockup: asli (bukan varian light) — teks navy tetap terbaca di sini
-    # karena kita pasang di permukaan terang? Tidak: bg gelap, jadi pakai varian light.
-    lw = 168
+    # Logo lockup: varian light (wordmark putih) karena surface OG gelap.
+    lw = 240
     lh = round(lw * logo.size[1] / logo.size[0])
     mark = logo.resize((lw, lh), Image.LANCZOS)
     img.paste(mark, (96, 92), mark)
@@ -124,13 +93,13 @@ def make_og(logo: Image.Image):
                 return ImageFont.truetype(str(cand), size)
         return ImageFont.load_default()
 
-    fb = font("arialbd.ttf", 64)
-    fr = font("arial.ttf", 30)
-    d.text((96, 290), "Kirim pesan WhatsApp,", font=fb, fill=(244, 244, 245))
-    d.text((96, 366), "semudah memanggil API.", font=fb, fill=(34, 211, 238))
+    fb = font("arialbd.ttf", 60)
+    fr = font("arial.ttf", 28)
+    d.text((96, 300), "Satu platform pesan,", font=fb, fill=(244, 244, 245))
+    d.text((96, 374), "satu API untuk bisnis.", font=fb, fill=(34, 211, 238))
     d.text(
-        (96, 452),
-        "WhatsApp API Gateway untuk bisnis Indonesia — notifikasi, webhook, dan inbox dua arah.",
+        (96, 456),
+        "AI Gateway multi-kanal (WhatsApp, Telegram Bot, SMS) — AI menjawab pelanggan 24/7.",
         font=fr,
         fill=(161, 161, 170),
     )

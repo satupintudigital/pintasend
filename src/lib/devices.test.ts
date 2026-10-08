@@ -26,7 +26,7 @@ vi.mock("./openwa", () => ({
   ],
 }));
 
-const URL = "https://wavio.satupintudigital.co.id/api/webhooks/openwa";
+const URL = "https://pintasend.satupintudigital.co.id/api/webhooks/openwa";
 const device = { id: "dev1", openwaSessionId: "owa-1", openwaWebhookId: "wh1" };
 
 function wh(over: Partial<{ id: string; url: string; events: string[] }> = {}) {
@@ -42,6 +42,7 @@ function wh(over: Partial<{ id: string; url: string; events: string[] }> = {}) {
 }
 
 beforeEach(() => {
+  delete process.env.PINTSEND_PUBLIC_BASE_URL;
   vi.clearAllMocks();
   vi.mocked(openwaWebhookSecret).mockResolvedValue("secret-123");
   vi.mocked(query).mockResolvedValue([]);
@@ -113,7 +114,7 @@ describe("ensureDeviceWebhookEvents", () => {
     );
   });
 
-  it("tidak ada webhook Wavio → register baru & simpan id", async () => {
+  it("tidak ada webhook PintaSend → register baru & simpan id", async () => {
     vi.mocked(openwa.listWebhooks).mockResolvedValue([]);
     vi.mocked(openwa.registerWebhook).mockResolvedValue(wh({ id: "wh-created" }));
 

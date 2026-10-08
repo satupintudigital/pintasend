@@ -38,7 +38,7 @@ describe("POST /v1/chats/read", () => {
   it("delegasi chatId + messageIds + deviceId + X-Request-Id echo", async () => {
     const res = await post(
       { chatId: "081234567890", messageIds: ["true_1_ABC"], deviceId: "dev9" },
-      { "x-request-id": "req-r-1", authorization: "Bearer wavio_abc" },
+      { "x-request-id": "req-r-1", authorization: "Bearer pintasend_abc" },
     );
 
     expect(res.status).toBe(200);

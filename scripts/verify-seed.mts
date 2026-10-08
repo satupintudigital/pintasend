@@ -1,8 +1,8 @@
-// Verifikasi E2E seed template — menjalankan KODE WAVIO ASLI (bukan curl)
+// Verifikasi E2E seed template — menjalankan KODE PINTSEND ASLI (bukan curl)
 // terhadap OpenWA live: seedTemplatesForSession → listTemplates → sendTemplate.
 //
 // Catatan: endpoint templates OpenWA menerima sessionId berupa UUID (bukan nama
-// session) — Wavio menyimpan UUID di Device.openwaSessionId, jadi di produksi
+// session) — PintaSend menyimpan UUID di Device.openwaSessionId, jadi di produksi
 // selalu UUID. Script ini menerima UUID session.
 //
 // Guna: npx tsx scripts/verify-seed.mts <sessionUuid> [nomorTujuanUji]
@@ -36,12 +36,12 @@ async function main() {
   }
   console.log("      ✓ Semua template ada.");
 
-  // Verifikasi placeholder ter-parse sama di kedua sisi (server vs lib Wavio).
-  console.log("[3/4] Bandingkan body template server vs katalog Wavio...");
+  // Verifikasi placeholder ter-parse sama di kedua sisi (server vs lib PintaSend).
+  console.log("[3/4] Bandingkan body template server vs katalog PintaSend...");
   for (const t of NALA_TEMPLATES) {
     const server = templates.find((x) => x.name === t.name);
     if (!server || server.body !== t.body) {
-      console.error(`      ✗ body "${t.name}" berbeda server vs Wavio.`);
+      console.error(`      ✗ body "${t.name}" berbeda server vs PintaSend.`);
       process.exit(1);
     }
   }

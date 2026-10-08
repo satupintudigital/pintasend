@@ -8,18 +8,30 @@ async function main() {
   await client.connect();
 
   const tenantId = "00000000-0000-7000-8000-000000000001";
-  const passwordHash = bcrypt.hashSync("admin123", 10);
+
+  // Password superadmin + demo (digunakan untuk semua akun seed)
+  const superadminPasswordHash = bcrypt.hashSync("admin123", 10);
+  const demoPasswordHash = bcrypt.hashSync("demo123", 10);
 
   await client.query(
     'INSERT INTO "Tenant" (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
-    [tenantId, "Wavio Demo"],
+    [tenantId, "PintaSend Demo"],
   );
 
+  // ─── Owner / Demo Tenant ──────────────────────────────────────────────────
   await client.query(
     'INSERT INTO "User" (id, "tenantId", email, name, "passwordHash", role) ' +
       "VALUES ($1, $2, $3, $4, $5, $6) " +
       'ON CONFLICT (email) DO NOTHING',
-    [uuidv7(), tenantId, "owner@wavio.test", "Owner Wavio", passwordHash, "owner"],
+    [uuidv7(), tenantId, "owner@pintasend.test", "Owner PintaSend", superadminPasswordHash, "owner"],
+  );
+
+  // ─── Demo Account (untuk pengujian) ──────────────────────────────────────
+  await client.query(
+    'INSERT INTO "User" (id, "tenantId", email, name, "passwordHash", role) ' +
+      "VALUES ($1, $2, $3, $4, $5, $6) " +
+      'ON CONFLICT (email) DO NOTHING',
+    [uuidv7(), tenantId, "demo@pintasend.test", "Demo User", demoPasswordHash, "member"],
   );
 
   // Plan (id statis agar seed idempoten). Espresso = prepaid (per pesan).
@@ -52,11 +64,11 @@ async function main() {
   const platformTenantId = "00000000-0000-7000-8000-000000000002";
   await client.query(
     'INSERT INTO "Tenant" (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
-    [platformTenantId, "Wavio Platform"],
+    [platformTenantId, "PintaSend Platform"],
   );
   await client.query(
     'INSERT INTO "User" (id, "tenantId", email, name, "passwordHash", role) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (email) DO NOTHING',
-    [uuidv7(), platformTenantId, "platform@wavio.test", "Platform Admin", passwordHash, "platform_admin"],
+    [uuidv7(), platformTenantId, "platform@pintasend.test", "Platform Admin", superadminPasswordHash, "platform_admin"],
   );
 
   // Demo tenant diberi plan Latte.
@@ -66,7 +78,10 @@ async function main() {
   );
 
   await client.end();
-  console.log("Seed selesai: owner@wavio.test / admin123");
+  console.log("Seed selesai:");
+  console.log("  Superadmin (platform): platform@pintasend.test / admin123");
+  console.log("  Owner/Demo tenant:    owner@pintasend.test / admin123");
+  console.log("  Demo user:            demo@pintasend.test / demo123");
   // Catatan: D1 di-seed terpisah via wrangler (prisma/d1-seed.sql) karena
   // binding D1 hanya ada di runtime Worker. Pastikan passwordHash D1 = Neon
   // (keduanya hash bcrypt dari password yang sama → bcrypt.compare valid).

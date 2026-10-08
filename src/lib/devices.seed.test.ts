@@ -44,7 +44,7 @@ beforeEach(() => {
   seedTemplatesMock.mockReset();
   enqueueCanonicalTemplatesMock.mockReset();
 
-  createSessionMock.mockResolvedValue({ id: "sess-abc", name: "wavio-abc", status: "created" });
+  createSessionMock.mockResolvedValue({ id: "sess-abc", name: "pintasend-abc", status: "created" });
   registerWebhookMock.mockResolvedValue({ id: "wh-1", url: "http://x", events: [], active: true });
   seedTemplatesMock.mockResolvedValue(undefined);
   enqueueCanonicalTemplatesMock.mockResolvedValue({ templates: 0, jobs: 0 });

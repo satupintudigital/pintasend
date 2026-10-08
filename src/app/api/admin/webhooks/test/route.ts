@@ -21,7 +21,7 @@ function requireMemberManager(session: SessionLike | null): Response | null {
 }
 
 // Kirim event uji sintetis (message.received) ke URL webhook milik client —
-// memakai jalur delivery yang sama dengan produksi (envelope + x-wavio-signature).
+// memakai jalur delivery yang sama dengan produksi (envelope + x-pintasend-signature).
 export async function POST(req: Request) {
   const session = await auth();
   const denied = requireMemberManager(session);
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
       chatId: "6281234567890@c.us",
       from: "6281234567890@c.us",
       to: "6289876543210@c.us",
-      body: "✅ Ini pesan uji dari Wavio — pastikan endpoint-mu menerima webhook.",
+      body: "✅ Ini pesan uji dari PintaSend — pastikan endpoint-mu menerima webhook.",
       type: "text",
       direction: "incoming",
       status: "delivered",
@@ -70,9 +70,9 @@ export async function POST(req: Request) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": "Wavio-Webhook/1.0",
-        "x-wavio-signature": signature,
-        "x-wavio-event": "message.received",
+        "User-Agent": "PintaSend-Webhook/1.0",
+        "x-pintasend-signature": signature,
+        "x-pintasend-event": "message.received",
       },
       body,
       signal: AbortSignal.timeout(10_000),

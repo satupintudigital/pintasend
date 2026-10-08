@@ -26,7 +26,7 @@
 
 ### ✅ Messages — Working
 
-| Feature | Endpoint | Wavio Service | Wavio Route | Status |
+| Feature | Endpoint | PintaSend Service | PintaSend Route | Status |
 |---------|----------|---------------|-------------|--------|
 | Edit Message | `POST /messages/edit` | `editMessage.ts` | `/v1/messages/edit` | ⚠️ 404 on Baileys |
 | Delete Message | `POST /messages/delete` | `deleteMessage.ts` | `/v1/messages/delete` | ⚠️ 404 on Baileys |
@@ -39,7 +39,7 @@
 
 ### ✅ Chats — All Working
 
-| Feature | Endpoint | Wavio Service | Wavio Route | Status |
+| Feature | Endpoint | PintaSend Service | PintaSend Route | Status |
 |---------|----------|---------------|-------------|--------|
 | List Chats | `GET /chats` | `listChats.ts` | `/v1/chats` | ✅ Works (with `kind` field) |
 | Archive Chat | `POST /chats/archive` | `archiveChat.ts` | `/v1/chats/archive` | ✅ Works |
@@ -51,7 +51,7 @@
 
 ### ⚠️ Labels — Engine Limited (whatsapp-web.js only)
 
-| Feature | Endpoint | Wavio Service | Wavio Route | Status |
+| Feature | Endpoint | PintaSend Service | PintaSend Route | Status |
 |---------|----------|---------------|-------------|--------|
 | List Labels | `GET /labels` | `labels.ts` | `/v1/labels` | ⚠️ 501 on Baileys |
 | Create Label | `POST /labels` | `labels.ts` | `/v1/labels` | ⚠️ 501 on Baileys |
@@ -61,11 +61,11 @@
 | Remove Chat | `DELETE /labels/:id/chats/:chatId` | `labels.ts` | `/v1/labels/:id/chats/:chatId` | ⚠️ 501 on Baileys |
 | Bulk Add | `POST /labels/:id/chats/bulk` | `labels.ts` | `/v1/labels/:id/chats/bulk` | ⚠️ 501 on Baileys |
 
-**Note:** Wavio's local label system (Neon DB) works independently of OpenWA engine support.
+**Note:** PintaSend's local label system (Neon DB) works independently of OpenWA engine support.
 
 ### ✅ Session Config — All Working
 
-| Feature | Endpoint | Wavio Service | Wavio Route | Status |
+| Feature | Endpoint | PintaSend Service | PintaSend Route | Status |
 |---------|----------|---------------|-------------|--------|
 | Get Config | `GET /config` | `deviceConfig.ts` | `/v1/devices/:id/config` | ✅ Works |
 | Patch Config | `PATCH /config` | `deviceConfig.ts` | `/v1/devices/:id/config` | ✅ Works |
@@ -78,7 +78,7 @@
 
 ### ⚠️ Profile — Engine Limited (whatsapp-web.js only)
 
-| Feature | Endpoint | Wavio Service | Wavio Route | Status |
+| Feature | Endpoint | PintaSend Service | PintaSend Route | Status |
 |---------|----------|---------------|-------------|--------|
 | Get Profile | `GET /profile` | `profile.ts` | `/v1/devices/:id/profile` | ⚠️ 404 on Baileys |
 | Patch Profile | `PATCH /profile` | `profile.ts` | `/v1/devices/:id/profile` | ⚠️ 404 on Baileys |
@@ -88,7 +88,7 @@
 
 ### ✅ Presence — All Working
 
-| Feature | Endpoint | Wavio Service | Wavio Route | Status |
+| Feature | Endpoint | PintaSend Service | PintaSend Route | Status |
 |---------|----------|---------------|-------------|--------|
 | Set Own Presence | `PUT /presence` | `presence.ts` | `/v1/devices/:id/presence` | ✅ Works |
 | Subscribe Presence | `POST /presence/subscribe` | `presence.ts` | `/v1/devices/:id/presence/subscribe` | ✅ Works |
@@ -96,7 +96,7 @@
 
 ### ⚠️ Channels — Engine Limited (whatsapp-web.js only)
 
-| Feature | Endpoint | Wavio Service | Wavio Route | Status |
+| Feature | Endpoint | PintaSend Service | PintaSend Route | Status |
 |---------|----------|---------------|-------------|--------|
 | List Channels | `GET /channels` | `channels.ts` | `/v1/devices/:id/channels` | ⚠️ 501 on Baileys |
 | Create Channel | `POST /channels` | `channels.ts` | `/v1/devices/:id/channels` | ⚠️ 501 on Baileys |
@@ -153,7 +153,7 @@ The current session uses **Baileys** engine. Features requiring **whatsapp-web.j
 
 1. **For Labels/Channels/Profile:** Switch session engine to `whatsapp-web.js` in OpenWA config
 2. **For Edit/Reactions:** These are Baileys limitations; consider requesting feature support
-3. **Wavio's local labels work regardless** — the Neon DB label system is independent of OpenWA
+3. **PintaSend's local labels work regardless** — the Neon DB label system is independent of OpenWA
 4. **All working features are production-ready** — tested against live server
 
 ---

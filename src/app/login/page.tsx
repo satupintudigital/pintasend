@@ -14,10 +14,10 @@ const fieldClass =
 
 // Turnstile: sitekey publik (aman di-bundle), secret hanya di worker siteverify.
 const TURNSTILE_SITEKEY =
-  process.env.NEXT_PUBLIC_TURNSTILE_SITEKEY ?? "0x4AAAAAAESpUhXE0d_l2Z_l";
+  process.env.NEXT_PUBLIC_TURNSTILE_SITEKEY ?? "0x4AAAAAAFL5kIt9LyLYzzNK";
 const TURNSTILE_SITEVERIFY_URL =
   process.env.NEXT_PUBLIC_TURNSTILE_SITEVERIFY_URL ??
-  "https://turnstile-siteverify-wavio.xolution.workers.dev";
+  "https://turnstile-siteverify-pintasend.satupintudigital.workers.dev";
 
 declare global {
   interface Window {
@@ -66,7 +66,7 @@ function BrandPanel() {
         className="bk-enter font-mono text-xs uppercase tracking-[0.2em] text-accent-bright"
         style={{ animationDelay: "0ms" }}
       >
-        WhatsApp API Gateway
+        AI Gateway Multi-Kanal
       </p>
       <h2
         className="bk-enter-blur mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight xl:text-5xl"
@@ -101,7 +101,7 @@ function BrandPanel() {
             <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
             <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
             <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-            <span className="ml-2 font-mono text-[10px] text-fg-faint">wavio.satupintudigital.co.id</span>
+            <span className="ml-2 font-mono text-[10px] text-fg-faint">pintasend.satupintudigital.co.id</span>
           </div>
           <pre className="overflow-x-auto p-4 font-mono text-xs leading-relaxed">
             <code>
@@ -147,7 +147,10 @@ function LoginForm() {
         action: "turnstile-spin-v1",
         callback: (token: string) => setTurnstileToken(token),
         "expired-callback": () => setTurnstileToken(""),
-        "error-callback": () => setTurnstileToken(""),
+        "error-callback": () => {
+          setTurnstileToken("");
+          setError("Verifikasi keamanan gagal dimuat. Silakan muat ulang halaman.");
+        },
       });
       return true;
     };
@@ -183,8 +186,6 @@ function LoginForm() {
     e.preventDefault();
     setError("");
 
-    // Gate: verifikasi Turnstile dulu — jika belum/gagal, jangan lanjut ke login.
-    // Fallback ke getResponse() jika callback belum sempat menyimpan state.
     const token =
       turnstileToken ||
       (turnstileRef.current && window.turnstile
@@ -202,7 +203,6 @@ function LoginForm() {
       setError("Verifikasi keamanan gagal. Coba lagi.");
       return;
     }
-
     setLoading(true);
     try {
       const res = await signIn("credentials", { email, password, redirect: false });
@@ -217,7 +217,11 @@ function LoginForm() {
         else setError("Email atau password salah");
         return;
       }
-      const rawCb = searchParams.get("callbackUrl") || "/dashboard";
+      const role = (res as unknown as { user?: { role?: string } }).user?.role;
+      const isPlatformAdmin = role === "platform_admin";
+      const rawCb =
+        searchParams.get("callbackUrl") ||
+        (isPlatformAdmin ? "/platform" : "/dashboard");
       const safe = rawCb.startsWith("/") && !rawCb.startsWith("//") ? rawCb : "/dashboard";
       router.push(safe);
       router.refresh();
@@ -232,7 +236,7 @@ function LoginForm() {
     <div className="mx-auto w-full max-w-md">
       {/* Brand compact — mobile */}
       <div className="mb-10 text-center lg:hidden">
-        <Logo className="h-9" />
+        <Logo />
         <h1 className="bk-enter-blur mt-6 font-display text-2xl font-semibold tracking-tight">
           Masuk ke dashboard
         </h1>
@@ -332,7 +336,7 @@ function LoginForm() {
           <Lock size={13} className="text-accent-bright" />
           Akun demo
         </p>
-        <p className="mt-1.5 font-mono text-fg-muted">owner@wavio.test / admin123</p>
+        <p className="mt-1.5 font-mono text-fg-muted">owner@pintasend.test / admin123</p>
       </div>
     </div>
   );

@@ -126,7 +126,7 @@ describe("createOrder", () => {
         { type: "addon", refId: "random_delay", name: "Random delay", quantity: 1, unitPrice: 25000 },
       ],
       payMethod: "BRIVA0",
-      returnUrl: "https://wavio.test/checkout",
+      returnUrl: "https://pintasend.test/checkout",
     });
 
     expect(order.amount).toBe(525000); // 150000 + 350000 + 25000
@@ -153,7 +153,7 @@ describe("createOrder", () => {
       creditMessages: 100,
       items: [{ type: "credit", name: "Top-up 100 pesan", quantity: 100, unitPrice: 1 }], // harga client diabaikan
       payMethod: "QRIS2",
-      returnUrl: "https://wavio.test/checkout",
+      returnUrl: "https://pintasend.test/checkout",
     });
 
     expect(order.amount).toBe(40000); // 100 × 400
@@ -172,7 +172,7 @@ describe("createOrder", () => {
       planId: "plan-latte",
       items: [{ type: "plan", refId: "plan-latte", name: "Paket Latte", quantity: 1, unitPrice: 150000 }],
       payMethod: "BRIVA0",
-      returnUrl: "https://wavio.test/checkout",
+      returnUrl: "https://pintasend.test/checkout",
     });
 
     expect(order.id).toBe("ord-lama");
@@ -193,7 +193,7 @@ describe("createOrder", () => {
       planId: "plan-latte",
       items: [{ type: "plan", refId: "plan-latte", name: "Paket Latte", quantity: 1, unitPrice: 150000 }],
       payMethod: "BRIVA0",
-      returnUrl: "https://wavio.test/checkout",
+      returnUrl: "https://pintasend.test/checkout",
       skipGateway: false,
     });
 
@@ -218,7 +218,7 @@ describe("createOrder", () => {
       planId: "plan-latte",
       items: [{ type: "plan", refId: "plan-latte", name: "Paket Latte", quantity: 1, unitPrice: 150000 }],
       payMethod: "BRIVA0",
-      returnUrl: "https://wavio.test/checkout",
+      returnUrl: "https://pintasend.test/checkout",
       skipGateway: true,
     });
 
@@ -236,7 +236,7 @@ describe("createOrder", () => {
         planId: "plan-espresso",
         items: [{ type: "plan", refId: "plan-espresso", name: "Espresso", quantity: 1, unitPrice: 0 }],
         payMethod: "BRIVA0",
-        returnUrl: "https://wavio.test/checkout",
+        returnUrl: "https://pintasend.test/checkout",
       }),
     ).rejects.toThrow();
   });
@@ -255,7 +255,7 @@ describe("createOrder", () => {
       creditMessages: 100,
       items: [{ type: "credit", name: "Top-up 100 pesan", quantity: 100, unitPrice: 400 }],
       payMethod: "QRIS2",
-      returnUrl: "https://wavio.test/checkout",
+      returnUrl: "https://pintasend.test/checkout",
     });
 
     expect(order.planId).toBe("plan-espresso");
@@ -276,7 +276,7 @@ describe("createOrder", () => {
         creditMessages: 100,
         items: [],
         payMethod: "QRIS2",
-        returnUrl: "https://wavio.test/checkout",
+        returnUrl: "https://pintasend.test/checkout",
       }),
     ).rejects.toThrow("PLAN_INVALID");
   });

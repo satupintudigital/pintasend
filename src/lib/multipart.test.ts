@@ -24,7 +24,7 @@ const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x34,
 
 describe("parseMultipartForm", () => {
   it("parses fields + satu file biner", () => {
-    const boundary = "----WavioBoundary7MA4YWxkTrZu0gW";
+    const boundary = "----PintaSendBoundary7MA4YWxkTrZu0gW";
     const body = buildBody(boundary, [
       { headers: `Content-Disposition: form-data; name="to"`, content: new TextEncoder().encode("6281234567890") },
       { headers: `Content-Disposition: form-data; name="mediaType"`, content: new TextEncoder().encode("document") },

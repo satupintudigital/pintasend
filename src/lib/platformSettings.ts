@@ -20,7 +20,7 @@ export const PLATFORM_SETTING_KEYS: Record<string, "string" | "boolean" | "numbe
 
 /** Default bawaan bila belum pernah diset di DB. */
 export const PLATFORM_SETTING_DEFAULTS: Record<string, string | boolean | number> = {
-  platform_name: "Wavio",
+  platform_name: "PintaSend",
   watermark_footnote: "",
   allow_public_registration: false,
   message_retention_default_days: 30,

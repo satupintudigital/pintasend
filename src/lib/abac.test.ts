@@ -58,7 +58,7 @@ describe("canAccessTenant", () => {
   const ownerA = { id: "u1", email: "o@a.id", name: "O", role: "owner", tenantId: "tA" } as const;
   const memberA = { id: "u2", email: "m@a.id", name: "M", role: "member", tenantId: "tA" } as const;
   const adminB = { id: "u3", email: "b@b.id", name: "B", role: "tenant_admin", tenantId: "tB" } as const;
-  const platform = { id: "u9", email: "p@wavio.test", name: "P", role: "platform_admin", tenantId: "tP" } as const;
+  const platform = { id: "u9", email: "p@pintasend.test", name: "P", role: "platform_admin", tenantId: "tP" } as const;
 
   it("owner/member/tenant_admin hanya akses tenant sendiri", () => {
     expect(canAccessTenant(ownerA, "tA")).toBe(true);
@@ -83,7 +83,7 @@ describe("canManageTenantMembers", () => {
   const tAdminA = { id: "u2", email: "ta@a.id", name: "TA", role: "tenant_admin", tenantId: "tA" } as const;
   const memberA = { id: "u3", email: "m@a.id", name: "M", role: "member", tenantId: "tA" } as const;
   const tAdminB = { id: "u4", email: "tb@b.id", name: "TB", role: "tenant_admin", tenantId: "tB" } as const;
-  const platform = { id: "u9", email: "p@wavio.test", name: "P", role: "platform_admin", tenantId: "tP" } as const;
+  const platform = { id: "u9", email: "p@pintasend.test", name: "P", role: "platform_admin", tenantId: "tP" } as const;
 
   it("owner & tenant_admin tenant tsb boleh kelola member", () => {
     expect(canManageTenantMembers(ownerA, "tA")).toBe(true);

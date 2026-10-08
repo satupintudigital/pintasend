@@ -87,7 +87,7 @@ function orderResolved() {
 }
 
 function jsonReq(body: unknown): Request {
-  return new Request("http://wavio.test/api/billing/orders", {
+  return new Request("http://pintasend.test/api/billing/orders", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

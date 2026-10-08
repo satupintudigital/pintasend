@@ -6,7 +6,7 @@
 
 ## Overview
 
-Expose profile management, presence control, and channel support through Wavio's API and dashboard. These are lower-priority features that round out the platform's capabilities.
+Expose profile management, presence control, and channel support through PintaSend's API and dashboard. These are lower-priority features that round out the platform's capabilities.
 
 ## Part A: Profile Management
 

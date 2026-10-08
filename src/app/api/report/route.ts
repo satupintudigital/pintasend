@@ -1,6 +1,6 @@
 // POST /api/report — Formulir pelaporan konten ilegal (UGC compliance).
 // Tidak memerlukan autentikasi (form publik). Rate-limited per IP.
-// Mengirim notifikasi email ke report@wavio.id via Resend.
+// Mengirim notifikasi email ke report@pintasend.id via Resend.
 
 import { sendEmail } from "@/lib/email";
 import { checkRateLimit, clientIp, rateLimitResponse } from "@/lib/rate-limit";
@@ -88,7 +88,7 @@ export async function POST(req: Request) {
   const refId = genRefId();
   const now = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
 
-  const subject = `[WAVIO REPORT] ${CATEGORIES[category]} — ${refId}`;
+  const subject = `[PINTSEND REPORT] ${CATEGORIES[category]} — ${refId}`;
   const html = `
     <div style="font-family:system-ui,sans-serif;font-size:14px;color:#1c2430;max-width:640px;margin:0 auto">
       <h2 style="color:#0f172a;border-bottom:2px solid #0f172a;padding-bottom:8px">
@@ -104,15 +104,15 @@ export async function POST(req: Request) {
       </table>
       <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
       <p style="color:#94a3b8;font-size:11px">
-        Laporan ini dikirim otomatis via formulir publik Wavio. Tanggapi dalam ≤1×24 jam
+        Laporan ini dikirim otomatis via formulir publik PintaSend. Tanggapi dalam ≤1×24 jam
         (biasa) atau ≤4 jam (mendesak) sesuai Permenkominfo 5/2020.
       </p>
     </div>`;
 
   try {
     await sendEmail({
-      from: "Wavio Report <noreply@wavio.satupintudigital.co.id>",
-      to: "report@wavio.id",
+      from: "PintaSend Report <noreply@pintasend.satupintudigital.co.id>",
+      to: "report@pintasend.id",
       subject,
       html,
     });

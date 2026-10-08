@@ -55,7 +55,7 @@ describe("POST /v1/messages/send-bulk", () => {
         delayBetweenMessages: 3000,
         stopOnError: true,
       },
-      { "x-request-id": "req-b", authorization: "Bearer wavio_abc" },
+      { "x-request-id": "req-b", authorization: "Bearer pintasend_abc" },
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("x-request-id")).toBe("req-b");

@@ -172,7 +172,7 @@ async function runResync(env) {
   try {
     for (const spec of TABLE_SPECS) {
       try {
-        await syncTable(client, env.WAVIO_AUTH_DB, spec, stats);
+        await syncTable(client, env.PINTSEND_AUTH_DB, spec, stats);
       } catch (e) {
         stats.ok = false;
         stats.errors.push(`${spec.stat} sync: ${e?.message ?? String(e)}`);

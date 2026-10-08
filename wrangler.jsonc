@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "wavio",
+  "name": "pintasend",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-08-17",
   "compatibility_flags": ["nodejs_compat"],
@@ -10,25 +10,19 @@
   },
   "d1_databases": [
     {
-      "binding": "WAVIO_AUTH_DB",
-      "database_name": "wavio-auth",
-      "database_id": "4cd78c5b-64d3-49e4-9ee2-7b112e7b4124"
+      "binding": "PINTSEND_AUTH_DB",
+      "database_name": "pintasend-auth",
+      "database_id": "8a111083-8341-4964-9705-0b1e678d1cfa"
     }
   ],
   "kv_namespaces": [
     {
-      "binding": "WAVIO_RATE_LIMIT",
-      "id": "32a48e3a53d846bf82f6d17a1f36fd5b"
+      "binding": "PINTSEND_RATE_LIMIT",
+      "id": "403f104579334606963c8855dc589a9c"
     },
     {
-      "binding": "WAVIO_CACHE",
-      "id": "f71a138dbeba418390342d9ce4173edf"
-    }
-  ],
-  "r2_buckets": [
-    {
-      "binding": "WAVIO_MEDIA",
-      "bucket_name": "wavio-media"
+      "binding": "PINTSEND_CACHE",
+      "id": "9372e37ad8694881818e213bc9ef9637"
     }
   ],
   "workers_dev": true,
@@ -37,8 +31,8 @@
   },
   "routes": [
     {
-      "pattern": "wavio.satupintudigital.co.id/*",
-      "zone_id": "6f8aaf32330e6cd0ae3a7d6e75f29363"
+      "pattern": "pintasend.satupintudigital.co.id",
+      "custom_domain": true
     }
   ]
 }

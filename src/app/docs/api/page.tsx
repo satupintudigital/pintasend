@@ -3,9 +3,9 @@ import { Anchor, Callout, CodeBlock, EndpointTable } from "@/components/docs/pri
 import { ApiToc } from "@/components/docs/ApiToc";
 
 export const metadata: Metadata = {
-  title: "Referensi API — Wavio",
+  title: "Referensi API — PintaSend",
   description:
-    "Referensi lengkap endpoint API Wavio: base URL, autentikasi Bearer, POST /v1/messages, rate limit, dan daftar kode status.",
+    "Referensi lengkap endpoint API PintaSend: base URL, autentikasi Bearer, POST /v1/messages, rate limit, dan daftar kode status.",
 };
 
 const endpoints = [
@@ -73,7 +73,7 @@ export default function DocsApi() {
               Semua endpoint publik diakses melalui:
             </p>
             <div className="mt-3">
-              <CodeBlock lang="text" code="https://wavio.satupintudigital.co.id" />
+              <CodeBlock lang="text" code="https://pintasend.satupintudigital.co.id" />
             </div>
           </section>
 
@@ -90,7 +90,7 @@ export default function DocsApi() {
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`Authorization: Bearer wavio_2f9c8a1b4d7e0a3c5b8f1d2e4a6c7b9d`}
+                code={`Authorization: Bearer pintasend_2f9c8a1b4d7e0a3c5b8f1d2e4a6c7b9d`}
               />
             </div>
             <div className="mt-4">
@@ -109,7 +109,7 @@ export default function DocsApi() {
             <Anchor id="peran-dan-akses">Peran &amp; Akses</Anchor>
             <p className="mt-2 text-sm leading-relaxed text-fg-muted">
               Dokumen ini adalah referensi API publik <code>v1</code> (dipakai
-              integrasi via API key). Selain itu Wavio punya antarmuka dashboard
+              integrasi via API key). Selain itu PintaSend punya antarmuka dashboard
               dengan hierarki peran — guard terpusat di{" "}
               <code className="font-mono text-accent-bright">src/lib/abac.ts</code>:
             </p>
@@ -236,8 +236,8 @@ export default function DocsApi() {
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/messages \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -F "to=6281234567890" \\\\
   -F "mediaType=document" \\\\
   -F "text=Invoice #1234 terlampir" \\\\
@@ -422,8 +422,8 @@ export default function DocsApi() {
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/messages \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -H "Idempotency-Key: order-12345" \\\\
   -d '{"to":"6281234567890","text":"Pesanan #1234 sudah dikirim"}'`}
@@ -433,7 +433,7 @@ export default function DocsApi() {
               <li>
                 Respons pertama disimpan <strong>24 jam</strong>. Request berikutnya dengan
                 key yang sama + body yang sama mengembalikan respons asli (header{" "}
-                <code className="font-mono">x-wavio-idempotent-replay: true</code>){" "}
+                <code className="font-mono">x-pintasend-idempotent-replay: true</code>){" "}
                 <strong>tanpa mengirim ulang</strong> dan tanpa menghabiskan kuota.
               </li>
               <li>
@@ -497,18 +497,18 @@ export default function DocsApi() {
               <CodeBlock
                 lang="bash"
                 code={`# Status addon saat ini
-curl -X GET "https://wavio.satupintudigital.co.id/v1/addons/remove-watermark" \\\\
-  -H "Authorization: Bearer $WAVIO_KEY"
+curl -X GET "https://pintasend.satupintudigital.co.id/v1/addons/remove-watermark" \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY"
 
 # Aktifkan (hapus watermark dari pesan keluar)
-curl -X POST "https://wavio.satupintudigital.co.id/v1/addons/remove-watermark" \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+curl -X POST "https://pintasend.satupintudigital.co.id/v1/addons/remove-watermark" \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{"active": true}'
 
 # Nonaktifkan (footnote kembali aktif)
-curl -X POST "https://wavio.satupintudigital.co.id/v1/addons/remove-watermark" \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+curl -X POST "https://pintasend.satupintudigital.co.id/v1/addons/remove-watermark" \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{"active": false}'`}
               />
@@ -549,8 +549,8 @@ curl -X POST "https://wavio.satupintudigital.co.id/v1/addons/remove-watermark" \
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X GET "https://wavio.satupintudigital.co.id/v1/contacts/check/6281234567890" \\\\
-  -H "Authorization: Bearer $WAVIO_KEY"`}
+                code={`curl -X GET "https://pintasend.satupintudigital.co.id/v1/contacts/check/6281234567890" \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY"`}
               />
             </div>
             <p className="mt-2 text-sm text-fg-muted">
@@ -595,12 +595,12 @@ curl -X POST "https://wavio.satupintudigital.co.id/v1/addons/remove-watermark" \
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X GET "https://wavio.satupintudigital.co.id/v1/groups" \\\\
-  -H "Authorization: Bearer $WAVIO_KEY"
+                code={`curl -X GET "https://pintasend.satupintudigital.co.id/v1/groups" \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY"
 
 # pilih device & paginasi
-curl -X GET "https://wavio.satupintudigital.co.id/v1/groups?deviceId=01j5…&limit=20&offset=0" \\\\
-  -H "Authorization: Bearer $WAVIO_KEY"`}
+curl -X GET "https://pintasend.satupintudigital.co.id/v1/groups?deviceId=01j5…&limit=20&offset=0" \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY"`}
               />
             </div>
             <p className="mt-2 text-sm text-fg-muted">
@@ -658,8 +658,8 @@ curl -X GET "https://wavio.satupintudigital.co.id/v1/groups?deviceId=01j5…&lim
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages/send-template \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/messages/send-template \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{"to":"6281234567890","templateName":"pesanan_baru","vars":{"orderId":"1234"}}'`}
               />
@@ -672,7 +672,7 @@ curl -X GET "https://wavio.satupintudigital.co.id/v1/groups?deviceId=01j5…&lim
             <p className="mt-2 text-sm leading-relaxed text-fg-muted">
               <strong>Watermark footnote</strong> juga berlaku di jalur template: template
               standar menyimpan placeholder{" "}
-              <code className="font-mono">{"{{watermark}}"}</code> di akhir footer, dan Wavio
+              <code className="font-mono">{"{{watermark}}"}</code> di akhir footer, dan PintaSend
               otomatis mengisinya dengan footnote iklan platform (dipisah baris baru) —
               atau string kosong bila tenant punya addon{" "}
               <code className="font-mono">remove_watermark</code>. Respons sukses menyertakan{" "}
@@ -700,8 +700,8 @@ curl -X GET "https://wavio.satupintudigital.co.id/v1/groups?deviceId=01j5…&lim
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages/location \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/messages/location \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{"to":"6281234567890","latitude":-6.2088,"longitude":106.8456,"description":"Toko kami","address":"Jl. Sudirman 1"}'`}
               />
@@ -723,8 +723,8 @@ curl -X GET "https://wavio.satupintudigital.co.id/v1/groups?deviceId=01j5…&lim
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages/contact \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/messages/contact \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{"to":"6281234567890","contactName":"CS NalaNiaga","contactNumber":"628111222333"}'`}
               />
@@ -744,8 +744,8 @@ curl -X GET "https://wavio.satupintudigital.co.id/v1/groups?deviceId=01j5…&lim
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages/poll \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/messages/poll \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{"to":"120363024123456789@g.us","name":"Pilih menu hari ini?","options":["Nasi Goreng","Mie Ayam","Sate"],"allowMultipleAnswers":false}'`}
               />
@@ -780,8 +780,8 @@ curl -X GET "https://wavio.satupintudigital.co.id/v1/groups?deviceId=01j5…&lim
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages/react \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/messages/react \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{"chatId":"6281234567890","messageId":"3EB0F2A1…","emoji":"👍"}'`}
               />
@@ -801,8 +801,8 @@ curl -X GET "https://wavio.satupintudigital.co.id/v1/groups?deviceId=01j5…&lim
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages/send-bulk \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/messages/send-bulk \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{
   "messages": [
@@ -843,8 +843,8 @@ curl -X GET "https://wavio.satupintudigital.co.id/v1/groups?deviceId=01j5…&lim
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X GET "https://wavio.satupintudigital.co.id/v1/messages/batch/batch-1" \\\\
-  -H "Authorization: Bearer $WAVIO_KEY"`}
+                code={`curl -X GET "https://pintasend.satupintudigital.co.id/v1/messages/batch/batch-1" \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY"`}
               />
             </div>
             <p className="mt-2 text-sm text-fg-muted">
@@ -874,14 +874,14 @@ curl -X GET "https://wavio.satupintudigital.co.id/v1/groups?deviceId=01j5…&lim
               <CodeBlock
                 lang="bash"
                 code={`# Impor massal dari CSV (kolom: nomor, nama, tags)
-curl -X POST https://wavio.satupintudigital.co.id/v1/contacts \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+curl -X POST https://pintasend.satupintudigital.co.id/v1/contacts \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   --data-binary '{"csv":"nomor,nama,tags\\\\n081234567890,Budi,vip;pelanggan"}'
 
 # Daftar kontak (filter q, tag, optedOut + pagination)
-curl -X GET "https://wavio.satupintudigital.co.id/v1/contacts?tag=vip&page=1" \\\\
-  -H "Authorization: Bearer $WAVIO_KEY"`}
+curl -X GET "https://pintasend.satupintudigital.co.id/v1/contacts?tag=vip&page=1" \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY"`}
               />
             </div>
 
@@ -889,8 +889,8 @@ curl -X GET "https://wavio.satupintudigital.co.id/v1/contacts?tag=vip&page=1" \\
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/campaigns \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/campaigns \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{
   "name": "Promo Agustus",
@@ -904,8 +904,8 @@ curl -X GET "https://wavio.satupintudigital.co.id/v1/contacts?tag=vip&page=1" \\
 }'
 
 # Mulai (draft → running/scheduled), jeda, lanjutkan, atau batalkan
-curl -X POST https://wavio.satupintudigital.co.id/v1/campaigns/<id>/start \\\\
-  -H "Authorization: Bearer $WAVIO_KEY"`}
+curl -X POST https://pintasend.satupintudigital.co.id/v1/campaigns/<id>/start \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY"`}
               />
             </div>
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
@@ -945,8 +945,8 @@ curl -X POST https://wavio.satupintudigital.co.id/v1/campaigns/<id>/start \\\\
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X GET "https://wavio.satupintudigital.co.id/v1/messages/6281234567890/history?limit=50&offset=0" \\\\
-  -H "Authorization: Bearer $WAVIO_KEY"`}
+                code={`curl -X GET "https://pintasend.satupintudigital.co.id/v1/messages/6281234567890/history?limit=50&offset=0" \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY"`}
               />
             </div>
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-sm text-fg-muted">
@@ -973,12 +973,12 @@ curl -X POST https://wavio.satupintudigital.co.id/v1/campaigns/<id>/start \\\\
               <CodeBlock
                 lang="bash"
                 code={`# Blokir
-curl -X POST "https://wavio.satupintudigital.co.id/v1/contacts/6281234567890/block" \\\\
-  -H "Authorization: Bearer $WAVIO_KEY"
+curl -X POST "https://pintasend.satupintudigital.co.id/v1/contacts/6281234567890/block" \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY"
 
 # Buka blokir
-curl -X DELETE "https://wavio.satupintudigital.co.id/v1/contacts/6281234567890/block" \\\\
-  -H "Authorization: Bearer $WAVIO_KEY"`}
+curl -X DELETE "https://pintasend.satupintudigital.co.id/v1/contacts/6281234567890/block" \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY"`}
               />
             </div>
             <p className="mt-2 text-sm text-fg-muted">
@@ -999,8 +999,8 @@ curl -X DELETE "https://wavio.satupintudigital.co.id/v1/contacts/6281234567890/b
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/chats/read \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/chats/read \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{"chatId":"6281234567890","messageIds":["true_1_ABC","true_1_DEF"]}'`}
               />
@@ -1037,10 +1037,10 @@ curl -X DELETE "https://wavio.satupintudigital.co.id/v1/contacts/6281234567890/b
           <section>
             <Anchor id="webhook">Webhook — event realtime</Anchor>
             <p className="mt-2 text-sm leading-relaxed text-fg-muted">
-              Wavio meneruskan <strong>pesan masuk</strong>, perubahan{" "}
+              PintaSend meneruskan <strong>pesan masuk</strong>, perubahan{" "}
               <strong>status device</strong>, dan <strong>status kirim pesan keluar</strong>{" "}
               ke URL endpoint milikmu. Konfigurasi di{" "}
-              <strong>Dashboard → Webhook</strong>: isi URL, pilih event, lalu Wavio
+              <strong>Dashboard → Webhook</strong>: isi URL, pilih event, lalu PintaSend
               langsung meneruskan setiap event yang terjadi.
             </p>
 
@@ -1069,7 +1069,7 @@ curl -X DELETE "https://wavio.satupintudigital.co.id/v1/contacts/6281234567890/b
               ))}
             </div>
 
-            <h3 className="mt-6 text-sm font-semibold text-fg">Payload (envelope Wavio)</h3>
+            <h3 className="mt-6 text-sm font-semibold text-fg">Payload (envelope PintaSend)</h3>
             <div className="mt-3">
               <CodeBlock
                 lang="json"
@@ -1151,19 +1151,19 @@ curl -X DELETE "https://wavio.satupintudigital.co.id/v1/contacts/6281234567890/b
             <p className="mt-2 text-sm leading-relaxed text-fg-muted">
               Setiap delivery ditandatangani HMAC-SHA256 atas{" "}
               <strong>raw body</strong> memakai secret dari dashboard. Cek header{" "}
-              <code className="font-mono">x-wavio-signature</code> (format{" "}
+              <code className="font-mono">x-pintasend-signature</code> (format{" "}
               <code className="font-mono">sha256=&lt;hex&gt;</code>) — tolak request tanpa
               signature yang valid.
             </p>
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`# Header yang dikirim Wavio ke endpoint-mu:
-POST /webhooks/wavio HTTP/1.1
+                code={`# Header yang dikirim PintaSend ke endpoint-mu:
+POST /webhooks/pintasend HTTP/1.1
 Content-Type: application/json
-x-wavio-signature: sha256=2f9c8a1b…
-x-wavio-event: message.received
-User-Agent: Wavio-Webhook/1.0`}
+x-pintasend-signature: sha256=2f9c8a1b…
+x-pintasend-event: message.received
+User-Agent: PintaSend-Webhook/1.0`}
               />
             </div>
 
@@ -1171,7 +1171,7 @@ User-Agent: Wavio-Webhook/1.0`}
               <Callout type="warning" title="Balas 2xx secepatnya">
                 <p>
                   Balas status 2xx setelah menerima event. Kalau endpoint-mu tidak
-                  merespons dalam <strong>5 detik</strong>, Wavio mencoba ulang secara{" "}
+              merespons dalam <strong>5 detik</strong>, PintaSend mencoba ulang secara{" "}
                   <strong>otomatis</strong>: +30 detik, lalu +5 menit (maksimal 3
                   percobaan). Setelah itu event masuk <em>dead-letter</em> — hubungi
                   dukungan jika ini sering terjadi. Contoh verifikasi signature ada di{" "}
@@ -1186,7 +1186,7 @@ User-Agent: Wavio-Webhook/1.0`}
             <Anchor id="retensi-pesan">POST /v1/retention-requests — Perpanjangan retensi</Anchor>
             <p className="mt-2 text-sm leading-relaxed text-fg-muted">
               Secara default, pesan dan log pengiriman disimpan maksimal{" "}
-              <strong>30 hari</strong> (sesuai kebijakan retensi Wavio). Jika bisnismu
+              <strong>30 hari</strong> (sesuai kebijakan retensi PintaSend). Jika bisnismu
               membutuhkan penyimpanan lebih lama (mis. karena kewajiban arsip atau
               kontrak layanan), ajukan permintaan melalui endpoint ini — permintaan
               tercatat sebagai <strong>instruksi tertulis</strong> dan menunggu
@@ -1195,8 +1195,8 @@ User-Agent: Wavio-Webhook/1.0`}
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/retention-requests \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/retention-requests \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{"reason":"Arsip layanan pelanggan 6 bulan sesuai kontrak No. 123","retentionDays":180}'`}
               />
@@ -1220,8 +1220,8 @@ User-Agent: Wavio-Webhook/1.0`}
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X GET https://wavio.satupintudigital.co.id/v1/retention-requests \\\\
-  -H "Authorization: Bearer $WAVIO_KEY"`}
+                code={`curl -X GET https://pintasend.satupintudigital.co.id/v1/retention-requests \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY"`}
               />
             </div>
             <p className="mt-2 text-sm text-fg-muted">
@@ -1289,14 +1289,14 @@ User-Agent: Wavio-Webhook/1.0`}
               Setiap respons menyertakan header{" "}
               <code className="font-mono">X-Request-Id</code> untuk korelasi. Kirim
               header ini dari sisi-mu (opsional) agar request bisa dilacak lintas
-              layanan; jika tidak dikirim, Wavio membuatkan UUID v7. Sertakan id ini
+              layanan; jika tidak dikirim, PintaSend membuatkan UUID v7. Sertakan id ini
               saat menghubungi dukungan agar request-mu bisa ditemukan di log internal.
             </p>
             <div className="mt-3">
               <CodeBlock
                 lang="bash"
-                code={`curl -X POST https://wavio.satupintudigital.co.id/v1/messages \\\\
-  -H "Authorization: Bearer $WAVIO_KEY" \\\\
+                code={`curl -X POST https://pintasend.satupintudigital.co.id/v1/messages \\\\
+  -H "Authorization: Bearer $PINTSEND_KEY" \\\\
   -H "X-Request-Id: order-12345-trace" \\\\
   -H "Content-Type: application/json" \\\\
   -d '{"to":"6281234567890","text":"Halo"}'`}

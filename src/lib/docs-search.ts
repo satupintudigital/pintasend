@@ -23,7 +23,7 @@ export const docsSearchEntries: SearchEntry[] = [
     href: "/docs",
     page: "Ringkasan",
     title: "Mulai cepat — Node.js",
-    hint: "fetch · process.env.WAVIO_KEY",
+    hint: "fetch · process.env.PINTSEND_KEY",
     keywords: ["node", "nodejs", "javascript", "fetch", "js", "npm"],
   },
   {
@@ -74,7 +74,7 @@ export const docsSearchEntries: SearchEntry[] = [
     href: "/docs/api#base-url",
     page: "Endpoint API",
     title: "Base URL",
-    hint: "https://wavio.satupintudigital.co.id",
+    hint: "https://pintasend.satupintudigital.co.id",
     keywords: ["base url", "url", "endpoint", "domain", "alamat"],
   },
   {

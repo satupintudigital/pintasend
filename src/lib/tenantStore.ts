@@ -61,7 +61,7 @@ export async function syncTenantD1(tenant: {
   }
 }
 
-// SSO wizard: temukan-atau-buat Tenant Wavio dari storeId NalaNiaga.
+// SSO wizard: temukan-atau-buat Tenant PintaSend dari storeId NalaNiaga.
 // ON CONFLICT (nalaniagaStoreId) DO NOTHING + SELECT → idempotent & race-free.
 export async function findOrCreateTenantByNalaniaga(
   storeId: string,

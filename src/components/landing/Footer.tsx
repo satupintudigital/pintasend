@@ -32,9 +32,9 @@ export function Footer() {
     <footer className="border-t border-line-soft">
       <div className="mx-auto grid max-w-7xl gap-12 px-5 py-16 md:grid-cols-[1.2fr_2fr]">
         <div>
-          <Logo />
+          <Logo className="h-11 md:h-12" />
           <p className="mt-4 max-w-[34ch] text-sm leading-relaxed text-fg-faint">
-            WhatsApp API gateway untuk bisnis Indonesia. Dibuat oleh Satu Pintu Digital.
+            AI Gateway multi-kanal (WhatsApp, Telegram Bot, SMS) untuk bisnis Indonesia. Dibuat oleh Satu Pintu Digital.
           </p>
           <p className="mt-6 flex items-center gap-2 font-mono text-xs text-fg-muted">
             <span className="bk-live-dot h-1.5 w-1.5 rounded-full bg-accent-bright" />
@@ -65,7 +65,7 @@ export function Footer() {
 
       <div className="border-t border-line-soft px-5 py-6">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 text-xs text-fg-faint sm:flex-row">
-          <p>© 2026 Wavio · Satu Pintu Digital</p>
+          <p>© 2026 PintaSend · Satu Pintu Digital</p>
           <p className="font-mono">Dibuat di Indonesia 🇮🇩</p>
         </div>
       </div>

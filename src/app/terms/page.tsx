@@ -21,7 +21,7 @@ export default function TermsPage() {
             1. Penerimaan Ketentuan
           </h2>
           <p className="mt-3">
-            Dengan membuat akun atau menggunakan layanan Wavio, Anda menyetujui seluruh
+            Dengan membuat akun atau menggunakan layanan PintaSend, Anda menyetujui seluruh
             ketentuan ini, Kebijakan Privasi, dan Kebijakan Penggunaan WhatsApp Business.
             Jika Anda tidak setuju, jangan gunakan layanan.
           </p>
@@ -33,7 +33,7 @@ export default function TermsPage() {
             2. Deskripsi Layanan
           </h2>
           <p className="mt-3">
-            Wavio menyediakan WhatsApp API gateway — antarmuka REST API dan dashboard untuk
+            PintaSend menyediakan AI gateway multi-kanal — antarmuka REST API dan dashboard untuk
             bisnis mengirim serta menerima pesan WhatsApp. Setiap pengguna (tenant) memiliki
             perangkat WhatsApp yang diisolasi dan dihubungkan melalui pemindaian QR.
           </p>
@@ -54,7 +54,7 @@ export default function TermsPage() {
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>
-              Memastikan setiap pesan yang dikirim melalui Wavio memiliki <strong>persetujuan
+              Memastikan setiap pesan yang dikirim melalui PintaSend memiliki <strong>persetujuan
               penerima</strong> sesuai kebijakan WhatsApp Business dan peraturan perundang-undangan.
             </li>
             <li>
@@ -81,11 +81,11 @@ export default function TermsPage() {
           <p className="mt-3">
             Pengguna bertanggung jawab penuh atas seluruh Informasi Elektronik dan/atau
             Dokumen Elektronik (termasuk pesan, media, dan broadcast) yang dikirim atau
-            diteruskan melalui layanan Wavio. Wavio hanya bertindak sebagai perantara
+            diteruskan melalui layanan PintaSend. PintaSend hanya bertindak sebagai perantara
             pengiriman dan tidak bertanggung jawab atas isi pesan yang dikirim oleh Pengguna.
           </p>
           <p className="mt-3">
-            Namun, Wavio berhak melakukan tindakan yang diperlukan terhadap pesan atau akun
+            Namun, PintaSend berhak melakukan tindakan yang diperlukan terhadap pesan atau akun
             yang terindikasi melanggar hukum atau ketentuan ini, termasuk penangguhan atau
             penghentian akses tanpa pemberitahuan sebelumnya dalam hal mendesak.
           </p>
@@ -119,7 +119,7 @@ export default function TermsPage() {
           </h2>
           <p className="mt-3">
             Sesuai Peraturan Menteri Komunikasi dan Informatika Nomor 5 Tahun 2020 tentang
-            Penyelenggara Sistem Elektronik Lingkup Privat, Wavio menyediakan mekanisme
+            Penyelenggara Sistem Elektronik Lingkup Privat, PintaSend menyediakan mekanisme
             pelaporan untuk setiap Informasi Elektronik dan/atau Dokumen Elektronik yang
             dilarang.
           </p>
@@ -130,17 +130,17 @@ export default function TermsPage() {
             <li>
               Email:{" "}
               <a
-                href="mailto:report@wavio.id"
+                href="mailto:report@pintasend.id"
                 className="text-accent-bright hover:underline"
               >
-                report@wavio.id
+                report@pintasend.id
               </a>{" "}
               — untuk pelaporan konten/aktivitas ilegal
             </li>
             <li>
               Form pelaporan online:{" "}
               <a href="/report" className="text-accent-bright hover:underline">
-                wavio.satupintudigital.co.id/report
+                pintasend.satupintudigital.co.id/report
               </a>
             </li>
           </ul>
@@ -160,7 +160,7 @@ export default function TermsPage() {
           </p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>
-              Atas perintah dari Menteri atau instansi berwenang, Wavio wajib melakukan take
+              Atas perintah dari Menteri atau instansi berwenang, PintaSend wajib melakukan take
               down terhadap konten yang dilarang <strong>paling lambat 1×24 jam</strong> sejak
               perintah diterima.
             </li>
@@ -170,7 +170,7 @@ export default function TermsPage() {
               <strong>paling lambat 4 jam</strong> sejak peringatan diterima.
             </li>
             <li>
-              Wavio dapat melakukan tindakan serupa atas inisiatif sendiri terhadap akun atau
+              PintaSend dapat melakukan tindakan serupa atas inisiatif sendiri terhadap akun atau
               aktivitas yang terindikasi melanggar hukum, dengan pemberitahuan kepada pengguna
               terdampak.
             </li>
@@ -196,7 +196,7 @@ export default function TermsPage() {
           </h2>
           <p className="mt-3">
             Kami berupaya menjaga ketersediaan layanan tetapi tidak menjamin bebas gangguan.
-            Wavio tidak bertanggung jawab atas kerugian tidak langsung akibat keterlambatan
+            PintaSend tidak bertanggung jawab atas kerugian tidak langsung akibat keterlambatan
             atau kegagalan pengiriman pesan.
           </p>
         </section>
@@ -207,7 +207,7 @@ export default function TermsPage() {
             10. Perubahan Ketentuan
           </h2>
           <p className="mt-3">
-            Wavio berhak mengubah ketentuan ini sewaktu-waktu. Perubahan material akan
+            PintaSend berhak mengubah ketentuan ini sewaktu-waktu. Perubahan material akan
             diberitahukan melalui email atau notifikasi di dashboard setidaknya 7 hari sebelum
             berlaku efektif. Penggunaan layanan setelah perubahan berlaku merupakan
             penerimaan atas ketentuan yang diperbarui.
@@ -237,19 +237,19 @@ export default function TermsPage() {
             <li>
               Umum:{" "}
               <a
-                href="mailto:halo@wavio.id"
+                href="mailto:halo@pintasend.id"
                 className="text-accent-bright hover:underline"
               >
-                halo@wavio.id
+                halo@pintasend.id
               </a>
             </li>
             <li>
               Pelaporan konten ilegal:{" "}
               <a
-                href="mailto:report@wavio.id"
+                href="mailto:report@pintasend.id"
                 className="text-accent-bright hover:underline"
               >
-                report@wavio.id
+                report@pintasend.id
               </a>
             </li>
             <li>

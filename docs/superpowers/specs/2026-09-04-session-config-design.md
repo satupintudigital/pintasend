@@ -6,7 +6,7 @@
 
 ## Overview
 
-Expose OpenWA's per-session tunable configuration to Wavio's API and dashboard. Enables tenants to configure call rejection, reconnect behavior, proxy settings, and alternative pairing methods without direct OpenWA access.
+Expose OpenWA's per-session tunable configuration to PintaSend's API and dashboard. Enables tenants to configure call rejection, reconnect behavior, proxy settings, and alternative pairing methods without direct OpenWA access.
 
 ## API Endpoints
 

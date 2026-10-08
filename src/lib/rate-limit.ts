@@ -1,6 +1,6 @@
 // Rate limiter in-app (defense-in-depth, lapisan pertama).
 //
-// Backend: Cloudflare KV (binding WAVIO_RATE_LIMIT) — state global lintas
+// Backend: Cloudflare KV (binding PINTSEND_RATE_LIMIT) — state global lintas
 // isolate/colo (eventual consistency, cukup untuk anti brute-force dasar).
 // Fallback: in-memory Map (per-isolate) saat tidak ada konteks Workers
 // (dev lokal, unit test).
@@ -44,7 +44,7 @@ async function getKv(): Promise<KvLike | undefined> {
   try {
     const { getCloudflareContext } = await import("@opennextjs/cloudflare");
     const { env } = await getCloudflareContext({ async: true });
-    kvCache = (env as Record<string, unknown>).WAVIO_RATE_LIMIT as KvLike | undefined;
+    kvCache = (env as Record<string, unknown>).PINTSEND_RATE_LIMIT as KvLike | undefined;
   } catch {
     kvCache = undefined; // bukan runtime Workers → in-memory
   }

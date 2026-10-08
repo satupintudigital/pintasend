@@ -14,7 +14,7 @@ export default function PlatformTenants() {
             Kelola Tenant
           </h1>
           <p className="mt-2 text-sm text-fg-muted">
-            Semua tenant Wavio dengan statistik pemakaian.
+            Semua tenant PintaSend dengan statistik pemakaian.
           </p>
         </div>
         <Link

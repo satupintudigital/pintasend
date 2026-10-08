@@ -169,8 +169,8 @@ function RegisterContent() {
 
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-xl flex-col justify-center px-5 py-12">
         <div className="mb-8 flex flex-col items-center gap-2 text-center">
-          <Logo className="h-9" />
-          <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight md:text-3xl">Buat akun Wavio</h1>
+          <Logo />
+          <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight md:text-3xl">Buat akun PintaSend</h1>
           <p className="max-w-[46ch] text-sm leading-relaxed text-fg-muted">
             Setelah daftar kamu langsung diarahkan ke pembayaran untuk mengaktifkan paket.
           </p>

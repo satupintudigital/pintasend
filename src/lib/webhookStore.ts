@@ -8,7 +8,7 @@ import { uuidv7 } from "@/lib/uuidv7";
 import { OPENWA_WEBHOOK_EVENTS } from "@/lib/openwa";
 import type { WebhookFilters } from "@/lib/webhookFilters";
 
-export const WEBHOOK_EVENT_LIST: string[] = [...OPENWA_WEBHOOK_EVENTS];
+export const WEBHOOK_EVENT_LIST: string[] = [...OPENWA_WEBHOOK_EVENTS, "campaign.completed"];
 
 export interface WebhookConfig {
   id: string;

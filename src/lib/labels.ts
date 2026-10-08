@@ -1,4 +1,4 @@
-// Service layer untuk Labels CRUD — Wavio-local labels + OpenWA sync.
+// Service layer untuk Labels CRUD — PintaSend-local labels + OpenWA sync.
 // Labels are per-tenant, stored in Neon, with optional sync to WhatsApp labels via OpenWA.
 
 import { queryD1One, queryD1 } from "./d1";

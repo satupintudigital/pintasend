@@ -1,4 +1,4 @@
-// X-Request-Id + structured logging untuk endpoint Wavio.
+// X-Request-Id + structured logging untuk endpoint PintaSend.
 //
 // Tujuan:
 //   1. Setiap request punya id korelasi — dipakai di header respons `X-Request-Id`

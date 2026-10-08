@@ -41,7 +41,7 @@ const UUIDV7_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a
 
 describe("POST /v1/messages — X-Request-Id", () => {
   it("echo X-Request-Id masuk di header respons & meneruskan ke service", async () => {
-    const res = await post({ "x-request-id": "req-client-1", authorization: "Bearer wavio_abc" });
+    const res = await post({ "x-request-id": "req-client-1", authorization: "Bearer pintasend_abc" });
 
     expect(res.headers.get("x-request-id")).toBe("req-client-1");
     expect(executeSendMessageMock).toHaveBeenCalledWith(
@@ -87,7 +87,7 @@ describe("POST /v1/messages — X-Request-Id", () => {
 describe("POST /v1/messages — structured logging", () => {
   it("mencatat event api_key_auth (info) dengan requestId + tenantId", async () => {
     const spy = vi.spyOn(console, "log").mockImplementation(() => {});
-    await post({ "x-request-id": "req-log-1", authorization: "Bearer wavio_abc" });
+    await post({ "x-request-id": "req-log-1", authorization: "Bearer pintasend_abc" });
 
     const lines = spy.mock.calls.map((c) => JSON.parse(c[0] as string));
     const auth = lines.find((l) => l.event === "api_key_auth");

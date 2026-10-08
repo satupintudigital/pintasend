@@ -3,7 +3,7 @@ import { isSafeWebhookUrl } from "./ssrf";
 
 describe("isSafeWebhookUrl", () => {
   it("terima URL publik biasa", () => {
-    expect(isSafeWebhookUrl("https://api.tokoku.com/webhooks/wavio")).toBe(true);
+    expect(isSafeWebhookUrl("https://api.tokoku.com/webhooks/pintasend")).toBe(true);
     expect(isSafeWebhookUrl("http://webhook.example.id/wa")).toBe(true);
     expect(isSafeWebhookUrl("https://sub.domain.co.id/path?x=1")).toBe(true);
   });

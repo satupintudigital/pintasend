@@ -1,6 +1,6 @@
 // Message retention worker (pola workers/webhook-delivery: standalone, deploy terpisah).
 //
-// Tujuan: mengeksekusi kebijakan retensi pesan Wavio — menghapus otomatis
+// Tujuan: mengeksekusi kebijakan retensi pesan PintaSend — menghapus otomatis
 // MessageLog & WebhookDelivery yang lebih tua dari batas retensi per tenant.
 // Ini menutup gap R-07 (klaim "retensi 30 hari" tanpa purge otomatis terverifikasi)
 // dan mewujudkan klausul DPA §5.7: "retensi maksimal 30 hari, KECUALI Tenant

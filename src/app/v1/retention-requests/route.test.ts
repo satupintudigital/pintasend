@@ -51,7 +51,7 @@ function post(body: Record<string, unknown>): Promise<Response> {
   return POST(
     new Request("http://x/v1/retention-requests", {
       method: "POST",
-      headers: { "content-type": "application/json", authorization: "Bearer wavio_abc" },
+      headers: { "content-type": "application/json", authorization: "Bearer pintasend_abc" },
       body: JSON.stringify(body),
     }),
   );
@@ -101,7 +101,7 @@ describe("POST /v1/retention-requests", () => {
     const res = await POST(
       new Request("http://x/v1/retention-requests", {
         method: "POST",
-        headers: { authorization: "Bearer wavio_abc" },
+        headers: { authorization: "Bearer pintasend_abc" },
         body: "not-json",
       }),
     );

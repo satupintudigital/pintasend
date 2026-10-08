@@ -480,7 +480,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       <div className="mx-auto w-full max-w-5xl px-5 py-12">
         <div className="mb-8 flex items-center justify-between">
           <Link href="/">
-            <Logo className="h-8" />
+            <Logo />
           </Link>
           <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-fg-faint">Pembayaran aman</span>
         </div>

@@ -1,4 +1,4 @@
-# Wavio — Review Fitur & Role (Owner vs Platform Admin)
+# PintaSend — Review Fitur & Role (Owner vs Platform Admin)
 
 Dibuat: 2026-09-04 · Diperbarui: 2026-09-05 (review lanjutan pasca self-serve billing — lihat §8)
 Status: **review manual + live DB check + verifikasi kode (main `feat/self-serve-billing`)**
@@ -9,13 +9,13 @@ Status: **review manual + live DB check + verifikasi kode (main `feat/self-serve
 
 | Pertanyaan | Jawaban |
 |---|---|
-| Owner (`owner@wavio.test`) punya fitur lengkap? | **Ya — hampir lengkap.** Dari register tenant sendiri, device (WhatsApp session), message CRUD, contacts, campaigns, labels, webhooks, addon self-service, template, dsb. |
-| Ada user superadmin yang kelola platform? | **Ya — tersedia.** `platform@wavio.test` (role `platform_admin`) adalah platform admin Wavio. Halaman `/platform/*` + API `/api/platform/*`. |
+| Owner (`owner@pintasend.test`) punya fitur lengkap? | **Ya — hampir lengkap.** Dari register tenant sendiri, device (WhatsApp session), message CRUD, contacts, campaigns, labels, webhooks, addon self-service, template, dsb. |
+| Ada user superadmin yang kelola platform? | **Ya — tersedia.** `platform@pintasend.test` (role `platform_admin`) adalah platform admin PintaSend. Halaman `/platform/*` + API `/api/platform/*`. |
 | Perbedaan akses owner vs platform admin? | Owner = tenant-scoped (hanyalihat & kelola tenant-nya sendiri). Platform admin = lintas-tenant (buat/aktifkan/nonaktifkan tenant, atur plan, kendalikan user tenant, retention approval, dsb). |
 
 ---
 
-## 1. Apa yang TERSEDIA untuk Owner (`owner@wavio.test`)
+## 1. Apa yang TERSEDIA untuk Owner (`owner@pintasend.test`)
 
 Owner = pengguna dengan `role = "owner"` milik satu tenant.
 
@@ -99,9 +99,9 @@ Endpoint berikut tersedia (tenant-scoped, pakai API key):
 
 ---
 
-## 2. Apa yang TERSEDIA untuk Platform Admin (`platform@wavio.test`)
+## 2. Apa yang TERSEDIA untuk Platform Admin (`platform@pintasend.test`)
 
-Platform admin = role `platform_admin`, tenantId = `00000000-0000-7000-8000-000000000002` ("Wavio Platform").
+Platform admin = role `platform_admin`, tenantId = `00000000-0000-7000-8000-000000000002` ("PintaSend Platform").
 
 ### 2.1 Halaman platform (`/platform/*`)
 - `/platform` — dashboard ringkasan
@@ -303,26 +303,26 @@ Platform admin = role `platform_admin`, tenantId = `00000000-0000-7000-8000-0000
 2. **`/api/platform/*`** — kemungkinan sudah dilindungi oleh middleware auth + possibly admin guard, tapi perlu verifikasi.
 3. **`/api/v1/*`** — harus tenant-scoped (API key → tenantId). Rate limit per key. Sudah tercantum di `verifyApiKey`.
 4. **D1 replika** — auth & device dibaca dari D1 (bukan Neon). Kalau D1 stale, verdiktik. Re-sync job tersedia.
-5. **`platform@wavio.test`** bisa login dengan credentials biasa. Pastikan password hash terkelola (bcrypt). Sudah terlibak di auth.ts.
+5. **`platform@pintasend.test`** bisa login dengan credentials biasa. Pastikan password hash terkelola (bcrypt). Sudah terlibak di auth.ts.
 
 ---
 
 ## 7. Rekomendasi
 
-- **Untuk owner@wavio.test**: fitur WebSocket/WhatsApp messaging sudah cukup lengkap. Tambahkan member management (add/remove member di tenant) jika owner butuh multi-user di satu tenant.
+- **Untuk owner@pintasend.test**: fitur WebSocket/WhatsApp messaging sudah cukup lengkap. Tambahkan member management (add/remove member di tenant) jika owner butuh multi-user di satu tenant.
 - **Untuk superadmin platform**: ada, tapi fiturnya terbatas ke tenant lifecycle, plan, delay, retention approval, dan metrics. Kalau butuh audit log, billing, atau global broadcast, itu perlu ditambahkan. *(Sudah ditutup: audit log, global broadcast, invoice, dan settings — lihat plan platform owner/superadmin.)*
 - **Jual paket ke user (gap)**: sudah ditutup oleh self-serve billing (`2026-09-04-self-serve-billing.sql`) — registrasi publik + order Tripay + aktivasi otomatis + saldo prepaid Espresso + addon berbayar (`activeUntil`). Detail: `README.md` seksi Self-serve billing.
 - **Untuk keamanan**: verifikasi `/api/admin/users` dan `/api/admin/api-keys` hanya accessible by `platform_admin`.
 
 ---
 
-*Review berdasarkan kode Wavio (branch `feat/wavio-fase-4`) + live DB check (3 tenant, 3 user termasuk platform_admin).*
+*Review berdasarkan kode PintaSend (branch `feat/pintasend-fase-4`) + live DB check (3 tenant, 3 user termasuk platform_admin).*
 ---
 
 ## 8. Review lanjutan — 2026-09-05 (pasca self-serve billing)
 
 > Verifikasi: kode di main (`feat/self-serve-billing` tip `37c3f9a`), deploy live
-> wavio `4b5aa60c`, migrasi Neon + D1 `activatedAt` sudah di-apply, worker
+> pintasend `4b5aa60c`, migrasi Neon + D1 `activatedAt` sudah di-apply, worker
 > d1-resync 4 kolom live. Seksi 1–7 di atas tetap berlaku; di bawah pembaruan
 > state + gap yang masih tersisa.
 
@@ -350,7 +350,7 @@ Platform admin = role `platform_admin`, tenantId = `00000000-0000-7000-8000-0000
 7. **Halaman `/pricing` bukan route** — harga hanya seksi di landing `/` (bukan gap fungsional, tapi menyulitkan deep-link kampanye).
 
 **Operasional (bukan kode)**
-8. **Secret Tripay belum terpasang** (`TRIPAY_MODE/API_KEY/PRIVATE_KEY/MERCHANT_CODE` di worker wavio + `.env`) — checkout/order belum bisa diselesaikan end-to-end di production. Ini blocker #1 saat ini (menunggu Tripay buka pendaftaran; callback URL juga perlu didaftarkan).
+8. **Secret Tripay belum terpasang** (`TRIPAY_MODE/API_KEY/PRIVATE_KEY/MERCHANT_CODE` di worker pintasend + `.env`) — checkout/order belum bisa diselesaikan end-to-end di production. Ini blocker #1 saat ini (menunggu Tripay buka pendaftaran; callback URL juga perlu didaftarkan).
 
 ### 8.3 Roadmap (prioritas)
 
@@ -365,6 +365,6 @@ Platform admin = role `platform_admin`, tenantId = `00000000-0000-7000-8000-0000
 
 | Pertanyaan | Jawaban |
 |---|---|
-| Owner (`owner@wavio.test`) punya fitur lengkap? | Ya — lengkap utk tenant-scope, kini + dashboard Langganan (saldo/kredit/top-up) & gate pembayaran prepaid. |
-| Ada superadmin pengelola platform? | Ya — `platform@wavio.test` (`platform_admin`, tenant "Wavio Platform") + `/platform/*` 9 menu + `/api/platform/*`. Manajemen user platform lain via `users/[id]/password`. |
+| Owner (`owner@pintasend.test`) punya fitur lengkap? | Ya — lengkap utk tenant-scope, kini + dashboard Langganan (saldo/kredit/top-up) & gate pembayaran prepaid. |
+| Ada superadmin pengelola platform? | Ya — `platform@pintasend.test` (`platform_admin`, tenant "PintaSend Platform") + `/platform/*` 9 menu + `/api/platform/*`. Manajemen user platform lain via `users/[id]/password`. |
 | Jual paket ke user? | Sudah live secara kode+migrasi (registrasi publik, Order Tripay, aktivasi otomatis, top-up prepaid) — P0 ops: kredensial Tripay agar bisa benar-benar menghasilkan pendapatan. |

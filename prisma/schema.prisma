@@ -291,7 +291,7 @@ model Webhook {
   tenantId  String   @unique
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   url       String // URL endpoint milik client yang menerima event
-  secret    String // HMAC secret utk menandatangani delivery (x-wavio-signature)
+  secret    String // HMAC secret utk menandatangani delivery (x-pintasend-signature)
   events    String   @default("[\"message.received\",\"session.status\"]") // JSON array event
   filters   String   @default("{\"conditions\":[]}") // JSON smart filters (lihat src/lib/webhookFilters.ts)
   active    Boolean  @default(true)
@@ -313,7 +313,7 @@ model WebhookDelivery {
   event         String
   url           String // snapshot URL client saat enqueue
   payload       String // envelope JSON mentah (body yg dikirim)
-  signature     String // x-wavio-signature atas payload
+  signature     String // x-pintasend-signature atas payload
   status        String   @default("pending") // pending | delivered | failed
   attempts      Int      @default(0)
   nextAttemptAt DateTime? // kapan boleh dicoba lagi (null = segera)
@@ -356,7 +356,7 @@ model ApiKey {
   tenant     Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   label      String
   keyHash    String // SHA-256 dari key mentah (tidak pernah simpan key mentah)
-  prefix     String // tampilan aman, mis. wavio_8f3a…
+  prefix     String // tampilan aman, mis. pintasend_8f3a…
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
   revokedAt  DateTime?
@@ -519,10 +519,10 @@ model CampaignRecipient {
   @@index([campaignId, status])
 }
 
-// ─── LABELS (Wavio-local + OpenWA sync) ───────────────────────────────────
+// ─── LABELS (PintaSend-local + OpenWA sync) ───────────────────────────────────
 // Label lokal untuk CRM/campaign filtering + sinkronisasi optional ke
 // OpenWA labels (visible di WhatsApp dashboard).
-// Dual-layer: Wavio = source of truth untuk nama/warna;
+// Dual-layer: PintaSend = source of truth untuk nama/warna;
 //             OpenWA = source of truth untuk label-chat association.
 
 model Label {

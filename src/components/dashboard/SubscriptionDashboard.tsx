@@ -153,7 +153,7 @@ export function SubscriptionDashboard() {
             <div>
               <p className="font-display text-base font-semibold text-amber-100">Akunmu belum aktif</p>
               <p className="mt-1 text-sm text-amber-200/80">
-                Pilih paket bulanan (Latte/Mocha) atau isi pulsa Espresso untuk mulai menggunakan Wavio.
+                Pilih paket bulanan (Latte/Mocha) atau isi pulsa Espresso untuk mulai menggunakan PintaSend.
               </p>
             </div>
           </div>

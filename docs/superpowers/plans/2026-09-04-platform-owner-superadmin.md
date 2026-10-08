@@ -1,4 +1,4 @@
-# Wavio Platform Owner & Superadmin — Implementation Plan
+# PintaSend Platform Owner & Superadmin — Implementation Plan
 
 > **Status: ✅ SELESAI (16/16 task, inline di worktree `feat-platform-owner-superadmin`, 2026-09-04).**
 > Tiap task dikerjakan TDD (red→green), tsc + full suite hijau per commit. Ledger:
@@ -6,9 +6,9 @@
 >
 > Untuk agentic workers lain: plan ini sudah dieksekusi penuh; gunakan sebagai referensi implementasi, bukan checklist untuk dikerjakan ulang.
 
-**Goal:** Sebuah spesifikasi holistik satu-go yang menutup SEMUA gap Wavio: member management owner, fungsi platform admin yang belum ada (audit log, global settings, broadcast, invoice ringkas), hardening keamanan role, plus pola arsitektur modular + future-proof yang berlaku lintas fitur.
+**Goal:** Sebuah spesifikasi holistik satu-go yang menutup SEMUA gap PintaSend: member management owner, fungsi platform admin yang belum ada (audit log, global settings, broadcast, invoice ringkas), hardening keamanan role, plus pola arsitektur modular + future-proof yang berlaku lintas fitur.
 
-**Architecture:** Wavio sudah punya dua layer role yang mapan (`owner` vs `platform_admin`). Spec ini memperkuat lapisan itu jadi **tiga tier** (`owner` → `tenant_admin` → `platform_admin`) dengan gate fungsional (bukan cuma cek `role === string`), memisahkan setiap domain jadi service layer mandiri (file `src/lib/<domain>.ts`), dan meletakkan audit log sebagai concern transversal yang diinjeksikan lewat wrapper kecil, bukan diulang di tiap route.
+**Architecture:** PintaSend sudah punya dua layer role yang mapan (`owner` vs `platform_admin`). Spec ini memperkuat lapisan itu jadi **tiga tier** (`owner` → `tenant_admin` → `platform_admin`) dengan gate fungsional (bukan cuma cek `role === string`), memisahkan setiap domain jadi service layer mandiri (file `src/lib/<domain>.ts`), dan meletakkan audit log sebagai concern transversal yang diinjeksikan lewat wrapper kecil, bukan diulang di tiap route.
 
 **Tech Stack:** Next.js (App Router), NextAuth v5 (Credentials), Cloudflare Workers (D1 replika auth/device) + Neon (PostgreSQL source of truth), Prisma schema sebagai dokumen referensi, vitest untuk unit test, `tsx` untuk script seed/dev.
 
@@ -86,7 +86,7 @@ Target akhir (setelah Task 2):
 "owner"         — pemilik tenant (satu per tenant), punya semua hak tenant
 "tenant_admin"  — admin tenant (bisa manage member, device, webhook, dll.), tapi tidak bisa suspend/plan/retention-approval
 "member"        — pengguna biasa tenant
-"platform_admin" — operator Wavio (lintas-tenant)
+"platform_admin" — operator PintaSend (lintas-tenant)
 ```
 Role `platform_admin` tetap dipakai di sisi platform. Di `User.role`, `platform_admin` adalah role khusus yang tenantId-nya adalah tenant platform (Bukan tenant biasa).
 
@@ -114,7 +114,7 @@ export type AddonKey = (typeof ADDON_KEYS)[number];
 
 ## Komitmen Kode (harus dikuasai sebelum eksekusi)
 
-- branch: `feat/wavio-fase-4` (sudah ada)
+- branch: `feat/pintasend-fase-4` (sudah ada)
 - commit message konvensi: `tipo(scope): pesan` — contoh: `feat(auth):tier role tenant_admin`, `feat(platform):audit log`, `feat(platform):global settings`, `feat(platform):broadcast campaign`, `feat(platform):invoice ringkas`, `refactor(guard):gate fungsional baku`, `refactor(addon):konsolidasi addon keys`, `test(auth):member CRUD`, dst.
 - Bahasa 인도네시아 untuk deskripsi & komentar internal; nama function & tipe dalam English (karena codebase existing pakai English untuk identifer).
 - Tidak ada magic number di logic bisnis — konstanta dikelola di file domain atau `src/lib/constants.ts` jika memang shared.
@@ -128,7 +128,7 @@ export type AddonKey = (typeof ADDON_KEYS)[number];
 | Owner toko | `owner` | Satu tenant, pengurus harian, bisa add member sendiri |
 | Admin toko | `tenant_admin` | Satu tenant, manage member/device/webhook/labels/campaign, tidak bisa ganti plan/suspend/retention approval |
 | Anggota tim | `member` | Satu tenant, akses terbatas (dashboard, kirim pesan via API key yang dibuat owner) |
-| Operator Wavio | `platform_admin` | Lintas-tenant: provision, suspend, plan, delay, addon, retention approval, audit, global settings, broadcast, invoice |
+| Operator PintaSend | `platform_admin` | Lintas-tenant: provision, suspend, plan, delay, addon, retention approval, audit, global settings, broadcast, invoice |
 
 ---
 
@@ -142,10 +142,10 @@ export type AddonKey = (typeof ADDON_KEYS)[number];
 
 ## Global Constraints (berlaku untuk SEMUA task)
 
-1. **Branch kerja:** `feat/wavio-fase-4` (jangan pernah implementasi langsung di `main`).
+1. **Branch kerja:** `feat/pintasend-fase-4` (jangan pernah implementasi langsung di `main`).
 2. **Tidak menambah dependency runtime baru** tanpa persetujuan — semua fitur memakai stack yang sudah ada (Next.js App Router, `@neondatabase/serverless` via `src/lib/db.ts`, D1 via `src/lib/d1.ts`, vitest).
 3. **Bahasa:** komentar & pesan error dalam Bahasa Indonesia (konsisten codebase); nama function/type/identifiers dalam English.
-4. **Migration:** setiap perubahan tabel Neon = 3 artefak sinkron: `prisma/schema.prisma` (dokumen), `prisma/migrations/YYYY-MM-DD-<nama>.sql` (baru, idempoten — pakai `ADD COLUMN IF NOT EXISTS`), dan tambahkan kolom ke `prisma/wavio-schema.sql`. Tidak perlu migrasi D1 kecuali data dibaca di jalur hot auth/device (kolom `User.role` & `suspendedAt` sudah ada di D1).
+4. **Migration:** setiap perubahan tabel Neon = 3 artefak sinkron: `prisma/schema.prisma` (dokumen), `prisma/migrations/YYYY-MM-DD-<nama>.sql` (baru, idempoten — pakai `ADD COLUMN IF NOT EXISTS`), dan tambahkan kolom ke `prisma/pintasend-schema.sql`. Tidak perlu migrasi D1 kecuali data dibaca di jalur hot auth/device (kolom `User.role` & `suspendedAt` sudah ada di D1).
 5. **Runtime data: NEO Neon source of truth; D1 hanya replika auth/device.** Fitur baru (AuditLog, PlatformSetting, Invoice, PlatformBroadcast) cukup Neon — TIDAK di-clone ke D1 (baca via `src/lib/db.ts`, bukan prisma client — prisma client tidak dipakai di runtime Worker).
 6. **Pattern yang harus ditiru (bukan reinvent):** write-through Neon→D1 di `src/lib/authStore.ts`; service-layer `execute*`/pure-fn di `src/lib/` (contoh `sendMessage.ts`, `platform.ts`, `retention.ts`, `campaigns.ts`); route thin → panggil service; rate limit via `src/lib/rate-limit.ts` (`checkRateLimit`, `clientIp`, `rateLimitResponse`); audit-style log via `src/lib/requestLogger.ts` `logEvent`.
 7. **Test:** setiap perilaku baru punya unit test colocated `*.test.ts` (vitest). Jalankan `npx vitest run <file>` per task; wajib hijau sebelum commit.
@@ -202,7 +202,7 @@ export function parsePrincipal(session: {
 ### Task 2: Perluas role `tenant_admin` di schema & admin store
 
 **Files:**
-- Modify: `prisma/schema.prisma` (komentar `User.role`: `// "owner" | "tenant_admin" | "member" | "platform_admin"`) + `prisma/wavio-schema.sql` (komentar sama — TIDAK ada perubahan kolom, role tetap TEXT)
+- Modify: `prisma/schema.prisma` (komentar `User.role`: `// "owner" | "tenant_admin" | "member" | "platform_admin"`) + `prisma/pintasend-schema.sql` (komentar sama — TIDAK ada perubahan kolom, role tetap TEXT)
 - Modify: `src/lib/authStore.ts` — `NewUser.role` comment + validasi role whitelist di `createUser` & `createUserWithTenant` (`owner|tenant_admin|member|platform_admin`; default tetap `owner` di jalur register)
 - Modify: `src/app/api/platform/tenants/[id]/users/route.ts` — POST saat ini menerima `role` bebas; batasi: hanya `member|tenant_admin` untuk user baru non-owner via platform (owner tenant dibuat lewat provisioning terpisah).
 - Create test: `src/lib/authStore.abac.test.ts` (role whitelist saat create user invalid role → ditolak)
@@ -288,7 +288,7 @@ Invariant yang dijaga service (unit-test wajib):
 ### Task 6: Model AuditLog + service `src/lib/audit.ts`
 
 **Files:**
-- Modify: `prisma/schema.prisma` + `prisma/wavio-schema.sql`
+- Modify: `prisma/schema.prisma` + `prisma/pintasend-schema.sql`
 - Create: `prisma/migrations/2026-09-04-audit-log.sql` (idempotent)
 - Create: `src/lib/audit.ts`
 - Create test: `src/lib/audit.test.ts`
@@ -399,7 +399,7 @@ export interface AuditLogRow { id: string; tenantId: string | null; actorUserId:
 
 **Files:**
 - Create: `src/app/api/platform/audit/route.ts` — GET `?action&tenantId&actorEmail&from&to&q&page&limit` (guard `platform_admin`)
-- Create: `src/app/api/platform/audit/export/route.ts` — GET `?filters` → CSV (kolom: waktu, actor, role, action, targetType, targetId, tenantId, meta, ip; header `x-wavio-signature` tidak perlu — ini admin UI)
+- Create: `src/app/api/platform/audit/export/route.ts` — GET `?filters` → CSV (kolom: waktu, actor, role, action, targetType, targetId, tenantId, meta, ip; header `x-pintasend-signature` tidak perlu — ini admin UI)
 - Create: `src/app/platform/audit/page.tsx` (server: guard layout sudah memfilter platform_admin — render `<AuditTable />`)
 - Create: `src/components/platform/AuditTable.tsx` (client: filter action/tenantId/q + date range, pagination, export CSV button, row expand meta JSON)
 - Modify: `src/components/platform/PlatformSidebar.tsx` (tambah entri “Audit”)
@@ -416,9 +416,9 @@ export interface AuditLogRow { id: string; tenantId: string | null; actorUserId:
 ### Task 9: Global platform settings (`PlatformSetting`)
 
 **Files:**
-- Modify: `prisma/schema.prisma` + `wavio-schema.sql`; Create `prisma/migrations/2026-09-04-platform-setting.sql`
+- Modify: `prisma/schema.prisma` + `pintasend-schema.sql`; Create `prisma/migrations/2026-09-04-platform-setting.sql`
 - Create: `src/lib/platformSettings.ts` + test `platformSettings.test.ts`
-- Modify: `src/lib/watermark.ts` — `resolveWatermark`/`getWatermarkFootnote` fallback ke setting `watermark_footnote` (env `WAVIO_WATERMARK_FOOTNOTE` override → setting DB → `DEFAULT_WATERMARK_FOOTNOTE`)
+- Modify: `src/lib/watermark.ts` — `resolveWatermark`/`getWatermarkFootnote` fallback ke setting `watermark_footnote` (env `PINTSEND_WATERMARK_FOOTNOTE` override → setting DB → `DEFAULT_WATERMARK_FOOTNOTE`)
 - Create: `src/app/api/platform/settings/route.ts` (GET list, PUT upsert — whitelist key + validasi tipe)
 - Create: `src/app/platform/settings/page.tsx` + `src/components/platform/SettingsForm.tsx`
 - Modify: `PlatformSidebar.tsx` (entri “Settings”)
@@ -433,7 +433,7 @@ model PlatformSetting {
   updatedAt DateTime @updatedAt
 }
 ```
-**Known keys (whitelist):** `platform_name` (string, default "Wavio"), `watermark_footnote` (string), `allow_public_registration` (bool, default false — kendalikan halaman `/register`), `message_retention_default_days` (int 30..365, default 30). Catatan: `allow_public_registration=false` → route register mengembalikan 403 (opsional flag ke deprecation, karena provisioning tenant kini via platform admin).
+**Known keys (whitelist):** `platform_name` (string, default "PintaSend"), `watermark_footnote` (string), `allow_public_registration` (bool, default false — kendalikan halaman `/register`), `message_retention_default_days` (int 30..365, default 30). Catatan: `allow_public_registration=false` → route register mengembalikan 403 (opsional flag ke deprecation, karena provisioning tenant kini via platform admin).
 
 - [x] **Step 1:** Failing test: getPlatformSetting default fallback; set + get round-trip; PUT whitelist key tak dikenal → 400; tipe salah → 400.
 - [x] **Step 2:** Implementasi service + route.
@@ -446,7 +446,7 @@ model PlatformSetting {
 ### Task 10: Model PlatformBroadcast + service
 
 **Files:**
-- Modify: `prisma/schema.prisma` + `wavio-schema.sql`; Create `prisma/migrations/2026-09-04-platform-broadcast.sql`
+- Modify: `prisma/schema.prisma` + `pintasend-schema.sql`; Create `prisma/migrations/2026-09-04-platform-broadcast.sql`
 - Create: `src/lib/platformBroadcast.ts` + test `platformBroadcast.test.ts`
 
 **Model (Neon):**
@@ -556,7 +556,7 @@ async function handleBroadcastDispatch(env) {
 ### Task 12: Model Invoice + Plan.priceMonthly + service
 
 **Files:**
-- Modify: `prisma/schema.prisma` + `wavio-schema.sql`; Create `prisma/migrations/2026-09-04-invoice.sql`
+- Modify: `prisma/schema.prisma` + `pintasend-schema.sql`; Create `prisma/migrations/2026-09-04-invoice.sql`
 - Modify: `src/lib/platform.ts` (`PlanRow` + `priceMonthly`, `listPlans`/`updatePlan` — tambah kolom)
 - Create: `src/lib/invoices.ts` + test `invoices.test.ts`
 
@@ -651,7 +651,7 @@ export async function exportInvoicesCsv(params: {...}): Promise<string>; // help
 **Files:**
 - Modify: `src/app/docs/api/page.tsx` (tambah section: member management API, audit, settings, broadcast, invoice; update matrix role)
 - Modify: `README.md` (fitur baru + role matrix ringkas) — cek apakah ada table feature di README
-- Modify: `docs/wavio-fitur-review.md` (tandai gap yang sudah ditutup / masih open)
+- Modify: `docs/pintasend-fitur-review.md` (tandai gap yang sudah ditutup / masih open)
 - Create: `docs/security-hardening.md` (dari Task 14)
 - Update `docs/superpowers/plans/2026-09-04-platform-owner-superadmin.md` status checklist tiap task (centang selesai)
 
@@ -670,7 +670,7 @@ export async function exportInvoicesCsv(params: {...}): Promise<string>; // help
 4. Semua mutasi kunci tercatat di `AuditLog` (actor, tenantId, action, meta, ip) — `recordAudit` never-throw.
 5. Tidak ada regresi keamanan: guard lintas-route di-verifikasi + test regresi cross-tenant hijau.
 6. `npx tsc --noEmit`, `npm test`, `npm run lint` hijau (isu pra-ada terdokumentasi terpisah).
-7. Migration Neon idempotent (AuditLog, PlatformSetting, PlatformBroadcast/Job, Invoice, Plan.priceMonthly) sudah diterapkan dev & tercatat di `prisma/migrations/` + `wavio-schema.sql`. D1 tidak berubah (tidak ada kolom auth/device baru).
+7. Migration Neon idempotent (AuditLog, PlatformSetting, PlatformBroadcast/Job, Invoice, Plan.priceMonthly) sudah diterapkan dev & tercatat di `prisma/migrations/` + `pintasend-schema.sql`. D1 tidak berubah (tidak ada kolom auth/device baru).
 8. Docs API & README diperbarui.
 
 ---

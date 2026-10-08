@@ -10,7 +10,7 @@ export default async function PlatformMetrics() {
         Metrik Lintas Tenant
       </h1>
       <p className="mt-2 text-sm text-fg-muted">
-        Pemakaian agregat seluruh tenant Wavio.
+        Pemakaian agregat seluruh tenant PintaSend.
       </p>
       <div className="mt-8">
         <MetricsView initial={metrics} />

@@ -13,7 +13,7 @@ const mockedList = vi.mocked(listAuditLogs);
 const mockedCsv = vi.mocked(toAuditCsv);
 
 const platformSession = {
-  user: { id: "u-p", email: "platform@wavio.test", role: "platform_admin", tenantId: "t-platform" },
+  user: { id: "u-p", email: "platform@pintasend.test", role: "platform_admin", tenantId: "t-platform" },
 };
 const ownerSession = {
   user: { id: "u1", email: "owner@x.y", role: "owner", tenantId: "t1" },

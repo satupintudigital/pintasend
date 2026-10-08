@@ -247,7 +247,7 @@ export async function executeSendMessage(
         ok: true,
         status: 200,
         body: record.response,
-        headers: { "x-wavio-idempotent-replay": "true" },
+        headers: { "x-pintasend-idempotent-replay": "true" },
       };
     }
   }

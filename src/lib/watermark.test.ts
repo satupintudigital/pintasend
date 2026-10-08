@@ -14,7 +14,7 @@ vi.mock("@/lib/db", () => ({ query: vi.fn() }));
 import { query } from "./db";
 
 afterEach(() => {
-  delete process.env.WAVIO_WATERMARK_FOOTNOTE;
+  delete process.env.PINTSEND_WATERMARK_FOOTNOTE;
   invalidateWatermarkFootnoteCache();
   vi.restoreAllMocks();
 });
@@ -27,16 +27,16 @@ describe("getWatermarkFootnote", () => {
   });
 
   it("env diset → dipakai (trimmed)", () => {
-    expect(getWatermarkFootnote({ WAVIO_WATERMARK_FOOTNOTE: "  Iklan kami  " })).toBe("Iklan kami");
+    expect(getWatermarkFootnote({ PINTSEND_WATERMARK_FOOTNOTE: "  Iklan kami  " })).toBe("Iklan kami");
   });
 
   it("env kosong/whitespace → default", () => {
-    expect(getWatermarkFootnote({ WAVIO_WATERMARK_FOOTNOTE: "   " })).toBe(DEFAULT_WATERMARK_FOOTNOTE);
+    expect(getWatermarkFootnote({ PINTSEND_WATERMARK_FOOTNOTE: "   " })).toBe(DEFAULT_WATERMARK_FOOTNOTE);
   });
 });
 
 describe("appendFootnote", () => {
-  const foot = "Dikirim via Wavio · wavio.satupintudigital.co.id";
+  const foot = "Dikirim via PintaSend · pintasend.satupintudigital.co.id";
 
   it("footnote kosong → teks apa adanya", () => {
     expect(appendFootnote("Halo", "", 100)).toBe("Halo");
@@ -94,14 +94,14 @@ describe("tenantHasRemoveWatermark", () => {
 
 describe("resolveWatermarkFootnote", () => {
   it("env override menang tanpa sentuh DB", async () => {
-    process.env.WAVIO_WATERMARK_FOOTNOTE = "Iklan env";
+    process.env.PINTSEND_WATERMARK_FOOTNOTE = "Iklan env";
     const foot = await resolveWatermarkFootnote();
     expect(foot).toBe("Iklan env");
     expect(query).not.toHaveBeenCalled();
   });
 
   it("env kosong → setting DB dipakai (PlatformSetting watermark_footnote)", async () => {
-    process.env.WAVIO_WATERMARK_FOOTNOTE = "   ";
+    process.env.PINTSEND_WATERMARK_FOOTNOTE = "   ";
     vi.mocked(query).mockResolvedValueOnce([{ value: JSON.stringify("Iklan dari setting") }]);
     const foot = await resolveWatermarkFootnote();
     expect(foot).toBe("Iklan dari setting");
@@ -125,21 +125,21 @@ describe("resolveWatermarkFootnote", () => {
 
 describe("resolveWatermark", () => {
   it("tenant TANPA addon → footnote diterapkan (env override)", async () => {
-    process.env.WAVIO_WATERMARK_FOOTNOTE = "Iklan";
+    process.env.PINTSEND_WATERMARK_FOOTNOTE = "Iklan";
     vi.mocked(query).mockResolvedValueOnce([]);
     const d = await resolveWatermark("t1");
     expect(d).toEqual({ apply: true, footnote: "Iklan" });
   });
 
   it("tenant DENGAN addon aktif → footnote dilewati", async () => {
-    process.env.WAVIO_WATERMARK_FOOTNOTE = "Iklan";
+    process.env.PINTSEND_WATERMARK_FOOTNOTE = "Iklan";
     vi.mocked(query).mockResolvedValueOnce([{ active: true }]);
     const d = await resolveWatermark("t1");
     expect(d).toEqual({ apply: false, footnote: "Iklan" });
   });
 
   it("env kosong + no setting → default diterapkan (addon query tetap jalan)", async () => {
-    process.env.WAVIO_WATERMARK_FOOTNOTE = "   ";
+    process.env.PINTSEND_WATERMARK_FOOTNOTE = "   ";
     vi.mocked(query)
       .mockResolvedValueOnce([]) // setting → default
       .mockResolvedValueOnce([]); // addon → tidak aktif

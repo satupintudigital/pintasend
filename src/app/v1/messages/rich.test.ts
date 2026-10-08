@@ -48,7 +48,7 @@ describe("POST /v1/messages/location", () => {
     const res = await post(
       postLocation,
       { to: "081234567890", latitude: -6.2, longitude: 106.8, description: "Toko", deviceId: "dev9" },
-      { "x-request-id": "req-loc", authorization: "Bearer wavio_abc" },
+      { "x-request-id": "req-loc", authorization: "Bearer pintasend_abc" },
     );
     expect(res.status).toBe(200);
     expect(res.headers.get("x-request-id")).toBe("req-loc");

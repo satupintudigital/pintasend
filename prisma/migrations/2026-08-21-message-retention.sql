@@ -2,7 +2,7 @@
 -- "retensi pesan & log maksimal 30 hari, KECUALI Tenant meminta penyimpanan lebih lama").
 --
 -- 1. Tenant.messageRetentionDays — nilai efektif retensi (hari) per tenant.
---    Default 30 = kebijakan Wavio; >30 hanya bila ada RetentionRequest approved.
+--    Default 30 = kebijakan PintaSend; >30 hanya bila ada RetentionRequest approved.
 -- 2. Tabel RetentionRequest — "instruksi tertulis" dari tenant: siapa pemohon,
 --    alasan, durasi, dan jejak persetujuan (approvedBy/approvedAt). Ini bukti
 --    dasar hukum perpanjangan (dipakai purge worker + audit PDP).

@@ -4,7 +4,7 @@ import { listDevicesForTenant } from "@/lib/devices";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { getRequestId, logEvent } from "@/lib/requestLogger";
 
-// Langkah 1 wizard SSO NalaNiaga → Wavio. Token JWT di body; endpoint publik
+// Langkah 1 wizard SSO NalaNiaga → PintaSend. Token JWT di body; endpoint publik
 // tapi token-gated + rate limit per IP (bukan session dashboard).
 export async function POST(req: Request) {
   const requestId = getRequestId(req);

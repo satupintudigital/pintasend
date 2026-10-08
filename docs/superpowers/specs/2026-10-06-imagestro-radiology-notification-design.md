@@ -1,8 +1,8 @@
-# Integrasi Imagestro → Wavio: Notifikasi Hasil Radiologi via WhatsApp
+# Integrasi Imagestro → PintaSend: Notifikasi Hasil Radiologi via WhatsApp
 
 Tanggal: 2026-10-06
 Status: **disetujui (brainstorming)** — menunggu review spec
-Repositori terlibat: `wavio` (gateway WhatsApp) + `Imagestro-PACS` (PACS/router/order-worker)
+Repositori terlibat: `pintasend` (gateway WhatsApp) + `Imagestro-PACS` (PACS/router/order-worker)
 
 ## Ringkasan
 
@@ -11,15 +11,15 @@ dibuat, `dicom_forward_status = success`), pasien menerima notifikasi WhatsApp
 bahwa hasil pemeriksaan radiologinya sudah bisa dilihat melalui aplikasi
 Satusehat Atua, lengkap dengan link ke portal pasien Imagestro.
 
-Notifikasi dikirim melalui **Wavio** (gateway WhatsApp OpenWA) — Imagestro
-memanggil endpoint khusus Wavio, Wavio yang mengirimkan pesan ke nomor
+Notifikasi dikirim melalui **PintaSend** (gateway WhatsApp OpenWA) — Imagestro
+memanggil endpoint khusus PintaSend, PintaSend yang mengirimkan pesan ke nomor
 WhatsApp pasien.
 
 ## Keputusan desain (hasil clarifying questions)
 
 | Keputusan | Pilihan |
 |---|---|
-| Channel | WhatsApp via Wavio (OpenWA) |
+| Channel | WhatsApp via PintaSend (OpenWA) |
 | Trigger | DICOM forward ke SATUSEHAT SUCCESS |
 | Link | Template URL konfigurasi per deployment (placeholder `{study_uid}`) → portal pasien Imagestro |
 | Nomor pasien | Diresolve oleh Imagestro (`studies`→`orders.patient_id` → `MASTER_DATA_WORKER` `GET /patients/{id}` → `phone`) |
@@ -39,11 +39,11 @@ order-worker
   │   → patient_name + phone        (kalau patient_id null → skip + record failed)
   │ link = RADIOLOGY_PORTAL_URL_TEMPLATE.replace("{study_uid}", study_uid)
   │ idempotency: INSERT radiology_notifications(study_uid UNIQUE, ON CONFLICT skip)
-  │ POST {WAVIO_BASE_URL}/v1/integrations/imagestro/radiology-ready
-  │   Authorization: Bearer {WAVIO_API_KEY}
+  │ POST {PINTSEND_BASE_URL}/v1/integrations/imagestro/radiology-ready
+  │   Authorization: Bearer {PINTSEND_API_KEY}
   │   Idempotency-Key: imagestro-radiology:{study_uid}
   ▼
-wavio (Cloudflare Workers / OpenNext)
+pintasend (Cloudflare Workers / OpenNext)
   │ verifyApiKey (tenant-scoped) → validasi zod payload
   │ render pesan Indonesia → executeSendMessage()
   │   (reuse: kuota, gate kredit, device ready, watermark, message log, Idempotency-Key KV)
@@ -71,7 +71,7 @@ segmen modality/nama). `link` wajib (validasi 400 kalau kosong/bukan URL).
 
 ## Komponen
 
-### wavio (repo ini)
+### pintasend (repo ini)
 
 - **`src/app/v1/integrations/imagestro/radiology-ready/route.ts`** — route baru.
   Auth: `Authorization: Bearer <API key>` via `verifyApiKey` (pola sama dengan
@@ -113,15 +113,15 @@ segmen modality/nama). `link` wajib (validasi 400 kalau kosong/bukan URL).
   4. `INSERT INTO radiology_notifications (...) ON CONFLICT (study_uid) DO NOTHING;`
      kalau conflict → sudah notif, skip (idempotency sisi sumber)
   5. link = `env.RADIOLOGY_PORTAL_URL_TEMPLATE.replace("{study_uid}", study_uid)`
-  6. `fetch(WAVIO_BASE_URL + endpoint)` retry 2× (backoff 1s/3s) untuk 5xx/timeout;
-     update status record (`sent`/`failed` + `wavio_message_id` + `last_error`)
-- **`cloudflare/order-worker/wrangler.jsonc`** — vars: `WAVIO_BASE_URL`
-  (mis. `https://wavio.satupintudigital.co.id`),
+  6. `fetch(PINTSEND_BASE_URL + endpoint)` retry 2× (backoff 1s/3s) untuk 5xx/timeout;
+     update status record (`sent`/`failed` + `pintasend_message_id` + `last_error`)
+- **`cloudflare/order-worker/wrangler.jsonc`** — vars: `PINTSEND_BASE_URL`
+  (mis. `https://pintasend.satupintudigital.co.id`),
   `RADIOLOGY_PORTAL_URL_TEMPLATE` (mis.
-  `https://portal.atua.id/studies/{study_uid}`); secret: `WAVIO_API_KEY`.
+  `https://portal.atua.id/studies/{study_uid}`); secret: `PINTSEND_API_KEY`.
 - **Migrasi SQL** (Neon, order-worker DB) — tabel `radiology_notifications`:
   `id uuid v7 PK, tenant_id, study_uid UNIQUE, order_id, patient_phone, link,
-  status ('pending'|'sent'|'failed'), attempts, last_error, wavio_message_id,
+  status ('pending'|'sent'|'failed'), attempts, last_error, pintasend_message_id,
   created_at, updated_at`.
 
 ## Error handling
@@ -130,13 +130,13 @@ segmen modality/nama). `link` wajib (validasi 400 kalau kosong/bukan URL).
 |---|---|
 | dicom-router → order-worker | fire-and-forget; error di-catch + console.error. Forward sudah SUCCESS — jangan `retry` antrian. |
 | phone pasien kosong | skip + log (warn). Record tetap dibuat dengan status `failed` + alasan `no_phone`. |
-| order-worker → wavio 5xx/timeout | retry 2×; tetap gagal → record `failed` (target reconciler cron fase 2). |
-| wavio 402 (saldo habis) / 429 (kuota) | record `failed` + error detail; terlihat di log/audit. |
-| Idempotency | dua lapis: UNIQUE `study_uid` di `radiology_notifications` + `Idempotency-Key` di wavio (KV idempotency store). Double-event → respons replay, tidak ada WA ganda. |
+| order-worker → pintasend 5xx/timeout | retry 2×; tetap gagal → record `failed` (target reconciler cron fase 2). |
+| pintasend 402 (saldo habis) / 429 (kuota) | record `failed` + error detail; terlihat di log/audit. |
+| Idempotency | dua lapis: UNIQUE `study_uid` di `radiology_notifications` + `Idempotency-Key` di pintasend (KV idempotency store). Double-event → respons replay, tidak ada WA ganda. |
 
 ## Testing
 
-- **wavio**: unit test `imagestro.ts` (validasi payload: valid, missing fields,
+- **pintasend**: unit test `imagestro.ts` (validasi payload: valid, missing fields,
   nomor invalid, link bukan URL; rendering pesan; pembentukan Idempotency-Key)
   dan route test (auth 401, success path, delegasi). Pola: `src/app/v1/messages/route.test.ts`.
 - **Imagestro**: unit test `radiology-notify.ts` (link building, mapping payload,
@@ -147,14 +147,14 @@ segmen modality/nama). `link` wajib (validasi 400 kalau kosong/bukan URL).
 
 - Reconciler cron untuk notifikasi yang gagal (fase 2 — tabel
   `radiology_notifications` sudah jadi targetnya).
-- Per-tenant mapping wavio API key (v1: satu konfigurasi global per deployment
+- Per-tenant mapping pintasend API key (v1: satu konfigurasi global per deployment
   order-worker).
 - Notifikasi untuk gagal forward / validasi upload saja.
 - Halaman portal pasien baru (link mengarah ke portal yang sudah ada/dikonfigurasi).
 
 ## Referensi kode
 
-- Wavio: `src/app/v1/messages/route.ts` (auth + delegasi), `src/lib/sendMessage.ts`
+- PintaSend: `src/app/v1/messages/route.ts` (auth + delegasi), `src/lib/sendMessage.ts`
   (`executeSendMessage`, idempotency, credit gate), `src/lib/authStore.ts`
   (`verifyApiKey`).
 - Imagestro: `cloudflare/satusehat-dicom-router/src/handlers/process-forward.ts`

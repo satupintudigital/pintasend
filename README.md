@@ -1,11 +1,11 @@
-# Wavio — WhatsApp API Gateway untuk Bisnis
+# PintaSend — WhatsApp API Gateway untuk Bisnis
 
-Dashboard + API gateway WhatsApp multi-tenant berbasis **OpenWA**. Produk mandiri Satu Pintu Digital (brand: **Wavio**), sekaligus addon integrasi NalaNiaga.
+Dashboard + API gateway WhatsApp multi-tenant berbasis **OpenWA**. Produk mandiri Satu Pintu Digital (brand: **PintaSend**), sekaligus addon integrasi NalaNiaga.
 
-- **Produksi:** https://wavio.satupintudigital.co.id
-- **Workers dev fallback:** https://wavio.xolution.workers.dev
-- **Spec & plan:** `NalaNiaga/docs/superpowers/specs/2026-08-17-wa-gateway-saas-design.md` · `NalaNiaga/docs/superpowers/plans/2026-08-17-wavio-fase-0-1.md`
-- **Spec & plan (Fase 4 — integrasi NalaNiaga):** `NalaNiaga/docs/superpowers/specs/2026-08-18-wavio-gateway-sso-design.md` · `NalaNiaga/docs/superpowers/plans/2026-08-18-wavio-gateway-sso.md`
+- **Produksi:** https://pintasend.satupintudigital.co.id
+- **Workers dev fallback:** https://pintasend.xolution.workers.dev
+- **Spec & plan:** `NalaNiaga/docs/superpowers/specs/2026-08-17-wa-gateway-saas-design.md` · `NalaNiaga/docs/superpowers/plans/2026-08-17-pintasend-fase-0-1.md`
+- **Spec & plan (Fase 4 — integrasi NalaNiaga):** `NalaNiaga/docs/superpowers/specs/2026-08-18-pintasend-gateway-sso-design.md` · `NalaNiaga/docs/superpowers/plans/2026-08-18-pintasend-gateway-sso.md`
 - **Deploy OpenWA (v0.22.0):** [`docs/openwa-deploy.md`](docs/openwa-deploy.md)
 - **Kontrak helper HTTP JSON terpusat (app & worker):** [`docs/http-helpers.md`](docs/http-helpers.md)
 
@@ -13,7 +13,7 @@ Dashboard + API gateway WhatsApp multi-tenant berbasis **OpenWA**. Produk mandir
 
 ```
 Browser ──► Cloudflare Workers (OpenNext Next.js 16)  ──► Neon Postgres (@neondatabase/serverless)
-                │  wavio.satupintudigital.co.id            (raw SQL, WebSocket 443)
+                │  pintasend.satupintudigital.co.id            (raw SQL, WebSocket 443)
                 ▼
         OpenWA via Cloudflare Tunnel  https://owa.nalaniaga.id  (VPS :2785)
 ```
@@ -32,7 +32,7 @@ Next.js 16 (App Router) · React 19 · TypeScript 5 · Tailwind CSS 4 · Auth.js
 ```bash
 npm install
 cp .env.example .env   # isi DATABASE_URL, AUTH_SECRET, OPENWA_*
-npm run db:seed        # seed demo: owner@wavio.test / admin123
+npm run db:seed        # seed demo: owner@pintasend.test / admin123
 npm run dev            # http://localhost:3000
 ```
 
@@ -74,7 +74,7 @@ Referensi lengkap: `src/app/docs/api/page.tsx` (halaman `/docs/api`).
 
 ## Dashboard & peran (tenant + platform)
 
-Wavio punya dua area dashboard dengan hierarki peran terpusat (`src/lib/abac.ts`):
+PintaSend punya dua area dashboard dengan hierarki peran terpusat (`src/lib/abac.ts`):
 
 | Peran | Area tenant (`/dashboard`) | Area platform (`/platform`) |
 |---|---|---|
@@ -86,6 +86,14 @@ Wavio punya dua area dashboard dengan hierarki peran terpusat (`src/lib/abac.ts`
 Fitur platform (Task 6–13):
 
 - **Member management** — undang/list/ganti-role/reset-password/hapus user tenant di `/dashboard/members` (owner & tenant_admin, scoped ke tenant sendiri).
+
+### Kredensial Demo
+
+| Akun | Email | Password | Role |
+|------|-------|----------|------|
+| Superadmin (Platform) | `platform@pintasend.test` | `admin123` | `platform_admin` |
+| Owner Demo Tenant | `owner@pintasend.test` | `admin123` | `owner` |
+| Demo User | `demo@pintasend.test` | `demo123` | `member` |
 - **Audit log** — jejak aksi admin lintas-tenant (`/platform/audit`, filter + export CSV); 13 titik mutasi ter-instrumentasi (`recordAudit` never-throw).
 - **Global settings** — `/platform/settings`: nama platform, footnote watermark iklan, kebijakan default (diprioritaskan env → setting DB → default).
 - **Broadcast** — `/platform/broadcasts`: pengumuman platform ke nomor pemilik perangkat (status ready); worker `workers/platform-broadcast` (HTTP on-demand); watermark tenant tetap dihormati.
@@ -120,37 +128,37 @@ Alur jual paket tanpa intervensi admin platform (`2026-09-04-self-serve-billing.
 
 ## Integrasi NalaNiaga (Fase 4 — gateway SSO)
 
-NalaNiaga memakai Wavio sebagai gateway WhatsApp tanpa konfigurasi manual:
+NalaNiaga memakai PintaSend sebagai gateway WhatsApp tanpa konfigurasi manual:
 
-- **SSO wizard** — NalaNiaga menerbitkan JWT HS256 (secret bersama `NALANIAGA_SSO_SECRET`) → pemilik toko diarahkan ke `wavio.satupintudigital.co.id/connect?token=` → scan QR → selesai otomatis via callback `POST /api/webhooks/wavio/callback` (API key + webhook secret toko dikirim balik, header `X-Wavio-Signature`)
-- **Tenant auto-provision** — `findOrCreateTenantByNalaniaga` menautkan toko NalaNiaga (`nalaniagaStoreId`) ke tenant Wavio (tanpa tabel baru)
-- **Webhook inbound dual-format** — NalaNiaga menerima event Wavio (`x-wavio-signature`) di endpoint webhook yang sama dengan jalur OpenWA lama
+- **SSO wizard** — NalaNiaga menerbitkan JWT HS256 (secret bersama `NALANIAGA_SSO_SECRET`) → pemilik toko diarahkan ke `pintasend.satupintudigital.co.id/connect?token=` → scan QR → selesai otomatis via callback `POST /api/webhooks/pintasend/callback` (API key + webhook secret toko dikirim balik, header `X-PintaSend-Signature`)
+- **Tenant auto-provision** — `findOrCreateTenantByNalaniaga` menautkan toko NalaNiaga (`nalaniagaStoreId`) ke tenant PintaSend (tanpa tabel baru)
+- **Webhook inbound dual-format** — NalaNiaga menerima event PintaSend (`x-pintasend-signature`) di endpoint webhook yang sama dengan jalur OpenWA lama
 
 ## Skema DB & migrasi
 
 `prisma/schema.prisma` = source of truth. DDL diterapkan ke Neon via:
 
 ```bash
-npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/wavio-schema.sql
+npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script > prisma/pintasend-schema.sql
 node prisma/apply-schema.mjs   # menerapkan SQL ke DATABASE_URL
 ```
 
 ## Env & secret
 
-`.env` (lokal) dan `wrangler secret put` (Worker): `DATABASE_URL`, `AUTH_SECRET`, `OPENWA_BASE_URL` (`https://owa.nalaniaga.id`), `OPENWA_ADMIN_KEY`, `RESEND_API_KEY` + `EMAIL_FROM` (email via Resend, sender `Wavio <noreply@wavio.satupintudigital.co.id>`), plus `TRIPAY_MODE`/`TRIPAY_API_KEY`/`TRIPAY_PRIVATE_KEY`/`TRIPAY_MERCHANT_CODE` (self-serve billing) — lihat `.env.example`.
+`.env` (lokal) dan `wrangler secret put` (Worker): `DATABASE_URL`, `AUTH_SECRET`, `OPENWA_BASE_URL` (`https://owa.nalaniaga.id`), `OPENWA_ADMIN_KEY`, `RESEND_API_KEY` + `EMAIL_FROM` (email via Resend, sender `PintaSend <noreply@pintasend.satupintudigital.co.id>`), plus `TRIPAY_MODE`/`TRIPAY_API_KEY`/`TRIPAY_PRIVATE_KEY`/`TRIPAY_MERCHANT_CODE` (self-serve billing) — lihat `.env.example`.
 
-## Sinkronisasi template NalaNiaga → Wavio → OpenWA
+## Sinkronisasi template NalaNiaga → PintaSend → OpenWA
 
-NalaNiaga adalah sumber canonical template. Publish dari dashboard NalaNiaga menyimpan perubahan secara lokal, memasukkannya ke outbox, lalu mengirim snapshot bertanda HMAC ke endpoint internal Wavio. Wavio mem-fan-out satu job per device dan worker `template-sync-wavio` membuat template OpenWA immutable (`nala_<event>_v<version>`) menggunakan operasi list/create saja.
+NalaNiaga adalah sumber canonical template. Publish dari dashboard NalaNiaga menyimpan perubahan secara lokal, memasukkannya ke outbox, lalu mengirim snapshot bertanda HMAC ke endpoint internal PintaSend. PintaSend mem-fan-out satu job per device dan worker `template-sync-pintasend` membuat template OpenWA immutable (`nala_<event>_v<version>`) menggunakan operasi list/create saja.
 
 - Endpoint internal: `POST /internal/nalaniaga/template-sync` (HMAC timestamp + nonce; bukan API tenant).
 - Worker: `workers/template-sync` dipanggil via HTTP on-demand; offline device di-retry dengan backoff dan tidak menghentikan device lain. Tidak ada cron agar Neon dapat scale-to-zero.
-- Pengiriman memakai nama canonical; Wavio menyelesaikan binding physical secara internal dan menerapkan watermark tepat satu kali.
-- Set secret route Wavio pada deployment app: `WAVIO_TEMPLATE_SYNC_SECRET`.
+- Pengiriman memakai nama canonical; PintaSend menyelesaikan binding physical secara internal dan menerapkan watermark tepat satu kali.
+- Set secret route PintaSend pada deployment app: `PINTSEND_TEMPLATE_SYNC_SECRET`.
 - Set secret worker: `DATABASE_URL`, `OPENWA_ADMIN_KEY`, `TEMPLATE_SYNC_TOKEN`; URL OpenWA non-rahasia berada di `workers/template-sync/wrangler.jsonc`.
 - Deploy worker secara terpisah: `npx wrangler deploy --config workers/template-sync/wrangler.jsonc`.
 
-Jangan mengisi secret template sync di `NEXT_PUBLIC_*`, dan jangan menjalankan worker memakai database/schema yang berbeda dari Wavio app.
+Jangan mengisi secret template sync di `NEXT_PUBLIC_*`, dan jangan menjalankan worker memakai database/schema yang berbeda dari PintaSend app.
 
 ## Kebijakan Neon scale-to-zero
 

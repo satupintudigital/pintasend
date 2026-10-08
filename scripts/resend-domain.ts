@@ -2,8 +2,8 @@
 // → verifikasi. Dipakai sekali saat setup domain; SDK `resend` dipakai agar
 // konsisten dengan modul email (src/lib/email.ts).
 //
-// Jalankan dari wavio/ (butuh RESEND_API_KEY di .env):
-//   npx tsx scripts/resend-domain.ts create wavio.satupintudigital.co.id
+// Jalankan dari pintasend/ (butuh RESEND_API_KEY di .env):
+//   npx tsx scripts/resend-domain.ts create pintasend.satupintudigital.co.id
 //   npx tsx scripts/resend-domain.ts status
 //   npx tsx scripts/resend-domain.ts records <domainId>
 //   npx tsx scripts/resend-domain.ts verify <domainId>

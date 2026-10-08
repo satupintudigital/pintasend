@@ -22,9 +22,10 @@ export default function PrivacyPage() {
           </h2>
           <p className="mt-3">
             Kebijakan Privasi ini menjelaskan bagaimana{" "}
-            <strong>PT. Satu Pintu Digital</strong> (&quot;Wavio&quot;, &quot;kami&quot;)
-            memproses Data Pribadi Anda sehubungan dengan penggunaan layanan Wavio — WhatsApp
-            API gateway yang menghubungkan aplikasi bisnis dengan WhatsApp melalui REST API.
+            <strong>PT. Satu Pintu Digital</strong> (&quot;PintaSend&quot;, &quot;kami&quot;)
+            memproses Data Pribadi Anda sehubungan dengan penggunaan layanan PintaSend —
+            AI gateway multi-kanal yang menghubungkan aplikasi bisnis dengan WhatsApp,
+            Telegram Bot, dan SMS melalui REST API.
           </p>
           <p className="mt-3">
             Dalam konteks Pelindungan Data Pribadi (UU No. 27/2022):
@@ -35,7 +36,7 @@ export default function PrivacyPage() {
               pesannya dan bertanggung jawab atas persetujuan penerima.
             </li>
             <li>
-              <strong>Wavio</strong> = Pemroses Data yang memproses data atas instruksi
+              <strong>PintaSend</strong> = Pemroses Data yang memproses data atas instruksi
               tenant, sekaligus Pengendali atas data akun tenant.
             </li>
           </ul>
@@ -63,7 +64,7 @@ export default function PrivacyPage() {
             request.
           </p>
           <p className="mt-3 text-fg-faint text-xs italic">
-            Data penerima pesan adalah Data Pribadi pihak ketiga — Wavio memprosesnya atas
+            Data penerima pesan adalah Data Pribadi pihak ketiga — PintaSend memprosesnya atas
             instruksi tenant (Pengendali).
           </p>
         </section>
@@ -197,7 +198,7 @@ export default function PrivacyPage() {
           </p>
           <p className="mt-3">
             Pemilik akun: hubungi kanal aduan. Penerima pesan: ajukan melalui tenant
-            (Pengendali) atau melalui kanal aduan Wavio.
+            (Pengendali) atau melalui kanal aduan PintaSend.
           </p>
         </section>
 

@@ -175,7 +175,7 @@ createChannel(sessionId, body)
 | 3 | 2 | ~12 | ~8 hours |
 | **Total** | **7** | **~56** | **~36 hours** |
 
-## Conventions (follow existing Wavio patterns)
+## Conventions (follow existing PintaSend patterns)
 
 - **Thin routes:** Auth → delegate to service → return response
 - **Service layer:** validate → rate limit → select device → call OpenWA → log

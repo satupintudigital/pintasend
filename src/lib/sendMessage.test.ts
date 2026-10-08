@@ -7,9 +7,10 @@ import { insertMessageLog } from "./messageStore";
 import { sleep } from "./delay";
 import { getTenantConfig } from "./tenantConfig";
 import { prepaidSendGate, spendCredit } from "./credit";
+import { DEFAULT_WATERMARK_FOOTNOTE } from "./watermark";
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
-// Fake KV WAVIO_CACHE — state bertahan antar panggilan (persist dalam test),
+// Fake KV PINTSEND_CACHE — state bertahan antar panggilan (persist dalam test),
 // dipakai jalur idempotency.
 const fakeKv = {
   store: new Map<string, string>(),
@@ -20,7 +21,7 @@ const fakeKv = {
 };
 vi.mock("./cf", () => ({
   getBinding: vi.fn(async (name: string) => {
-    if (name === "WAVIO_CACHE") return fakeKv;
+    if (name === "PINTSEND_CACHE") return fakeKv;
     throw new Error(`binding ${name} tidak ada`);
   }),
 }));
@@ -294,7 +295,7 @@ describe("executeSendMessage — idempotency", () => {
     expect(second.ok).toBe(true);
     if (first.ok && second.ok) {
       expect(second.body.messageId).toBe(first.body.messageId);
-      expect(second.headers?.["x-wavio-idempotent-replay"]).toBe("true");
+      expect(second.headers?.["x-pintasend-idempotent-replay"]).toBe("true");
     }
     // Tidak ada kirim kedua ke OpenWA & tidak menghabiskan kuota/rate limit.
     expect(openwa.sendText).toHaveBeenCalledTimes(1);
@@ -334,7 +335,7 @@ describe("executeSendMessage — idempotency", () => {
 });
 
 describe("executeSendMessage — watermark footnote (iklan platform)", () => {
-  const FOOT = "via Wavio - https://wavio.satupintudigital.co.id";
+  const FOOT = DEFAULT_WATERMARK_FOOTNOTE;
 
   it("tanpa addon remove_watermark → footnote disisipkan ke teks + watermark:true", async () => {
     vi.mocked(getTenantConfig).mockResolvedValue({
@@ -441,7 +442,7 @@ describe("executeSendMessage — watermark footnote (iklan platform)", () => {
 
     const [, , sent] = vi.mocked(openwa.sendText).mock.calls[0];
     expect(sent).toHaveLength(4096);
-    expect(sent.endsWith("\n\nvia Wavio - https://wavio.satupintudigital.co.id")).toBe(true);
+    expect(sent.endsWith(`\n\n${DEFAULT_WATERMARK_FOOTNOTE}`)).toBe(true);
   });
 });
 

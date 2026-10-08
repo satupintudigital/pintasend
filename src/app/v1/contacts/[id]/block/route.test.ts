@@ -39,7 +39,7 @@ function call(
 
 describe("POST /v1/contacts/:number/block", () => {
   it("delegasi action=block + deviceId + X-Request-Id echo", async () => {
-    const res = await call(POST, "POST", { "x-request-id": "req-b-1", authorization: "Bearer wavio_abc" });
+    const res = await call(POST, "POST", { "x-request-id": "req-b-1", authorization: "Bearer pintasend_abc" });
 
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(okResult.body);

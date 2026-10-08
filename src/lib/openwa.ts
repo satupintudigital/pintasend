@@ -418,7 +418,7 @@ export const openwa = {
   // Webhook per session: OpenWA mem-POST event ke URL yang didaftarkan dan
   // menandatangani raw body dgn HMAC-SHA256 (header `x-openwa-signature`).
   // Secret bersifat write-only — di OpenWA sekalipun tidak bisa dibaca balik,
-  // jadi Wavio menderivasinya deterministik (lihat openwaWebhookSecret).
+  // jadi PintaSend menderivasinya deterministik (lihat openwaWebhookSecret).
   registerWebhook: (sessionId: string, body: { url: string; events: string[]; secret: string; retryCount?: number }) =>
     request<OpenwaWebhook>(`/api/sessions/${sessionId}/webhooks`, {
       method: "POST",
@@ -708,7 +708,7 @@ export type OpenwaWebhookEvent = (typeof OPENWA_WEBHOOK_EVENTS)[number];
 
 // Secret webhook per session, diturunkan DETERMINISTIK dari secret global
 // (OPENWA_WEBHOOK_SECRET, fallback OPENWA_ADMIN_KEY) + sessionId. Karena
-// OpenWA tidak mengembalikan secret webhook setelah dibuat, Wavio tidak perlu
+// OpenWA tidak mengembalikan secret webhook setelah dibuat, PintaSend tidak perlu
 // menyimpan secret per device — cukup menghitung ulang saat verifikasi masuk.
 // (hashApiKey = SHA-256 hex, cukup sebagai material HMAC.)
 //
@@ -718,6 +718,6 @@ export type OpenwaWebhookEvent = (typeof OPENWA_WEBHOOK_EVENTS)[number];
 // & di-register ulang webhook-nya.
 export async function openwaWebhookSecret(sessionId: string): Promise<string> {
   const base =
-    process.env.OPENWA_WEBHOOK_SECRET ?? process.env.OPENWA_ADMIN_KEY ?? "wavio-dev";
+    process.env.OPENWA_WEBHOOK_SECRET ?? process.env.OPENWA_ADMIN_KEY ?? "pintasend-dev";
   return hashApiKey(`${base}:${sessionId}`);
 }

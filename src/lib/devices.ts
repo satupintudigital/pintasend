@@ -38,9 +38,9 @@ export async function getDeviceForTenant(
   );
 }
 
-// URL ingest webhook Wavio — didaftarkan ke OpenWA per session.
+// URL ingest webhook PintaSend — didaftarkan ke OpenWA per session.
 function openwaWebhookUrl(): string {
-  const base = process.env.WAVIO_PUBLIC_BASE_URL ?? "https://wavio.satupintudigital.co.id";
+  const base = process.env.PINTSEND_PUBLIC_BASE_URL ?? "https://pintasend.satupintudigital.co.id";
   return `${base}/api/webhooks/openwa`;
 }
 
@@ -55,7 +55,7 @@ export async function createDeviceAndStart(
   tenantId: string,
 ): Promise<{ id: string; openwaSessionId: string; status: string }> {
   const deviceId = uuidv7();
-  const sessionName = `wavio-${deviceId.replace(/-/g, "").slice(0, 12)}`;
+  const sessionName = `pintasend-${deviceId.replace(/-/g, "").slice(0, 12)}`;
 
   const owa = await openwa.createSession(sessionName);
 
@@ -70,7 +70,7 @@ export async function createDeviceAndStart(
   try {
     const wh = await openwa.registerWebhook(owa.id, {
       url: openwaWebhookUrl(),
-      // Seluruh event yang Wavio inginkan dari OpenWA — termasuk message.ack
+      // Seluruh event yang PintaSend inginkan dari OpenWA — termasuk message.ack
       // & message.failed untuk pelacakan status kirim (sent → delivered → read).
       events: [...OPENWA_WEBHOOK_EVENTS],
       secret: await openwaWebhookSecret(owa.id),
@@ -132,10 +132,10 @@ export async function getDeviceBySessionId(
 // Device yang dibuat SEBELUM event message.ack/message.failed/message.edited
 // ditambahkan didaftarkan ke OpenWA hanya dengan { message.received,
 // session.status }, sehingga OpenWA belum mengirim ack → pelacakan status kirim
-// (sent → delivered → read) tidak jalan. Fungsi ini memastikan webhook Wavio
+// (sent → delivered → read) tidak jalan. Fungsi ini memastikan webhook PintaSend
 // memuat SELURUH OPENWA_WEBHOOK_EVENTS. Idempoten & best-effort (error ditangkap
 // internal → tidak pernah melempar ke pemanggil polling/start):
-//   - list webhook session → cari milik Wavio (by openwaWebhookId, fallback URL).
+//   - list webhook session → cari milik PintaSend (by openwaWebhookId, fallback URL).
 //   - events sudah superset & URL cocok → no-op.
 //   - events kurang / URL berubah → PUT update (url + events + secret + retry).
 //   - tidak ditemukan → POST register baru & simpan openwaWebhookId.
@@ -154,7 +154,7 @@ export async function ensureDeviceWebhookEvents(
     const secret = await openwaWebhookSecret(device.openwaSessionId);
     const existing = await openwa.listWebhooks(device.openwaSessionId);
 
-    // Cari webhook milik Wavio: id tersimpan dulu, fallback cocokkan URL.
+    // Cari webhook milik PintaSend: id tersimpan dulu, fallback cocokkan URL.
     let wh = existing.find((w) => w.id === device.openwaWebhookId);
     if (!wh) wh = existing.find((w) => w.url === url);
 
@@ -180,7 +180,7 @@ export async function ensureDeviceWebhookEvents(
       return { changed: true };
     }
 
-    // Tidak ada webhook Wavio → register baru & simpan id.
+    // Tidak ada webhook PintaSend → register baru & simpan id.
     const created = await openwa.registerWebhook(device.openwaSessionId, {
       url,
       events: desired,

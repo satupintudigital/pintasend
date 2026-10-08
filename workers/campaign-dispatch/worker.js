@@ -25,7 +25,7 @@
 //      (retry oleh workers/webhook-delivery).
 //
 // Secret: DATABASE_URL, OPENWA_BASE_URL, OPENWA_ADMIN_KEY, DISPATCH_TOKEN,
-//         WAVIO_WATERMARK_FOOTNOTE (opsional).
+//         PINTSEND_WATERMARK_FOOTNOTE (opsional).
 import { Client } from "@neondatabase/serverless";
 import { postJson, getJson } from "../shared/http.js";
 
@@ -56,8 +56,8 @@ function renderTemplate(body, vars) {
 }
 
 function footnote(env) {
-  const raw = String(env.WAVIO_WATERMARK_FOOTNOTE ?? "").trim();
-  return raw || "via Wavio - https://wavio.satupintudigital.co.id";
+  const raw = String(env.PINTSEND_WATERMARK_FOOTNOTE ?? "").trim();
+  return raw || "via PintaSend - https://pintasend.satupintudigital.co.id";
 }
 
 function withFootnote(text, foot) {

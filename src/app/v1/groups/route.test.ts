@@ -42,7 +42,7 @@ describe("GET /v1/groups", () => {
   it("auth Bearer → meneruskan deviceId + limit + offset ke service, echo X-Request-Id", async () => {
     const res = await get("?deviceId=dev9&limit=20&offset=5", {
       "x-request-id": "req-g-1",
-      authorization: "Bearer wavio_abc",
+      authorization: "Bearer pintasend_abc",
     });
 
     expect(res.headers.get("x-request-id")).toBe("req-g-1");
@@ -53,7 +53,7 @@ describe("GET /v1/groups", () => {
   });
 
   it("tanpa query → deviceId/limit/offset undefined", async () => {
-    await get("", { authorization: "Bearer wavio_abc" });
+    await get("", { authorization: "Bearer pintasend_abc" });
     expect(executeListGroupsMock).toHaveBeenCalledWith(
       { deviceId: undefined, limit: undefined, offset: undefined },
       expect.any(Object),
@@ -61,7 +61,7 @@ describe("GET /v1/groups", () => {
   });
 
   it("limit/offset bukan angka → undefined", async () => {
-    await get("?limit=abc&offset=zzz", { authorization: "Bearer wavio_abc" });
+    await get("?limit=abc&offset=zzz", { authorization: "Bearer pintasend_abc" });
     expect(executeListGroupsMock).toHaveBeenCalledWith(
       { deviceId: undefined, limit: undefined, offset: undefined },
       expect.any(Object),
@@ -90,7 +90,7 @@ describe("GET /v1/groups", () => {
   });
 
   it("sukses → status 200 + body dari service", async () => {
-    const res = await get("", { "x-request-id": "req-ok-1", authorization: "Bearer wavio_abc" });
+    const res = await get("", { "x-request-id": "req-ok-1", authorization: "Bearer pintasend_abc" });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual(okResult.body);
     expect(res.headers.get("x-request-id")).toBe("req-ok-1");
@@ -100,7 +100,7 @@ describe("GET /v1/groups", () => {
 describe("GET /v1/groups — structured logging", () => {
   it("mencatat api_key_auth (info) dengan requestId + tenantId", async () => {
     const spy = vi.spyOn(console, "log").mockImplementation(() => {});
-    await get("", { "x-request-id": "req-log-1", authorization: "Bearer wavio_abc" });
+    await get("", { "x-request-id": "req-log-1", authorization: "Bearer pintasend_abc" });
 
     const lines = spy.mock.calls.map((c) => JSON.parse(c[0] as string));
     const auth = lines.find((l) => l.event === "api_key_auth");

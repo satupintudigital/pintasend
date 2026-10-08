@@ -43,7 +43,7 @@ export interface WebhookDeliveryInput {
   url: string;
   /** Envelope JSON yang akan dikirim (body mentah). */
   payload: string;
-  /** x-wavio-signature yang sudah dihitung atas payload. */
+  /** x-pintasend-signature yang sudah dihitung atas payload. */
   signature: string;
 }
 
@@ -97,10 +97,10 @@ export async function deliverWebhookOnce(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "User-Agent": "Wavio-Webhook/1.0",
-        "x-wavio-signature": signature,
-        "x-wavio-event": event,
-        "x-wavio-delivery-at": new Date().toISOString(),
+        "User-Agent": "PintaSend-Webhook/1.0",
+        "x-pintasend-signature": signature,
+        "x-pintasend-event": event,
+        "x-pintasend-delivery-at": new Date().toISOString(),
       },
       body,
       signal: AbortSignal.timeout(DELIVERY_TIMEOUT_MS),

@@ -25,11 +25,11 @@ const codeTokens: Token[] = [
   ["plain", " "],
   ["f", "-X POST"],
   ["plain", " "],
-  ["s", "https://wavio.satupintudigital.co.id/v1/messages"],
+  ["s", "https://pintasend.satupintudigital.co.id/v1/messages"],
   ["plain", " \\\n  "],
   ["f", "-H"],
   ["plain", " "],
-  ["s", '"Authorization: Bearer $WAVIO_KEY"'],
+  ["s", '"Authorization: Bearer $PINTSEND_KEY"'],
   ["plain", " \\\n  "],
   ["f", "-H"],
   ["plain", " "],
@@ -138,7 +138,7 @@ export function Hero() {
             transition={{ ...enterSpring, delay: 0 }}
           >
             <span className="bk-live-dot h-1.5 w-1.5 rounded-full bg-accent-bright" />
-            WhatsApp API Gateway
+            AI Gateway Multi-Kanal
           </motion.p>
 
           <motion.h1

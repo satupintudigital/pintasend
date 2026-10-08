@@ -48,7 +48,7 @@ const fakeKv = {
 };
 vi.mock("@/lib/cf", () => ({
   getBinding: vi.fn(async (name: string) => {
-    if (name === "WAVIO_CACHE") return fakeKv;
+    if (name === "PINTSEND_CACHE") return fakeKv;
     throw new Error("no binding");
   }),
 }));
@@ -56,7 +56,7 @@ vi.mock("@/lib/cf", () => ({
 const claims = {
   storeId: "store-1",
   storeName: "Toko A",
-  callbackUrl: "https://x.nalaniaga.id/api/webhooks/wavio/callback",
+  callbackUrl: "https://x.nalaniaga.id/api/webhooks/pintasend/callback",
   webhookUrl: "https://x.nalaniaga.id/api/webhooks/whatsapp",
   jti: "jti-1",
 };
@@ -89,7 +89,7 @@ beforeEach(() => {
   });
   listKeysMock.mockResolvedValue([]);
   revokeMock.mockResolvedValue({ revoked: true, d1Ok: true });
-  createKeyMock.mockResolvedValue({ id: "key1", raw: "wavio_abc", prefix: "wavio_", d1Ok: true });
+  createKeyMock.mockResolvedValue({ id: "key1", raw: "pintasend_abc", prefix: "pintasend_", d1Ok: true });
   upsertWhMock.mockResolvedValue({ id: "wh1" });
   genSecretMock.mockReturnValue("secret-hex");
   deliverMock.mockResolvedValue({ ok: true, status: 200 });
@@ -121,8 +121,8 @@ describe("POST /api/connect/complete", () => {
 
   it("key lama berlabel Integrasi NalaNiaga dicabut sebelum key baru", async () => {
     listKeysMock.mockResolvedValue([
-      { id: "old1", tenantId: "ten-1", label: "Integrasi NalaNiaga", prefix: "wavio_", createdAt: "2026-01-01T00:00:00.000Z", lastUsedAt: null, revokedAt: null },
-      { id: "other", tenantId: "ten-1", label: "Bot CS", prefix: "wavio_", createdAt: "2026-01-01T00:00:00.000Z", lastUsedAt: null, revokedAt: null },
+      { id: "old1", tenantId: "ten-1", label: "Integrasi NalaNiaga", prefix: "pintasend_", createdAt: "2026-01-01T00:00:00.000Z", lastUsedAt: null, revokedAt: null },
+      { id: "other", tenantId: "ten-1", label: "Bot CS", prefix: "pintasend_", createdAt: "2026-01-01T00:00:00.000Z", lastUsedAt: null, revokedAt: null },
     ]);
     await post({ token: "tok", deviceId: "dev1" });
     expect(revokeMock).toHaveBeenCalledTimes(1);

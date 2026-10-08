@@ -33,7 +33,7 @@ await c.query(
   `INSERT INTO "Campaign" (id, "tenantId", "deviceId", name, status, "messageBody",
      "minDelaySec", "maxDelaySec")
    VALUES ($1, $2, $3, 'E2E Kirim Uji', 'draft',
-     'Halo {{nama}}! Ini pesan uji modul Campaign dari Wavio.', 3, 4)`,
+     'Halo {{nama}}! Ini pesan uji modul Campaign dari PintaSend.', 3, 4)`,
   [campId, T, devId],
 );
 

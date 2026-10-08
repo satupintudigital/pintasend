@@ -20,7 +20,7 @@ const row = (over: Partial<Record<string, unknown>> = {}) => ({
   id: "a1",
   tenantId: "t1",
   actorUserId: "u1",
-  actorEmail: "admin@wavio.test",
+  actorEmail: "admin@pintasend.test",
   actorRole: "platform_admin",
   action: "tenant.suspend",
   targetType: "tenant",
@@ -37,7 +37,7 @@ describe("recordAudit", () => {
   it("insert dengan meta terserialisasi & tenant null diizinkan", async () => {
     q.mockImplementationOnce(async () => [{ id: "a1" }]);
     await recordAudit({
-      actor: { id: "u1", email: "admin@wavio.test", role: "platform_admin" },
+      actor: { id: "u1", email: "admin@pintasend.test", role: "platform_admin" },
       action: "tenant.activate",
       tenantId: null,
       targetType: "tenant",
@@ -46,7 +46,7 @@ describe("recordAudit", () => {
     });
     const sql = q.mock.calls[0][0] as string;
     expect(sql).toContain('INSERT INTO "AuditLog"');
-    expect(q.mock.calls[0][1]).toContain("admin@wavio.test");
+    expect(q.mock.calls[0][1]).toContain("admin@pintasend.test");
     expect(q.mock.calls[0][1]).toContain(JSON.stringify({ before: false, after: true }));
     expect(q.mock.calls[0][1]).toContain(null); // tenantId null → kolom NULL
   });

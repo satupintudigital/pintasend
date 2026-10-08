@@ -6,7 +6,7 @@
 
 ## Overview
 
-Add chat listing and management capabilities to Wavio's public v1 API and dashboard. Enables tenants to view, organize, and manage WhatsApp chats programmatically.
+Add chat listing and management capabilities to PintaSend's public v1 API and dashboard. Enables tenants to view, organize, and manage WhatsApp chats programmatically.
 
 ## New API Endpoints
 

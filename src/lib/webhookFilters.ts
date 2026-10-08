@@ -1,4 +1,4 @@
-// Smart filters webhook — lapisan pre-filter OPSIONAL di Wavio sebelum event
+// Smart filters webhook — lapisan pre-filter OPSIONAL di PintaSend sebelum event
 // diteruskan ke URL client. Skema & semantik selaras dengan OpenWA
 // (docs/06-api-specification.md §webhook smart filters): semua kondisi digabung
 // dengan AND, filter kosong/absent = selalu lolos, field tidak dikenal di-skip.

@@ -2,7 +2,7 @@
 // Browser → worker ini (POST { token }) → https://challenges.cloudflare.com/turnstile/v0/siteverify
 // Secret TURNSTILE_SECRET_KEY disimpan di secret worker, tidak pernah ke browser.
 //
-// CORS: worker ini dipanggil dari origin lain (wavio.xolution.workers.dev), jadi
+// CORS: worker ini dipanggil dari origin lain (pintasend.xolution.workers.dev), jadi
 // semua respons wajib menyertakan Access-Control-Allow-Origin + handler OPTIONS
 // untuk preflight (POST + Content-Type: application/json memicu preflight).
 const CORS_HEADERS = {
