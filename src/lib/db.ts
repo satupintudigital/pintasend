@@ -18,12 +18,34 @@ function sql(): SqlClient {
 // tanpa socket panjang yang bisa memicu "Network connection lost"
 // (unhandledRejection) saat koneksi WS terputus di workerd.
 
+const MAX_RETRIES = 2;
+const BASE_DELAY_MS = 200;
+
+async function queryWithRetry<T extends object>(
+  text: string,
+  params: unknown[],
+): Promise<T[]> {
+  let lastError: Error | undefined;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const rows = (await sql().query(text, params)) as T[];
+      return rows;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      if (attempt < MAX_RETRIES) {
+        const delay = BASE_DELAY_MS * Math.pow(2, attempt);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastError ?? new Error("Database query failed after retries");
+}
+
 export async function query<T extends object>(
   text: string,
   params: unknown[] = [],
 ): Promise<T[]> {
-  const rows = (await sql().query(text, params)) as T[];
-  return rows;
+  return queryWithRetry<T>(text, params);
 }
 
 export async function queryOne<T extends object>(
