@@ -35,5 +35,15 @@ describe("listAllPlatformDevices", () => {
     expect(res.devices[0].label).toBe("HP Kasir");
     expect(res.devices[0].tenantName).toBe("Toko Sembako");
     expect(query).toHaveBeenCalledTimes(2);
+
+    const [countCall, rowsCall] = vi.mocked(query).mock.calls;
+    const countSql = countCall[0] as string;
+    const rowsSql = rowsCall[0] as string;
+
+    // Pastikan SQL memakai d.phone dan bukan d."phoneNumber"
+    expect(countSql).toContain("d.phone");
+    expect(countSql).not.toContain('d."phoneNumber"');
+    expect(rowsSql).toContain('d.phone AS "phoneNumber"');
+    expect(rowsSql).not.toContain('d."phoneNumber"');
   });
 });
