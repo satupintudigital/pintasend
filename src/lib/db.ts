@@ -26,18 +26,28 @@ async function queryWithRetry<T extends object>(
   params: unknown[],
 ): Promise<T[]> {
   let lastError: Error | undefined;
+  const qSummary = text.slice(0, 200).replace(/\s+/g, " ").trim();
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       const rows = (await sql().query(text, params)) as T[];
       return rows;
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      console.error(`[db] attempt ${attempt + 1}/${MAX_RETRIES + 1} FAILED:`, {
+        query: qSummary,
+        error: lastError.message,
+        stack: lastError.stack,
+      });
       if (attempt < MAX_RETRIES) {
         const delay = BASE_DELAY_MS * Math.pow(2, attempt);
         await new Promise((r) => setTimeout(r, delay));
       }
     }
   }
+  console.error("[db] semua retry gagal — lempar error:", {
+    query: qSummary,
+    error: lastError?.message,
+  });
   throw lastError ?? new Error("Database query failed after retries");
 }
 

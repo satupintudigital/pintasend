@@ -71,9 +71,6 @@ export async function getTenantDetail(id: string): Promise<TenantDetailRow | nul
   const rows = await query<TenantDetailRow>(
     `SELECT t.id, t.name, t."createdAt", t."suspendedAt", t."planId", p.name AS "planName",
             t."delayEnabled",
-            // Kolom messageRetentionDays (migrasi 2026-08-21) mungkin belum ada di
-            // production database. Pakai COALESCE agar tidak error kalau kolom
-            // belum di-migrate — default 30 hari sesuai Prisma schema.
             COALESCE(t."messageRetentionDays", 30) AS "messageRetentionDays",
             EXISTS(SELECT 1 FROM "TenantAddon" a
                    WHERE a."tenantId" = t.id AND a.key = 'random_delay' AND ${tenantAddonActiveWhere("a")}) AS "delayAddonActive",
@@ -83,7 +80,6 @@ export async function getTenantDetail(id: string): Promise<TenantDetailRow | nul
             (SELECT COUNT(*)::int FROM "User" u WHERE u."tenantId" = t.id) AS users,
             (SELECT COUNT(*)::int FROM "MessageLog" m WHERE m."tenantId" = t.id) AS messages
      FROM "Tenant" t LEFT JOIN "Plan" p ON p.id = t."planId" WHERE t.id = $1`,
-    [id],
   );
   return rows[0] ?? null;
 }
