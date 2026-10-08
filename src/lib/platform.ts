@@ -80,6 +80,7 @@ export async function getTenantDetail(id: string): Promise<TenantDetailRow | nul
             (SELECT COUNT(*)::int FROM "User" u WHERE u."tenantId" = t.id) AS users,
             (SELECT COUNT(*)::int FROM "MessageLog" m WHERE m."tenantId" = t.id) AS messages
      FROM "Tenant" t LEFT JOIN "Plan" p ON p.id = t."planId" WHERE t.id = $1`,
+    [id],
   );
   return rows[0] ?? null;
 }
