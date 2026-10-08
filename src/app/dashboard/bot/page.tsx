@@ -1,5 +1,6 @@
+import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { parsePrincipal, unauthorized } from "@/lib/abac";
+import { parsePrincipal } from "@/lib/abac";
 import { listBotRules } from "@/lib/botRules";
 import { BotRulePanel } from "@/components/dashboard/BotRulePanel";
 import { Robot } from "@phosphor-icons/react/dist/ssr";
@@ -13,7 +14,7 @@ export default async function BotRulesPage() {
   const session = await auth();
   const principal = parsePrincipal(session);
   if (!principal) {
-    return unauthorized();
+    redirect("/login");
   }
 
   // Preload initial rules di server component
