@@ -1,5 +1,6 @@
 import { getPlatformMetrics } from "@/lib/platform";
 import { MetricsView } from "@/components/platform/MetricsView";
+export const dynamic = 'force-dynamic';
 
 export default async function PlatformMetrics() {
   const metrics = await getPlatformMetrics();
