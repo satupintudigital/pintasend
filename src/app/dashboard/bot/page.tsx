@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { parsePrincipal } from "@/lib/abac";
-import { listBotRules } from "@/lib/botRules";
+import { listBotRules, type BotRule } from "@/lib/botRules";
 import { BotRulePanel } from "@/components/dashboard/BotRulePanel";
 import { Robot } from "@phosphor-icons/react/dist/ssr";
 
@@ -18,7 +18,7 @@ export default async function BotRulesPage() {
   }
 
   // Preload initial rules di server component
-  let initialRules = [];
+  let initialRules: BotRule[] = [];
   try {
     initialRules = await listBotRules(principal.tenantId);
   } catch (e) {
@@ -39,8 +39,7 @@ export default async function BotRulesPage() {
           Otomatisasi balasan pesan WhatsApp berdasarkan keyword masuk. Bot akan mencocokkan pesan pelanggan secara real-time.
         </p>
       </div>
-
-      <BotRulePanel />
+      <BotRulePanel initialRules={initialRules} />
     </div>
   );
 }

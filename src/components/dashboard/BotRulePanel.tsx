@@ -26,12 +26,11 @@ interface BotRule {
   updatedAt: string;
 }
 
-export function BotRulePanel() {
-  const [rules, setRules] = useState<BotRule[]>([]);
-  const [loading, setLoading] = useState(true);
+export function BotRulePanel({ initialRules = [] }: { initialRules?: BotRule[] }) {
+  const [rules, setRules] = useState<BotRule[]>(initialRules);
+  const [loading, setLoading] = useState(initialRules.length === 0);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<BotRule | null>(null);
