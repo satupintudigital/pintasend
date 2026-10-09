@@ -136,6 +136,7 @@ export default function DevicesPage() {
   const [quickSendDevice, setQuickSendDevice] = useState<Device | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const loadDevices = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch("/api/devices");
       const data = await res.json();
@@ -152,7 +153,7 @@ export default function DevicesPage() {
   useEffect(() => {
     loadDevices();
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      clearInterval(timerRef.current as NodeJS.Timeout);
     };
   }, [loadDevices]);
 
