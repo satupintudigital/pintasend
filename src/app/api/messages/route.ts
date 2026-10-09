@@ -15,9 +15,10 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const q = url.searchParams.get("q") ?? "";
   const direction = url.searchParams.get("direction") ?? "";
+  const deviceId = url.searchParams.get("deviceId") ?? "";
+  const status = url.searchParams.get("status") ?? "";
   const rawPage = Number(url.searchParams.get("page") ?? "1");
   const rawLimit = Number(url.searchParams.get("limit") ?? "20");
-
   if (!Number.isInteger(rawPage) || rawPage < 1) {
     return Response.json({ error: "page harus angka >= 1" }, { status: 400 });
   }
@@ -33,6 +34,8 @@ export async function GET(req: Request) {
       tenantId,
       query: q,
       direction,
+      deviceId: deviceId || undefined,
+      status: status || undefined,
       page: rawPage,
       limit: rawLimit,
     });

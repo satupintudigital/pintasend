@@ -206,10 +206,11 @@ export interface ListMessagesParams {
   tenantId: string;
   query?: string;
   direction?: string;
+  deviceId?: string;
+  status?: string;
   page?: number;
   limit?: number;
 }
-
 const MESSAGE_COLUMNS = `id, "tenantId", "deviceId", "deviceLabel", direction, "chatId", body, type, status, "messageId", "mediaUrl", mimetype, "mediaKey", reaction, watermark, "triggeredAt", "sentAt", "createdAt"`;
 
 /** Daftar riwayat pesan tenant — pencarian (body/chatId) + filter arah + pagination. */
@@ -239,7 +240,16 @@ export async function listMessagesPaginated(
     conditions.push(`direction = $${n}`);
     args.push(params.direction);
   }
-
+  if (params.deviceId) {
+    const n = args.length + 1;
+    conditions.push(`"deviceId" = $${n}`);
+    args.push(params.deviceId);
+  }
+  if (params.status) {
+    const n = args.length + 1;
+    conditions.push(`status = $${n}`);
+    args.push(params.status);
+  }
   const where = conditions.join(" AND ");
   const [countRows, rows] = await Promise.all([
     query<{ count: number }>(`SELECT COUNT(*)::int AS count FROM "MessageLog" WHERE ${where}`, args),
