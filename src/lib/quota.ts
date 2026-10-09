@@ -14,7 +14,7 @@ interface QuotaRow {
 
 // Awal bulan berjalan di Asia/Jakarta → ISO offset WIB. Bulan kalender WIB
 // (spec §5): pesan dihitung per bulan kalender, bukan periode berjalan.
-function monthStartWib(now = new Date()): string {
+export function monthStartWib(now = new Date()): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Jakarta",
     year: "numeric",
