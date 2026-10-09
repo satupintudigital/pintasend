@@ -7,7 +7,7 @@ import { ContactsPanel } from "@/components/dashboard/ContactsPanel";
 export default async function KontakPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role !== "owner") redirect("/dashboard");
+
   const hasAddon = session.user.tenantId
     ? await tenantHasCampaignAddon(session.user.tenantId).catch(() => false)
     : false;

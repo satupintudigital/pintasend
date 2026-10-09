@@ -22,6 +22,7 @@ const items = [
   { href: "/dashboard", label: "Beranda", icon: House },
   { href: "/dashboard/devices", label: "Device", icon: Devices },
   { href: "/dashboard/pesan", label: "Riwayat Pesan", icon: ChatCircleText },
+  { href: "/dashboard/kontak", label: "Kontak", icon: Users },
   { href: "/dashboard/labels", label: "Labels", icon: Tag },
   { href: "/dashboard/bot", label: "Auto-Reply Bot", icon: Robot },
   { href: "/dashboard/channels", label: "Channels", icon: Radio },
@@ -46,7 +47,6 @@ const ownerItems = [
 
 // Modul WA Campaign — hanya tampil bila tenant punya addon 'campaign' aktif.
 const campaignItems = [
-  { href: "/dashboard/kontak", label: "Kontak", icon: Users },
   { href: "/dashboard/campaign", label: "Campaign", icon: Megaphone },
 ];
 
