@@ -8,9 +8,12 @@
     {
       "binding": "PINTSEND_AUTH_DB",
       "database_name": "pintasend-auth",
-      "database_id": "4cd78c5b-64d3-49e4-9ee2-7b112e7b4124"
+      "database_id": "8a111083-8341-4964-9705-0b1e678d1cfa"
     }
   ],
+  "triggers": {
+    "crons": ["0 */4 * * *"]
+  },
   "observability": {
     "enabled": true
   }

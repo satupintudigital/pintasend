@@ -126,7 +126,6 @@ const TABLE_SPECS = [
 ];
 
 const worker = {
-  // Resync sengaja on-demand agar tidak membangunkan Neon secara berkala.
   async fetch(request, env) {
     try {
       if (request.method !== "POST") {
@@ -146,6 +145,18 @@ const worker = {
         { status: 500 },
       );
     }
+  },
+
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(
+      runResync(env)
+        .then((res) => {
+          console.log("d1-resync cron completed:", JSON.stringify(res));
+        })
+        .catch((err) => {
+          console.error("d1-resync cron error:", err);
+        }),
+    );
   },
 };
 
@@ -193,30 +204,13 @@ async function runResync(env) {
 async function syncTable(client, d1, spec, stats) {
   const prefix = `${spec.stat}:`;
 
-  // Strategi sync:
-  // - Tabel dengan updatedAt (Device, Webhook): incremental —
-  //   SELECT id (untuk reconciliasi) + SELECT full WHERE updatedAt > 1 jam.
-  // - Tabel tanpa updatedAt (Tenant, User, ApiKey): full scan (tabel kecil).
-  let upsertRows;
-  let neonIdRows;
-
-  if (spec.hasUpdatedAt) {
-    const [idResult, dataResult] = await Promise.all([
-      client.query(`SELECT id FROM "${spec.neonTable}"`),
-      client.query(
-        `SELECT ${spec.neonColumns} FROM "${spec.neonTable}" WHERE "updatedAt" > (now() - interval '1 hour')`,
-      ),
-    ]);
-    neonIdRows = idResult.rows;
-    upsertRows = dataResult.rows;
-    stats[`${prefix}totalIds`] = neonIdRows.length;
-  } else {
-    const { rows } = await client.query(
-      `SELECT ${spec.neonColumns} FROM "${spec.neonTable}" ORDER BY "createdAt"`,
-    );
-    upsertRows = rows;
-    neonIdRows = rows;
-  }
+  // Selalu full scan dari Neon untuk semua tabel agar D1 tidak pernah tertinggal
+  // atau melewatkan baris lama yang diperbarui di luar window waktu.
+  const { rows: upsertRows } = await client.query(
+    `SELECT ${spec.neonColumns} FROM "${spec.neonTable}"`,
+  );
+  const neonIdRows = upsertRows;
+  stats[`${prefix}totalIds`] = neonIdRows.length;
   stats[`${prefix}scanned`] = upsertRows.length;
 
   let upserted = 0;

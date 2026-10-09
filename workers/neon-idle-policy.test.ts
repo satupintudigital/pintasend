@@ -6,7 +6,6 @@ const workerDirectories = [
   "template-sync",
   "campaign-dispatch",
   "webhook-delivery",
-  "d1-resync",
   "message-retention",
 ];
 
@@ -28,5 +27,14 @@ describe("Neon idle policy", () => {
       const worker = readWorkerFile(directory, "worker.js");
       expect(worker, `${directory}/worker.js`).not.toMatch(/async\s+scheduled\s*\(/);
     }
+  });
+
+  it("configures scheduled trigger and handler explicitly for d1-resync autonomous worker", () => {
+    const config = readWorkerFile("d1-resync", "wrangler.jsonc");
+    expect(config, "d1-resync/wrangler.jsonc").toMatch(/\"triggers\"\s*:/);
+    expect(config, "d1-resync/wrangler.jsonc").toMatch(/\"crons\"\s*:/);
+
+    const worker = readWorkerFile("d1-resync", "worker.js");
+    expect(worker, "d1-resync/worker.js").toMatch(/async\s+scheduled\s*\(/);
   });
 });

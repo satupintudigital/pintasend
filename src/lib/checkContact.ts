@@ -9,7 +9,7 @@
 // dibatasi rate limit per API key (bucket terpisah dari kirim pesan).
 
 import { normalizePhoneNumber } from "./chat";
-import { queryD1One } from "./d1";
+import { resolveReadyDeviceForTenant } from "./devices";
 import { openwa, OpenwaError, publicOpenwaError } from "./openwa";
 import { checkRateLimit } from "./rate-limit";
 import { logEvent } from "./requestLogger";
@@ -62,16 +62,8 @@ export async function executeCheckContact(
     };
   }
 
-  // 3. Pilih device: deviceId tertentu, atau device ready pertama milik tenant.
-  const device = input.deviceId
-    ? await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
-        'SELECT id, label, openwaSessionId, status FROM Device WHERE id = ? AND tenantId = ?',
-        [input.deviceId, ctx.tenantId],
-      )
-    : await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
-        'SELECT id, label, openwaSessionId, status FROM Device WHERE tenantId = ? AND status = ? ORDER BY updatedAt DESC LIMIT 1',
-        [ctx.tenantId, "ready"],
-      );
+  // 3. Pilih device: deviceId tertentu, atau device ready pertama milik tenant (fallback Neon + auto-repair).
+  const device = await resolveReadyDeviceForTenant(ctx.tenantId, input.deviceId);
 
   if (!device) {
     return {

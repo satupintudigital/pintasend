@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { queryD1, queryD1One } from "@/lib/d1";
+import { query, queryOne } from "@/lib/db";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ labelId: string }> }) {
   const session = await auth();
@@ -8,21 +8,26 @@ export async function GET(_req: Request, { params }: { params: Promise<{ labelId
 
   const { labelId } = await params;
 
-  const label = await queryD1One<{ id: string; name: string; color: string }>(
-    "SELECT id, name, color FROM Label WHERE id = ? AND tenantId = ? AND isActive = 1",
-    [labelId, tenantId]
-  );
-  if (!label) return Response.json({ error: "Label tidak ditemukan" }, { status: 404 });
+  try {
+    const label = await queryOne<{ id: string; name: string; color: string }>(
+      'SELECT id, name, color FROM "Label" WHERE id = $1 AND "tenantId" = $2 AND "isActive" = true',
+      [labelId, tenantId]
+    );
+    if (!label) return Response.json({ error: "Label tidak ditemukan" }, { status: 404 });
 
-  const contacts = await queryD1<{ id: string; chatId: string; createdAt: string }>(
-    "SELECT * FROM LabelContact WHERE labelId = ? ORDER BY createdAt DESC LIMIT 200",
-    [labelId]
-  );
+    const contacts = await query<{ id: string; chatId: string; createdAt: string }>(
+      'SELECT * FROM "LabelContact" WHERE "labelId" = $1 ORDER BY "createdAt" DESC LIMIT 200',
+      [labelId]
+    );
 
-  return Response.json({
-    label,
-    chats: contacts.map((c) => ({ chatId: c.chatId, addedAt: c.createdAt })),
-  });
+    return Response.json({
+      label,
+      chats: contacts.map((c) => ({ chatId: c.chatId, addedAt: c.createdAt })),
+    });
+  } catch (e) {
+    console.error("GET /api/labels/[labelId]/chats error:", e);
+    return Response.json({ error: "Gagal memuat kontak label" }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ labelId: string }> }) {
@@ -36,24 +41,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ labelId
 
   if (!chatId) return Response.json({ error: "chatId wajib diisi" }, { status: 400 });
 
-  const label = await queryD1One<{ id: string }>(
-    "SELECT id FROM Label WHERE id = ? AND tenantId = ? AND isActive = 1",
-    [labelId, tenantId]
-  );
-  if (!label) return Response.json({ error: "Label tidak ditemukan" }, { status: 404 });
+  try {
+    const label = await queryOne<{ id: string }>(
+      'SELECT id FROM "Label" WHERE id = $1 AND "tenantId" = $2 AND "isActive" = true',
+      [labelId, tenantId]
+    );
+    if (!label) return Response.json({ error: "Label tidak ditemukan" }, { status: 404 });
 
-  // Check if already added
-  const existing = await queryD1One<{ id: string }>(
-    "SELECT id FROM LabelContact WHERE labelId = ? AND chatId = ?",
-    [labelId, chatId]
-  );
-  if (existing) return Response.json({ ok: true, added: false, reason: "already_added" });
+    const id = `lc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    const rows = await query<{ chatId: string }>(
+      'INSERT INTO "LabelContact" (id, "tenantId", "labelId", "chatId", "createdAt") VALUES ($1, $2, $3, $4, now()) ON CONFLICT ("labelId", "chatId") DO NOTHING RETURNING "chatId"',
+      [id, tenantId, labelId, chatId]
+    );
 
-  const id = `lc_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-  await queryD1One(
-    "INSERT INTO LabelContact (id, tenantId, labelId, chatId, createdAt) VALUES (?, ?, ?, ?, ?)",
-    [id, tenantId, labelId, chatId, new Date().toISOString()]
-  );
-
-  return Response.json({ ok: true, added: true });
+    if (rows.length === 0) return Response.json({ ok: true, added: false, reason: "already_added" });
+    return Response.json({ ok: true, added: true });
+  } catch (e) {
+    console.error("POST /api/labels/[labelId]/chats error:", e);
+    return Response.json({ error: "Gagal menambahkan chat ke label" }, { status: 500 });
+  }
 }

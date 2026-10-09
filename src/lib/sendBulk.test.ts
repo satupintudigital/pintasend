@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { executeSendBulk } from "./sendBulk";
 
+const resolveReadyDeviceForTenantMock = vi.fn();
 const queryD1OneMock = vi.fn();
 const checkRateLimitMock = vi.fn();
 const getTenantConfigMock = vi.fn();
@@ -9,6 +10,7 @@ const insertMessageLogMock = vi.fn();
 const prepaidSendGateMock = vi.fn();
 const spendCreditMock = vi.fn();
 
+vi.mock("./devices", () => ({ resolveReadyDeviceForTenant: (...a: unknown[]) => resolveReadyDeviceForTenantMock(...a) }));
 vi.mock("./d1", () => ({ queryD1One: (...a: unknown[]) => queryD1OneMock(...a) }));
 vi.mock("./tenantConfig", () => ({ getTenantConfig: (...a: unknown[]) => getTenantConfigMock(...a) }));
 vi.mock("./credit", () => ({
@@ -62,6 +64,7 @@ function bulkInput(overrides: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
+  resolveReadyDeviceForTenantMock.mockReset();
   queryD1OneMock.mockReset();
   checkRateLimitMock.mockReset();
   getTenantConfigMock.mockReset();
@@ -70,6 +73,7 @@ beforeEach(() => {
   prepaidSendGateMock.mockReset();
   spendCreditMock.mockReset();
 
+  resolveReadyDeviceForTenantMock.mockResolvedValue(DEVICE);
   queryD1OneMock.mockResolvedValue(DEVICE);
   checkRateLimitMock.mockResolvedValue({ allowed: true });
   getTenantConfigMock.mockResolvedValue({ plan: { maxDevices: 10, maxUsers: 20, maxMessagesPerMonth: 100, includesDelay: false }, addons: {}, features: {}, messageCount: 1, ts: Date.now() });
@@ -166,7 +170,7 @@ describe("executeSendBulk", () => {
   });
 
   it("device tidak siap → 409", async () => {
-    queryD1OneMock.mockResolvedValue({ ...DEVICE, status: "created" });
+    resolveReadyDeviceForTenantMock.mockResolvedValue({ ...DEVICE, status: "created" });
     const res = await executeSendBulk(bulkInput(), CTX);
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.status).toBe(409);

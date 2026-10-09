@@ -1,8 +1,8 @@
 // Service layer untuk Labels CRUD — PintaSend-local labels + OpenWA sync.
 // Labels are per-tenant, stored in Neon, with optional sync to WhatsApp labels via OpenWA.
 
-import { queryD1One, queryD1 } from "./d1";
-import { openwa, OpenwaError, publicOpenwaError } from "./openwa";
+import { query, queryOne } from "./db";
+import { openwa } from "./openwa";
 import { checkRateLimit } from "./rate-limit";
 import { logEvent } from "./requestLogger";
 
@@ -54,30 +54,39 @@ export async function executeListLabels(ctx: LabelContext): Promise<LabelResult>
   const rl = await checkRateLimit(`v1-labels:list:key:${ctx.keyId}`, 60, 60_000);
   if (!rl.allowed) return { ok: false, status: 429, error: "Terlalu banyak permintaan.", retryAfterSec: rl.retryAfterSec };
 
-  const labels = await queryD1<Label>(
-    "SELECT * FROM Label WHERE tenantId = ? AND isActive = 1 ORDER BY name ASC",
+  const labels = await query<{
+    id: string;
+    tenantId: string;
+    name: string;
+    color: string;
+    openwaLabelId: string | null;
+    openwaSyncedAt: string | null;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
+    contactCount: number | string;
+  }>(
+    `SELECT l.id, l."tenantId", l.name, l.color, l."openwaLabelId", l."openwaSyncedAt",
+            l."isActive", l."createdAt", l."updatedAt",
+            COALESCE(COUNT(lc.id), 0)::int as "contactCount"
+     FROM "Label" l
+     LEFT JOIN "LabelContact" lc ON lc."labelId" = l.id
+     WHERE l."tenantId" = $1 AND l."isActive" = true
+     GROUP BY l.id
+     ORDER BY l.name ASC`,
     [ctx.tenantId]
   );
 
-  // Get contact counts for each label
-  const labelsWithCounts = await Promise.all(
-    labels.map(async (label: Label) => {
-      const countResult = await queryD1One<{ count: number }>(
-        "SELECT COUNT(*) as count FROM LabelContact WHERE labelId = ?",
-        [label.id]
-      );
-      return {
-        id: label.id,
-        name: label.name,
-        color: label.color,
-        contactCount: countResult?.count ?? 0,
-        openwaSynced: label.openwaLabelId !== null,
-        isActive: label.isActive,
-        createdAt: label.createdAt,
-        updatedAt: label.updatedAt,
-      };
-    })
-  );
+  const labelsWithCounts = labels.map((label) => ({
+    id: label.id,
+    name: label.name,
+    color: label.color,
+    contactCount: Number(label.contactCount) || 0,
+    openwaSynced: label.openwaLabelId !== null,
+    isActive: label.isActive,
+    createdAt: label.createdAt,
+    updatedAt: label.updatedAt,
+  }));
 
   logEvent("info", "list_labels_success", ctx.requestId, { tenantId: ctx.tenantId, count: labelsWithCounts.length });
   return { ok: true, status: 200, body: { ok: true, labels: labelsWithCounts } };
@@ -97,8 +106,8 @@ export async function executeCreateLabel(
   if (!rl.allowed) return { ok: false, status: 429, error: "Terlalu banyak permintaan.", retryAfterSec: rl.retryAfterSec };
 
   // Check name uniqueness per tenant
-  const existing = await queryD1One<{ id: string }>(
-    "SELECT id FROM Label WHERE tenantId = ? AND name = ? AND isActive = 1",
+  const existing = await queryOne<{ id: string }>(
+    'SELECT id FROM "Label" WHERE "tenantId" = $1 AND name = $2 AND "isActive" = true',
     [ctx.tenantId, input.name.trim()]
   );
   if (existing) {
@@ -109,10 +118,10 @@ export async function executeCreateLabel(
   const color = input.color || "#6366f1";
   const now = new Date().toISOString();
 
-  // Insert into D1 (local DB)
-  await queryD1One(
-    "INSERT INTO Label (id, tenantId, name, color, isActive, createdAt, updatedAt) VALUES (?, ?, ?, ?, 1, ?, ?)",
-    [id, ctx.tenantId, input.name.trim(), color, now, now]
+  // Insert into Neon DB
+  await query(
+    'INSERT INTO "Label" (id, "tenantId", name, color, "isActive", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, true, now(), now())',
+    [id, ctx.tenantId, input.name.trim(), color]
   );
 
   let openwaLabelId: string | null = null;
@@ -120,8 +129,8 @@ export async function executeCreateLabel(
   // Sync to OpenWA if requested
   if (input.syncToOpenwa && input.deviceId) {
     try {
-      const device = await queryD1One<{ id: string; openwaSessionId: string; status: string }>(
-        "SELECT id, openwaSessionId, status FROM Device WHERE id = ? AND tenantId = ?",
+      const device = await queryOne<{ id: string; openwaSessionId: string; status: string }>(
+        'SELECT id, "openwaSessionId", status FROM "Device" WHERE id = $1 AND "tenantId" = $2',
         [input.deviceId, ctx.tenantId]
       );
       if (device && device.status === "ready") {
@@ -130,9 +139,9 @@ export async function executeCreateLabel(
 
         // Update label with openwaLabelId
         if (openwaLabelId) {
-          await queryD1One(
-            "UPDATE Label SET openwaLabelId = ?, openwaSyncedAt = ? WHERE id = ?",
-            [openwaLabelId, now, id]
+          await query(
+            'UPDATE "Label" SET "openwaLabelId" = $1, "openwaSyncedAt" = now() WHERE id = $2',
+            [openwaLabelId, id]
           );
         }
       }
@@ -166,16 +175,16 @@ export async function executeUpdateLabel(
   const rl = await checkRateLimit(`v1-labels:update:key:${ctx.keyId}`, 30, 60_000);
   if (!rl.allowed) return { ok: false, status: 429, error: "Terlalu banyak permintaan.", retryAfterSec: rl.retryAfterSec };
 
-  const label = await queryD1One<Label>(
-    "SELECT * FROM Label WHERE id = ? AND tenantId = ? AND isActive = 1",
+  const label = await queryOne<Label>(
+    'SELECT * FROM "Label" WHERE id = $1 AND "tenantId" = $2 AND "isActive" = true',
     [labelId, ctx.tenantId]
   );
   if (!label) return { ok: false, status: 404, error: "Label not found" };
 
   // Check name uniqueness if changing name
   if (input.name && input.name.trim() !== label.name) {
-    const existing = await queryD1One<{ id: string }>(
-      "SELECT id FROM Label WHERE tenantId = ? AND name = ? AND id != ? AND isActive = 1",
+    const existing = await queryOne<{ id: string }>(
+      'SELECT id FROM "Label" WHERE "tenantId" = $1 AND name = $2 AND id != $3 AND "isActive" = true',
       [ctx.tenantId, input.name.trim(), labelId]
     );
     if (existing) {
@@ -183,32 +192,33 @@ export async function executeUpdateLabel(
     }
   }
 
-  const now = new Date().toISOString();
   const updates: string[] = [];
   const params: unknown[] = [];
 
   if (input.name !== undefined) {
-    updates.push("name = ?");
+    updates.push(`name = $${params.length + 1}`);
     params.push(input.name.trim());
   }
   if (input.color !== undefined) {
-    updates.push("color = ?");
+    updates.push(`color = $${params.length + 1}`);
     params.push(input.color);
   }
 
   if (updates.length > 0) {
-    updates.push("updatedAt = ?");
-    params.push(now);
+    updates.push(`"updatedAt" = now()`);
     params.push(labelId);
     params.push(ctx.tenantId);
-    await queryD1One(`UPDATE Label SET ${updates.join(", ")} WHERE id = ? AND tenantId = ?`, params);
+    await query(
+      `UPDATE "Label" SET ${updates.join(", ")} WHERE id = $${params.length - 1} AND "tenantId" = $${params.length}`,
+      params
+    );
   }
 
   // Sync to OpenWA if label is synced
   if (label.openwaLabelId && input.deviceId) {
     try {
-      const device = await queryD1One<{ id: string; openwaSessionId: string; status: string }>(
-        "SELECT id, openwaSessionId, status FROM Device WHERE id = ? AND tenantId = ?",
+      const device = await queryOne<{ id: string; openwaSessionId: string; status: string }>(
+        'SELECT id, "openwaSessionId", status FROM "Device" WHERE id = $1 AND "tenantId" = $2',
         [input.deviceId, ctx.tenantId]
       );
       if (device && device.status === "ready") {
@@ -216,7 +226,7 @@ export async function executeUpdateLabel(
           name: input.name?.trim() ?? label.name,
           color: input.color ?? label.color,
         });
-        await queryD1One("UPDATE Label SET openwaSyncedAt = ? WHERE id = ?", [now, labelId]);
+        await query('UPDATE "Label" SET "openwaSyncedAt" = now() WHERE id = $1', [labelId]);
       }
     } catch (e) {
       logEvent("warn", "label_openwa_update_failed", ctx.requestId, {
@@ -242,23 +252,20 @@ export async function executeDeleteLabel(
   const rl = await checkRateLimit(`v1-labels:delete:key:${ctx.keyId}`, 30, 60_000);
   if (!rl.allowed) return { ok: false, status: 429, error: "Terlalu banyak permintaan.", retryAfterSec: rl.retryAfterSec };
 
-  const label = await queryD1One<Label>(
-    "SELECT * FROM Label WHERE id = ? AND tenantId = ? AND isActive = 1",
+  const label = await queryOne<Label>(
+    'SELECT * FROM "Label" WHERE id = $1 AND "tenantId" = $2 AND "isActive" = true',
     [labelId, ctx.tenantId]
   );
   if (!label) return { ok: false, status: 404, error: "Label not found" };
 
-  const now = new Date().toISOString();
-
-  // Soft delete (set isActive = 0)
-  await queryD1One("UPDATE Label SET isActive = 0, updatedAt = ? WHERE id = ?", [now, labelId]);
+  // Soft delete (set isActive = false)
+  await query('UPDATE "Label" SET "isActive" = false, "updatedAt" = now() WHERE id = $1', [labelId]);
 
   // Delete from OpenWA if synced
   if (label.openwaLabelId) {
     try {
-      // Try to find any device for this tenant to make the API call
-      const device = await queryD1One<{ id: string; openwaSessionId: string; status: string }>(
-        "SELECT id, openwaSessionId, status FROM Device WHERE tenantId = ? AND status = ? LIMIT 1",
+      const device = await queryOne<{ id: string; openwaSessionId: string; status: string }>(
+        'SELECT id, "openwaSessionId", status FROM "Device" WHERE "tenantId" = $1 AND status = $2 LIMIT 1',
         [ctx.tenantId, "ready"]
       );
       if (device) {
@@ -290,33 +297,26 @@ export async function executeAddChatToLabel(
   const rl = await checkRateLimit(`v1-labels:chat:add:key:${ctx.keyId}`, 60, 60_000);
   if (!rl.allowed) return { ok: false, status: 429, error: "Terlalu banyak permintaan.", retryAfterSec: rl.retryAfterSec };
 
-  const label = await queryD1One<Label>(
-    "SELECT * FROM Label WHERE id = ? AND tenantId = ? AND isActive = 1",
+  const label = await queryOne<Label>(
+    'SELECT * FROM "Label" WHERE id = $1 AND "tenantId" = $2 AND "isActive" = true',
     [labelId, ctx.tenantId]
   );
   if (!label) return { ok: false, status: 404, error: "Label not found" };
 
-  // Check if already added
-  const existing = await queryD1One<{ id: string }>(
-    "SELECT id FROM LabelContact WHERE labelId = ? AND chatId = ?",
-    [labelId, input.chatId]
-  );
-  if (existing) return { ok: true, status: 200, body: { ok: true, added: false, reason: "already_added" } };
-
   const id = generateContactId();
-  const now = new Date().toISOString();
 
-  // Insert into LabelContact
-  await queryD1One(
-    "INSERT INTO LabelContact (id, tenantId, labelId, chatId, createdAt) VALUES (?, ?, ?, ?, ?)",
-    [id, ctx.tenantId, labelId, input.chatId, now]
+  // Insert into LabelContact with ON CONFLICT
+  const rows = await query<{ chatId: string }>(
+    'INSERT INTO "LabelContact" (id, "tenantId", "labelId", "chatId", "createdAt") VALUES ($1, $2, $3, $4, now()) ON CONFLICT ("labelId", "chatId") DO NOTHING RETURNING "chatId"',
+    [id, ctx.tenantId, labelId, input.chatId]
   );
-
+  const added = rows.length > 0;
+  if (!added) return { ok: true, status: 200, body: { ok: true, added: false, reason: "already_added" } };
   // Sync to OpenWA if label is synced
   if (label.openwaLabelId && input.deviceId) {
     try {
-      const device = await queryD1One<{ id: string; openwaSessionId: string; status: string }>(
-        "SELECT id, openwaSessionId, status FROM Device WHERE id = ? AND tenantId = ?",
+      const device = await queryOne<{ id: string; openwaSessionId: string; status: string }>(
+        'SELECT id, "openwaSessionId", status FROM "Device" WHERE id = $1 AND "tenantId" = $2',
         [input.deviceId, ctx.tenantId]
       );
       if (device && device.status === "ready") {
@@ -349,20 +349,20 @@ export async function executeRemoveChatFromLabel(
   const rl = await checkRateLimit(`v1-labels:chat:remove:key:${ctx.keyId}`, 60, 60_000);
   if (!rl.allowed) return { ok: false, status: 429, error: "Terlalu banyak permintaan.", retryAfterSec: rl.retryAfterSec };
 
-  const label = await queryD1One<Label>(
-    "SELECT * FROM Label WHERE id = ? AND tenantId = ? AND isActive = 1",
+  const label = await queryOne<Label>(
+    'SELECT * FROM "Label" WHERE id = $1 AND "tenantId" = $2 AND "isActive" = true',
     [labelId, ctx.tenantId]
   );
   if (!label) return { ok: false, status: 404, error: "Label not found" };
 
   // Delete from LabelContact
-  await queryD1One("DELETE FROM LabelContact WHERE labelId = ? AND chatId = ?", [labelId, chatId]);
+  await query('DELETE FROM "LabelContact" WHERE "labelId" = $1 AND "chatId" = $2', [labelId, chatId]);
 
   // Sync to OpenWA if label is synced
   if (label.openwaLabelId) {
     try {
-      const device = await queryD1One<{ id: string; openwaSessionId: string; status: string }>(
-        "SELECT id, openwaSessionId, status FROM Device WHERE tenantId = ? AND status = ? LIMIT 1",
+      const device = await queryOne<{ id: string; openwaSessionId: string; status: string }>(
+        'SELECT id, "openwaSessionId", status FROM "Device" WHERE "tenantId" = $1 AND status = $2 LIMIT 1',
         [ctx.tenantId, "ready"]
       );
       if (device) {
@@ -394,8 +394,8 @@ export async function executeListChatsByLabel(
   const rl = await checkRateLimit(`v1-labels:chats:list:key:${ctx.keyId}`, 60, 60_000);
   if (!rl.allowed) return { ok: false, status: 429, error: "Terlalu banyak permintaan.", retryAfterSec: rl.retryAfterSec };
 
-  const label = await queryD1One<Label>(
-    "SELECT * FROM Label WHERE id = ? AND tenantId = ? AND isActive = 1",
+  const label = await queryOne<Label>(
+    'SELECT * FROM "Label" WHERE id = $1 AND "tenantId" = $2 AND "isActive" = true',
     [labelId, ctx.tenantId]
   );
   if (!label) return { ok: false, status: 404, error: "Label not found" };
@@ -403,8 +403,8 @@ export async function executeListChatsByLabel(
   const limit = Math.min(Math.max(input.limit ?? 50, 1), 1000);
   const offset = Math.max(input.offset ?? 0, 0);
 
-  const contacts = await queryD1<LabelContact>(
-    "SELECT * FROM LabelContact WHERE labelId = ? ORDER BY createdAt DESC LIMIT ? OFFSET ?",
+  const contacts = await query<LabelContact>(
+    'SELECT * FROM "LabelContact" WHERE "labelId" = $1 ORDER BY "createdAt" DESC LIMIT $2 OFFSET $3',
     [labelId, limit, offset]
   );
 
@@ -438,44 +438,36 @@ export async function executeBulkAddChatsToLabel(
   const rl = await checkRateLimit(`v1-labels:bulk:key:${ctx.keyId}`, 10, 60_000);
   if (!rl.allowed) return { ok: false, status: 429, error: "Terlalu banyak permintaan.", retryAfterSec: rl.retryAfterSec };
 
-  const label = await queryD1One<Label>(
-    "SELECT * FROM Label WHERE id = ? AND tenantId = ? AND isActive = 1",
+  const label = await queryOne<Label>(
+    'SELECT * FROM "Label" WHERE id = $1 AND "tenantId" = $2 AND "isActive" = true',
     [labelId, ctx.tenantId]
   );
   if (!label) return { ok: false, status: 404, error: "Label not found" };
 
-  const now = new Date().toISOString();
-  let added = 0;
-  let skipped = 0;
-
+  const addedChatIds: string[] = [];
   for (const chatId of input.chatIds) {
-    // Check if already added
-    const existing = await queryD1One<{ id: string }>(
-      "SELECT id FROM LabelContact WHERE labelId = ? AND chatId = ?",
-      [labelId, chatId]
-    );
-    if (existing) {
-      skipped++;
-      continue;
-    }
-
     const id = generateContactId();
-    await queryD1One(
-      "INSERT INTO LabelContact (id, tenantId, labelId, chatId, createdAt) VALUES (?, ?, ?, ?, ?)",
-      [id, ctx.tenantId, labelId, chatId, now]
+    const rows = await query<{ chatId: string }>(
+      'INSERT INTO "LabelContact" (id, "tenantId", "labelId", "chatId", "createdAt") VALUES ($1, $2, $3, $4, now()) ON CONFLICT ("labelId", "chatId") DO NOTHING RETURNING "chatId"',
+      [id, ctx.tenantId, labelId, chatId]
     );
-    added++;
+    if (rows.length > 0) {
+      addedChatIds.push(chatId);
+    }
   }
 
-  // Sync to OpenWA if label is synced
+  const added = addedChatIds.length;
+  const skipped = input.chatIds.length - added;
+
+  // Sync to OpenWA only newly added chats if label is synced
   if (label.openwaLabelId && input.deviceId && added > 0) {
     try {
-      const device = await queryD1One<{ id: string; openwaSessionId: string; status: string }>(
-        "SELECT id, openwaSessionId, status FROM Device WHERE id = ? AND tenantId = ?",
+      const device = await queryOne<{ id: string; openwaSessionId: string; status: string }>(
+        'SELECT id, "openwaSessionId", status FROM "Device" WHERE id = $1 AND "tenantId" = $2',
         [input.deviceId, ctx.tenantId]
       );
       if (device && device.status === "ready") {
-        for (const chatId of input.chatIds) {
+        for (const chatId of addedChatIds) {
           try {
             await openwa.addChatToLabel(device.openwaSessionId, label.openwaLabelId, chatId);
           } catch {

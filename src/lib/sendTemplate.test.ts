@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { executeSendTemplate } from "./sendTemplate";
-import { queryD1One } from "./d1";
+import { resolveReadyDeviceForTenant } from "./devices";
 import { queryOne } from "./db";
 import { openwa, OpenwaError } from "./openwa";
 import { checkRateLimit } from "./rate-limit";
@@ -10,6 +10,7 @@ import { prepaidSendGate, spendCredit } from "./credit";
 import { DEFAULT_WATERMARK_FOOTNOTE } from "./watermark";
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
+vi.mock("./devices", () => ({ resolveReadyDeviceForTenant: vi.fn() }));
 vi.mock("./d1", () => ({ queryD1One: vi.fn() }));
 vi.mock("./db", () => ({ queryOne: vi.fn() }));
 vi.mock("./tenantConfig", () => ({ getTenantConfig: vi.fn() }));
@@ -42,7 +43,7 @@ function readyDevice(over: Partial<{ id: string; label: string; openwaSessionId:
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(queryD1One).mockResolvedValue(readyDevice());
+  vi.mocked(resolveReadyDeviceForTenant).mockResolvedValue(readyDevice());
   vi.mocked(queryOne).mockResolvedValue(undefined);
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true });
   vi.mocked(openwa.sendTemplate).mockResolvedValue({ messageId: "m-tpl-1", status: "sent" });
@@ -99,7 +100,7 @@ describe("executeSendTemplate — sukses", () => {
   });
 
   it("memakai deviceId bila diberikan", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(readyDevice({ id: "dev2", openwaSessionId: "owa-2" }));
+    vi.mocked(resolveReadyDeviceForTenant).mockResolvedValue(readyDevice({ id: "dev2", openwaSessionId: "owa-2" }));
     await executeSendTemplate({ to: "6281234567890", templateName: "x", deviceId: "dev2" }, ctx);
     expect(openwa.sendTemplate).toHaveBeenCalledWith("owa-2", "6281234567890@c.us", {
       templateName: "x",
@@ -210,7 +211,7 @@ describe("executeSendTemplate — validasi & error", () => {
   });
 
   it("tanpa device ready → 409", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(undefined);
+    vi.mocked(resolveReadyDeviceForTenant).mockResolvedValue(undefined);
     const result = await executeSendTemplate({ to: "6281234567890", templateName: "x" }, ctx);
     expect(result).toMatchObject({ ok: false, status: 409 });
   });

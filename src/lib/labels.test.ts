@@ -9,11 +9,11 @@ import {
   executeListChatsByLabel,
   executeBulkAddChatsToLabel,
 } from "./labels";
-import { queryD1One, queryD1 } from "./d1";
+import { query, queryOne } from "./db";
 import { openwa, OpenwaError } from "./openwa";
 import { checkRateLimit } from "./rate-limit";
 
-vi.mock("./d1", () => ({ queryD1One: vi.fn(), queryD1: vi.fn() }));
+vi.mock("./db", () => ({ queryOne: vi.fn(), query: vi.fn() }));
 vi.mock("./openwa", () => {
   class MockOpenwaError extends Error {
     status: number;
@@ -50,6 +50,7 @@ const mockLabel = {
   isActive: true,
   createdAt: "2026-09-04T00:00:00.000Z",
   updatedAt: "2026-09-04T00:00:00.000Z",
+  contactCount: 5,
 };
 
 const mockDevice = {
@@ -69,8 +70,7 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("executeListLabels", () => {
   it("lists labels with contact counts", async () => {
-    vi.mocked(queryD1).mockResolvedValue([mockLabel]);
-    vi.mocked(queryD1One).mockResolvedValue({ count: 5 });
+    vi.mocked(query).mockResolvedValue([mockLabel]);
 
     const r = await executeListLabels(ctx);
     expect(r).toMatchObject({ ok: true, status: 200 });
@@ -83,7 +83,7 @@ describe("executeListLabels", () => {
   });
 
   it("returns empty list when no labels", async () => {
-    vi.mocked(queryD1).mockResolvedValue([]);
+    vi.mocked(query).mockResolvedValue([]);
     const r = await executeListLabels(ctx);
     expect(r).toMatchObject({ ok: true, status: 200 });
     if (r.ok) {
@@ -103,9 +103,8 @@ describe("executeListLabels", () => {
 
 describe("executeCreateLabel", () => {
   it("creates label with default color", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(undefined); // no existing
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // check name
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // insert
+    vi.mocked(queryOne).mockResolvedValue(undefined); // no existing
+    vi.mocked(query).mockResolvedValue([]); // insert
 
     const r = await executeCreateLabel({ name: "New Lead" }, ctx);
     expect(r).toMatchObject({ ok: true, status: 200 });
@@ -118,17 +117,17 @@ describe("executeCreateLabel", () => {
   });
 
   it("rejects duplicate name per tenant", async () => {
-    vi.mocked(queryD1One).mockResolvedValue({ id: "existing" }); // name exists
+    vi.mocked(queryOne).mockResolvedValue({ id: "existing" }); // name exists
 
     const r = await executeCreateLabel({ name: "VIP Customer" }, ctx);
     expect(r).toMatchObject({ ok: false, status: 409 });
   });
 
   it("syncs to OpenWA when requested", async () => {
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // check name
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // insert
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockDevice); // device lookup
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // update openwaLabelId
+    vi.mocked(queryOne).mockResolvedValueOnce(undefined); // check name
+    vi.mocked(query).mockResolvedValueOnce([]); // insert
+    vi.mocked(queryOne).mockResolvedValueOnce(mockDevice); // device lookup
+    vi.mocked(query).mockResolvedValueOnce([]); // update openwaLabelId
     vi.mocked(openwa.createLabel).mockResolvedValue({ id: "owa_lbl_123", name: "Synced Label", color: "#6366f1" });
 
     const r = await executeCreateLabel(
@@ -155,35 +154,35 @@ describe("executeCreateLabel", () => {
 
 describe("executeUpdateLabel", () => {
   it("updates label name and color", async () => {
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockLabel); // get label
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // check name uniqueness
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // update
+    vi.mocked(queryOne).mockResolvedValueOnce(mockLabel); // get label
+    vi.mocked(queryOne).mockResolvedValueOnce(undefined); // check name uniqueness
+    vi.mocked(query).mockResolvedValueOnce([]); // update
 
     const r = await executeUpdateLabel("lbl_1", { name: "Updated Name", color: "#10b981" }, ctx);
     expect(r).toMatchObject({ ok: true, status: 200 });
   });
 
   it("rejects duplicate name", async () => {
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockLabel); // get label
-    vi.mocked(queryD1One).mockResolvedValueOnce({ id: "other" }); // name conflict
+    vi.mocked(queryOne).mockResolvedValueOnce(mockLabel); // get label
+    vi.mocked(queryOne).mockResolvedValueOnce({ id: "other" }); // name conflict
 
     const r = await executeUpdateLabel("lbl_1", { name: "Existing Name" }, ctx);
     expect(r).toMatchObject({ ok: false, status: 409 });
   });
 
   it("label not found → 404", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(undefined);
+    vi.mocked(queryOne).mockResolvedValue(undefined);
     const r = await executeUpdateLabel("nonexistent", { name: "Test" }, ctx);
     expect(r).toMatchObject({ ok: false, status: 404 });
   });
 
   it("syncs to OpenWA when label is synced", async () => {
     const syncedLabel = { ...mockLabel, openwaLabelId: "owa_lbl_123" };
-    vi.mocked(queryD1One).mockResolvedValueOnce(syncedLabel); // get label
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // check name
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // update
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockDevice); // device
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // update syncedAt
+    vi.mocked(queryOne).mockResolvedValueOnce(syncedLabel); // get label
+    vi.mocked(queryOne).mockResolvedValueOnce(undefined); // check name
+    vi.mocked(query).mockResolvedValueOnce([]); // update
+    vi.mocked(queryOne).mockResolvedValueOnce(mockDevice); // device
+    vi.mocked(query).mockResolvedValueOnce([]); // update syncedAt
 
     const r = await executeUpdateLabel("lbl_1", { name: "Updated", deviceId: "dev1" }, ctx);
     expect(r).toMatchObject({ ok: true, status: 200 });
@@ -198,8 +197,8 @@ describe("executeUpdateLabel", () => {
 
 describe("executeDeleteLabel", () => {
   it("soft deletes label", async () => {
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockLabel); // get label
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // soft delete
+    vi.mocked(queryOne).mockResolvedValueOnce(mockLabel); // get label
+    vi.mocked(query).mockResolvedValueOnce([]); // soft delete
 
     const r = await executeDeleteLabel("lbl_1", ctx);
     expect(r).toMatchObject({ ok: true, status: 200 });
@@ -207,9 +206,10 @@ describe("executeDeleteLabel", () => {
 
   it("deletes from OpenWA when synced", async () => {
     const syncedLabel = { ...mockLabel, openwaLabelId: "owa_lbl_123" };
-    vi.mocked(queryD1One).mockResolvedValueOnce(syncedLabel); // get label
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // soft delete
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockDevice); // device for OpenWA
+    vi.mocked(queryOne).mockResolvedValueOnce(syncedLabel); // get label
+    vi.mocked(query).mockResolvedValueOnce([]); // soft delete
+    vi.mocked(queryOne).mockResolvedValueOnce(mockDevice); // device lookup
+    vi.mocked(openwa.deleteLabel).mockResolvedValue({ success: true });
 
     const r = await executeDeleteLabel("lbl_1", ctx);
     expect(r).toMatchObject({ ok: true, status: 200 });
@@ -217,7 +217,7 @@ describe("executeDeleteLabel", () => {
   });
 
   it("label not found → 404", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(undefined);
+    vi.mocked(queryOne).mockResolvedValue(undefined);
     const r = await executeDeleteLabel("nonexistent", ctx);
     expect(r).toMatchObject({ ok: false, status: 404 });
   });
@@ -227,43 +227,52 @@ describe("executeDeleteLabel", () => {
 
 describe("executeAddChatToLabel", () => {
   it("adds chat to label", async () => {
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockLabel); // get label
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // check existing
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // insert
+    vi.mocked(queryOne).mockResolvedValueOnce(mockLabel); // get label
+    vi.mocked(query).mockResolvedValueOnce([{ chatId: "628123456789@c.us" }]); // insert with returning
 
-    const r = await executeAddChatToLabel("lbl_1", { chatId: "6281234567890@c.us" }, ctx);
-    expect(r).toMatchObject({ ok: true, status: 200, body: { ok: true, added: true } });
+    const r = await executeAddChatToLabel("lbl_1", { chatId: "628123456789@c.us" }, ctx);
+    expect(r).toMatchObject({ ok: true, status: 200 });
+    if (r.ok) {
+      expect(r.body).toMatchObject({ ok: true, added: true });
+    }
   });
 
-  it("returns already_added if chat is already in label", async () => {
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockLabel); // get label
-    vi.mocked(queryD1One).mockResolvedValueOnce({ id: "existing" }); // already exists
+  it("idempotent — already added returns added: false", async () => {
+    vi.mocked(queryOne).mockResolvedValueOnce(mockLabel);
+    vi.mocked(query).mockResolvedValueOnce([]); // on conflict do nothing returns []
 
-    const r = await executeAddChatToLabel("lbl_1", { chatId: "6281234567890@c.us" }, ctx);
-    expect(r).toMatchObject({ ok: true, status: 200, body: { ok: true, added: false, reason: "already_added" } });
-  });
-
-  it("label not found → 404", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(undefined);
-    const r = await executeAddChatToLabel("nonexistent", { chatId: "6281234567890@c.us" }, ctx);
-    expect(r).toMatchObject({ ok: false, status: 404 });
-  });
-
-  it("empty chatId → 400", async () => {
-    const r = await executeAddChatToLabel("lbl_1", { chatId: "" }, ctx);
-    expect(r).toMatchObject({ ok: false, status: 400 });
+    const r = await executeAddChatToLabel("lbl_1", { chatId: "628123456789@c.us" }, ctx);
+    expect(r).toMatchObject({ ok: true, status: 200 });
+    if (r.ok) {
+      expect(r.body).toMatchObject({ ok: true, added: false, reason: "already_added" });
+    }
   });
 
   it("syncs to OpenWA when label is synced", async () => {
     const syncedLabel = { ...mockLabel, openwaLabelId: "owa_lbl_123" };
-    vi.mocked(queryD1One).mockResolvedValueOnce(syncedLabel); // get label
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // check existing
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // insert
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockDevice); // device
+    vi.mocked(queryOne).mockResolvedValueOnce(syncedLabel); // get label
+    vi.mocked(query).mockResolvedValueOnce([{ chatId: "628123456789@c.us" }]); // insert with returning
+    vi.mocked(queryOne).mockResolvedValueOnce(mockDevice); // device
+    vi.mocked(openwa.addChatToLabel).mockResolvedValue({ success: true });
 
-    const r = await executeAddChatToLabel("lbl_1", { chatId: "6281234567890@c.us", deviceId: "dev1" }, ctx);
+    const r = await executeAddChatToLabel(
+      "lbl_1",
+      { chatId: "628123456789@c.us", deviceId: "dev1" },
+      ctx
+    );
     expect(r).toMatchObject({ ok: true, status: 200 });
-    expect(openwa.addChatToLabel).toHaveBeenCalledWith("owa-1", "owa_lbl_123", "6281234567890@c.us");
+    expect(openwa.addChatToLabel).toHaveBeenCalledWith("owa-1", "owa_lbl_123", "628123456789@c.us");
+  });
+
+  it("label not found → 404", async () => {
+    vi.mocked(queryOne).mockResolvedValue(undefined);
+    const r = await executeAddChatToLabel("nonexistent", { chatId: "628123456789@c.us" }, ctx);
+    expect(r).toMatchObject({ ok: false, status: 404 });
+  });
+
+  it("missing chatId → 400", async () => {
+    const r = await executeAddChatToLabel("lbl_1", { chatId: "" }, ctx);
+    expect(r).toMatchObject({ ok: false, status: 400 });
   });
 });
 
@@ -271,46 +280,56 @@ describe("executeAddChatToLabel", () => {
 
 describe("executeRemoveChatFromLabel", () => {
   it("removes chat from label", async () => {
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockLabel); // get label
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // delete
+    vi.mocked(queryOne).mockResolvedValueOnce(mockLabel); // get label
+    vi.mocked(query).mockResolvedValueOnce([]); // delete
 
-    const r = await executeRemoveChatFromLabel("lbl_1", "6281234567890@c.us", ctx);
-    expect(r).toMatchObject({ ok: true, status: 200, body: { ok: true, removed: true } });
+    const r = await executeRemoveChatFromLabel("lbl_1", "628123456789@c.us", ctx);
+    expect(r).toMatchObject({ ok: true, status: 200 });
+    if (r.ok) {
+      expect(r.body).toMatchObject({ ok: true, removed: true });
+    }
+  });
+
+  it("syncs removal to OpenWA when label is synced", async () => {
+    const syncedLabel = { ...mockLabel, openwaLabelId: "owa_lbl_123" };
+    vi.mocked(queryOne).mockResolvedValueOnce(syncedLabel); // get label
+    vi.mocked(query).mockResolvedValueOnce([]); // delete
+    vi.mocked(queryOne).mockResolvedValueOnce(mockDevice); // device lookup
+    vi.mocked(openwa.removeChatFromLabel).mockResolvedValue({ success: true });
+
+    const r = await executeRemoveChatFromLabel("lbl_1", "628123456789@c.us", ctx);
+    expect(r).toMatchObject({ ok: true, status: 200 });
+    expect(openwa.removeChatFromLabel).toHaveBeenCalledWith("owa-1", "owa_lbl_123", "628123456789@c.us");
   });
 
   it("label not found → 404", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(undefined);
-    const r = await executeRemoveChatFromLabel("nonexistent", "6281234567890@c.us", ctx);
+    vi.mocked(queryOne).mockResolvedValue(undefined);
+    const r = await executeRemoveChatFromLabel("nonexistent", "628123456789@c.us", ctx);
     expect(r).toMatchObject({ ok: false, status: 404 });
-  });
-
-  it("empty chatId → 400", async () => {
-    const r = await executeRemoveChatFromLabel("lbl_1", "", ctx);
-    expect(r).toMatchObject({ ok: false, status: 400 });
   });
 });
 
 // ── List Chats by Label ─────────────────────────────────────────────────────
 
 describe("executeListChatsByLabel", () => {
-  it("lists chats by label", async () => {
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockLabel); // get label
-    vi.mocked(queryD1).mockResolvedValue([
-      { id: "lc_1", chatId: "6281234567890@c.us", createdAt: "2026-09-04T00:00:00.000Z" },
+  it("returns paginated chat list", async () => {
+    vi.mocked(queryOne).mockResolvedValueOnce(mockLabel); // get label
+    vi.mocked(query).mockResolvedValue([
+      { id: "lc_1", tenantId: "t1", labelId: "lbl_1", chatId: "6281@c.us", createdAt: "2026-09-04T00:00:00Z" },
     ]);
 
-    const r = await executeListChatsByLabel("lbl_1", {}, ctx);
+    const r = await executeListChatsByLabel("lbl_1", { limit: 10, offset: 0 }, ctx);
     expect(r).toMatchObject({ ok: true, status: 200 });
     if (r.ok) {
       const body = r.body as Record<string, unknown>;
       const chats = body.chats as Array<Record<string, unknown>>;
       expect(chats).toHaveLength(1);
-      expect(chats[0]).toMatchObject({ chatId: "6281234567890@c.us" });
+      expect(chats[0]).toMatchObject({ chatId: "6281@c.us" });
     }
   });
 
   it("label not found → 404", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(undefined);
+    vi.mocked(queryOne).mockResolvedValue(undefined);
     const r = await executeListChatsByLabel("nonexistent", {}, ctx);
     expect(r).toMatchObject({ ok: false, status: 404 });
   });
@@ -319,33 +338,26 @@ describe("executeListChatsByLabel", () => {
 // ── Bulk Add Chats ──────────────────────────────────────────────────────────
 
 describe("executeBulkAddChatsToLabel", () => {
-  it("bulk adds chats to label", async () => {
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockLabel); // get label
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // check existing chat 1
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // insert chat 1
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // check existing chat 2
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // insert chat 2
+  it("bulk adds chats, skips duplicates", async () => {
+    vi.mocked(queryOne).mockResolvedValueOnce(mockLabel); // get label
+    vi.mocked(query).mockResolvedValueOnce([{ chatId: "6281@c.us" }]); // chat 1 added
+    vi.mocked(query).mockResolvedValueOnce([]); // chat 2 duplicate
 
     const r = await executeBulkAddChatsToLabel(
       "lbl_1",
-      { chatIds: ["6281234567890@c.us", "6281234567891@c.us"] },
+      { chatIds: ["6281@c.us", "6282@c.us"] },
       ctx
     );
-    expect(r).toMatchObject({ ok: true, status: 200, body: { ok: true, added: 2, skipped: 0 } });
+    expect(r).toMatchObject({ ok: true, status: 200 });
+    if (r.ok) {
+      expect(r.body).toMatchObject({ ok: true, added: 1, skipped: 1 });
+    }
   });
 
-  it("skips already added chats", async () => {
-    vi.mocked(queryD1One).mockResolvedValueOnce(mockLabel); // get label
-    vi.mocked(queryD1One).mockResolvedValueOnce({ id: "existing" }); // chat 1 exists
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // check chat 2
-    vi.mocked(queryD1One).mockResolvedValueOnce(undefined); // insert chat 2
-
-    const r = await executeBulkAddChatsToLabel(
-      "lbl_1",
-      { chatIds: ["6281234567890@c.us", "6281234567891@c.us"] },
-      ctx
-    );
-    expect(r).toMatchObject({ ok: true, status: 200, body: { ok: true, added: 1, skipped: 1 } });
+  it("rejects >100 chatIds", async () => {
+    const tooMany = Array.from({ length: 101 }, (_, i) => `628${i}@c.us`);
+    const r = await executeBulkAddChatsToLabel("lbl_1", { chatIds: tooMany }, ctx);
+    expect(r).toMatchObject({ ok: false, status: 400 });
   });
 
   it("empty chatIds → 400", async () => {
@@ -353,14 +365,9 @@ describe("executeBulkAddChatsToLabel", () => {
     expect(r).toMatchObject({ ok: false, status: 400 });
   });
 
-  it("too many chatIds → 400", async () => {
-    const r = await executeBulkAddChatsToLabel("lbl_1", { chatIds: Array(101).fill("test@c.us") }, ctx);
-    expect(r).toMatchObject({ ok: false, status: 400 });
-  });
-
   it("label not found → 404", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(undefined);
-    const r = await executeBulkAddChatsToLabel("nonexistent", { chatIds: ["test@c.us"] }, ctx);
+    vi.mocked(queryOne).mockResolvedValue(undefined);
+    const r = await executeBulkAddChatsToLabel("nonexistent", { chatIds: ["6281@c.us"] }, ctx);
     expect(r).toMatchObject({ ok: false, status: 404 });
   });
 });

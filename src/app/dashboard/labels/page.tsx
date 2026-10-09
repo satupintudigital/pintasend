@@ -40,8 +40,8 @@ export default function LabelsPage() {
   const loadLabels = useCallback(async () => {
     try {
       const res = await fetch("/api/labels");
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Gagal memuat label");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `Gagal memuat label (${res.status})`);
       setLabels(data.labels ?? []);
       setError("");
     } catch (e) {
@@ -78,8 +78,8 @@ export default function LabelsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: formName.trim(), color: formColor }),
         });
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const data = await res.json();
           throw new Error(data.error ?? "Gagal update label");
         }
       } else {
@@ -88,8 +88,8 @@ export default function LabelsPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: formName.trim(), color: formColor }),
         });
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const data = await res.json();
           throw new Error(data.error ?? "Gagal membuat label");
         }
       }
@@ -105,9 +105,13 @@ export default function LabelsPage() {
   async function deleteLabel(id: string, name: string) {
     if (!window.confirm(`Hapus label "${name}"?`)) return;
     try {
-      await fetch(`/api/labels/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/labels/${id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "Gagal menghapus label");
       loadLabels();
-    } catch { /* noop */ }
+    } catch (e) {
+      setError((e as Error).message);
+    }
   }
 
   return (

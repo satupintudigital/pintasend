@@ -1,33 +1,44 @@
 import { auth } from "@/lib/auth";
-import { queryD1, queryD1One } from "@/lib/d1";
+import { query, queryOne } from "@/lib/db";
 
 export async function GET() {
   const session = await auth();
   const tenantId = session?.user?.tenantId;
   if (!tenantId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const labels = await queryD1<{
-    id: string; name: string; color: string; openwaLabelId: string | null; isActive: number; createdAt: string;
-  }>("SELECT * FROM Label WHERE tenantId = ? AND isActive = 1 ORDER BY name ASC", [tenantId]);
+  try {
+    const labels = await query<{
+      id: string;
+      name: string;
+      color: string;
+      openwaLabelId: string | null;
+      isActive: boolean;
+      createdAt: string;
+      contactCount: number | string;
+    }>(
+      `SELECT l.id, l.name, l.color, l."openwaLabelId", l."isActive", l."createdAt",
+              COALESCE(COUNT(lc.id), 0)::int as "contactCount"
+       FROM "Label" l
+       LEFT JOIN "LabelContact" lc ON lc."labelId" = l.id
+       WHERE l."tenantId" = $1 AND l."isActive" = true
+       GROUP BY l.id
+       ORDER BY l.name ASC`,
+      [tenantId]
+    );
 
-  // Get contact counts
-  const labelsWithCounts = await Promise.all(
-    labels.map(async (label) => {
-      const countResult = await queryD1One<{ count: number }>(
-        "SELECT COUNT(*) as count FROM LabelContact WHERE labelId = ?",
-        [label.id]
-      );
-      return {
-        id: label.id,
-        name: label.name,
-        color: label.color,
-        contactCount: countResult?.count ?? 0,
-        openwaSynced: label.openwaLabelId !== null,
-      };
-    })
-  );
+    const labelsWithCounts = labels.map((label) => ({
+      id: label.id,
+      name: label.name,
+      color: label.color,
+      contactCount: Number(label.contactCount) || 0,
+      openwaSynced: label.openwaLabelId !== null,
+    }));
 
-  return Response.json({ labels: labelsWithCounts });
+    return Response.json({ labels: labelsWithCounts });
+  } catch (e) {
+    console.error("GET /api/labels error:", e);
+    return Response.json({ error: "Gagal memuat label" }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
@@ -41,19 +52,23 @@ export async function POST(req: Request) {
 
   if (!name) return Response.json({ error: "Nama label wajib diisi" }, { status: 400 });
 
-  // Check uniqueness
-  const existing = await queryD1One<{ id: string }>(
-    "SELECT id FROM Label WHERE tenantId = ? AND name = ? AND isActive = 1",
-    [tenantId, name]
-  );
-  if (existing) return Response.json({ error: "Label dengan nama ini sudah ada" }, { status: 409 });
+  try {
+    // Check uniqueness
+    const existing = await queryOne<{ id: string }>(
+      'SELECT id FROM "Label" WHERE "tenantId" = $1 AND name = $2 AND "isActive" = true',
+      [tenantId, name]
+    );
+    if (existing) return Response.json({ error: "Label dengan nama ini sudah ada" }, { status: 409 });
 
-  const id = `lbl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-  const now = new Date().toISOString();
-  await queryD1One(
-    "INSERT INTO Label (id, tenantId, name, color, isActive, createdAt, updatedAt) VALUES (?, ?, ?, ?, 1, ?, ?)",
-    [id, tenantId, name, color, now, now]
-  );
+    const id = `lbl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+    await query(
+      'INSERT INTO "Label" (id, "tenantId", name, color, "isActive", "createdAt", "updatedAt") VALUES ($1, $2, $3, $4, true, now(), now())',
+      [id, tenantId, name, color]
+    );
 
-  return Response.json({ label: { id, name, color, contactCount: 0, openwaSynced: false } }, { status: 201 });
+    return Response.json({ label: { id, name, color, contactCount: 0, openwaSynced: false } }, { status: 201 });
+  } catch (e) {
+    console.error("POST /api/labels error:", e);
+    return Response.json({ error: "Gagal membuat label" }, { status: 500 });
+  }
 }

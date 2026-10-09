@@ -23,6 +23,7 @@ import { putMediaObject } from "./r2";
 import { uuidv7 } from "./uuidv7";
 import { checkRateLimit } from "./rate-limit";
 import { getTenantConfig } from "./tenantConfig";
+import { resolveReadyDeviceForTenant } from "./devices";
 import { prepaidSendGate, spendCredit } from "./credit";
 import { randomDelayMs, sleep } from "./delay";
 import { logEvent } from "./requestLogger";
@@ -321,17 +322,8 @@ export async function executeSendMessage(
     };
   }
 
-  // 7. Pilih device — D1 (0 Neon queries).
-  const device = deviceId
-    ? await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
-        'SELECT id, label, openwaSessionId, status FROM Device WHERE id = ? AND tenantId = ?',
-        [deviceId, ctx.tenantId],
-      )
-    : await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
-        'SELECT id, label, openwaSessionId, status FROM Device WHERE tenantId = ? AND status = ? ORDER BY updatedAt DESC LIMIT 1',
-        [ctx.tenantId, "ready"],
-      );
-
+  // 7. Pilih device — D1 dengan fallback Neon + auto-repair.
+  const device = await resolveReadyDeviceForTenant(ctx.tenantId, deviceId);
   if (!device) {
     return {
       ok: false,

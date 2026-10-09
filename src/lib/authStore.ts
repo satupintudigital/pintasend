@@ -312,17 +312,82 @@ export async function revokeApiKey(id: string, tenantId: string): Promise<Revoke
 export async function verifyApiKey(raw: string): Promise<{ tenantId: string; keyId: string } | null> {
   if (!raw.startsWith(API_KEY_PREFIX)) return null;
   const keyHash = await hashApiKey(raw);
-  const row = await queryD1One<{
+  let row: {
     id: string;
     tenantId: string;
     revokedAt: string | null;
     suspendedAt: string | null;
     activatedAt: string | null;
-  }>(
-    "SELECT k.id, k.tenantId, k.revokedAt, t.suspendedAt, t.activatedAt FROM ApiKey k " +
-      "LEFT JOIN Tenant t ON k.tenantId = t.id WHERE k.keyHash = ?",
-    [keyHash],
-  );
+  } | undefined;
+
+  try {
+    row = await queryD1One<{
+      id: string;
+      tenantId: string;
+      revokedAt: string | null;
+      suspendedAt: string | null;
+      activatedAt: string | null;
+    }>(
+      "SELECT k.id, k.tenantId, k.revokedAt, t.suspendedAt, t.activatedAt FROM ApiKey k " +
+        "LEFT JOIN Tenant t ON k.tenantId = t.id WHERE k.keyHash = ?",
+      [keyHash],
+    );
+  } catch {
+    row = undefined;
+  }
+
+  // Fallback ke Neon jika D1 miss / stale: ambil dari source of truth lalu perbaiki D1
+  if (!row) {
+    const neonRows = await query<{
+      id: string;
+      tenantId: string;
+      label: string;
+      keyHash: string;
+      prefix: string;
+      createdAt: string;
+      lastUsedAt: string | null;
+      revokedAt: string | null;
+      tenantName: string;
+      suspendedAt: string | null;
+      activatedAt: string | null;
+    }>(
+      `SELECT k.id, k."tenantId", k.label, k."keyHash", k.prefix, k."createdAt", k."lastUsedAt", k."revokedAt",
+              t.name AS "tenantName", t."suspendedAt", t."activatedAt"
+       FROM "ApiKey" k
+       LEFT JOIN "Tenant" t ON k."tenantId" = t.id
+       WHERE k."keyHash" = $1`,
+      [keyHash],
+    ).catch(() => []);
+
+    if (neonRows.length > 0) {
+      const n = neonRows[0];
+      row = {
+        id: n.id,
+        tenantId: n.tenantId,
+        revokedAt: n.revokedAt,
+        suspendedAt: n.suspendedAt,
+        activatedAt: n.activatedAt,
+      };
+
+      // Auto-repair D1 secara asynchronous
+      (async () => {
+        try {
+          await queryD1(
+            "INSERT OR REPLACE INTO Tenant (id, name, suspendedAt, activatedAt) VALUES (?, ?, ?, ?)",
+            [n.tenantId, n.tenantName, n.suspendedAt, n.activatedAt],
+          );
+          await queryD1(
+            "INSERT OR REPLACE INTO ApiKey (id, tenantId, label, keyHash, prefix, createdAt, lastUsedAt, revokedAt) " +
+              "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [n.id, n.tenantId, n.label, n.keyHash, n.prefix, n.createdAt, n.lastUsedAt, n.revokedAt],
+          );
+        } catch (repairErr) {
+          console.error("verifyApiKey: auto-repair D1 gagal:", repairErr);
+        }
+      })().catch(() => {});
+    }
+  }
+
   if (!row) return null;
   if (row.revokedAt) return null;
   // Tenant nonaktif (suspended) → tolak semua pemakaian API key tenant itu.
@@ -336,7 +401,6 @@ export async function verifyApiKey(raw: string): Promise<{ tenantId: string; key
   ]).catch((e) => console.error("authStore: update lastUsedAt D1 gagal:", e));
   return { tenantId: row.tenantId, keyId: row.id };
 }
-
 // Baca user dalam tenant (scope-check) — baca Neon (source of truth).
 // Dipakai operasi member management agar user dari tenant lain TIDAK pernah
 // tersentuh (menutup celah lintas-tenant).

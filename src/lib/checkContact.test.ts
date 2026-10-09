@@ -1,11 +1,11 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { executeCheckContact } from "./checkContact";
-import { queryD1One } from "./d1";
+import { resolveReadyDeviceForTenant } from "./devices";
 import { openwa, OpenwaError } from "./openwa";
 import { checkRateLimit } from "./rate-limit";
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
-vi.mock("./d1", () => ({ queryD1One: vi.fn() }));
+vi.mock("./devices", () => ({ resolveReadyDeviceForTenant: vi.fn() }));
 vi.mock("./tenantConfig", () => ({ getTenantConfig: vi.fn() }));
 vi.mock("./openwa", () => {
   class MockOpenwaError extends Error {
@@ -33,7 +33,7 @@ function readyDevice(over: Partial<{ id: string; label: string; openwaSessionId:
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(queryD1One).mockResolvedValue(readyDevice());
+  vi.mocked(resolveReadyDeviceForTenant).mockResolvedValue(readyDevice());
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true });
   vi.mocked(openwa.checkContact).mockResolvedValue({
     number: "6281234567890",
@@ -67,10 +67,10 @@ describe("executeCheckContact — sukses", () => {
   });
 
   it("memakai deviceId bila diberikan", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(readyDevice({ id: "dev2", openwaSessionId: "owa-2" }));
+    vi.mocked(resolveReadyDeviceForTenant).mockResolvedValue(readyDevice({ id: "dev2", openwaSessionId: "owa-2" }));
     await executeCheckContact({ number: "6281234567890", deviceId: "dev2" }, ctx);
 
-    expect(queryD1One).toHaveBeenCalledWith(expect.stringContaining("WHERE id = ?"), ["dev2", "t1"]);
+    expect(resolveReadyDeviceForTenant).toHaveBeenCalledWith("t1", "dev2");
     expect(openwa.checkContact).toHaveBeenCalledWith("owa-2", "6281234567890");
   });
 });
@@ -83,19 +83,19 @@ describe("executeCheckContact — validasi & error", () => {
   });
 
   it("tanpa device ready → 409", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(undefined);
+    vi.mocked(resolveReadyDeviceForTenant).mockResolvedValue(undefined);
     const result = await executeCheckContact({ number: "6281234567890" }, ctx);
     expect(result).toMatchObject({ ok: false, status: 409 });
   });
 
   it("deviceId tidak ditemukan → 404", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(undefined);
+    vi.mocked(resolveReadyDeviceForTenant).mockResolvedValue(undefined);
     const result = await executeCheckContact({ number: "6281234567890", deviceId: "nope" }, ctx);
     expect(result).toMatchObject({ ok: false, status: 404 });
   });
 
   it("device tidak siap → 409", async () => {
-    vi.mocked(queryD1One).mockResolvedValue(readyDevice({ status: "disconnected" }));
+    vi.mocked(resolveReadyDeviceForTenant).mockResolvedValue(readyDevice({ status: "disconnected" }));
     const result = await executeCheckContact({ number: "6281234567890" }, ctx);
     expect(result).toMatchObject({ ok: false, status: 409 });
   });

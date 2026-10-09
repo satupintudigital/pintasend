@@ -1,5 +1,5 @@
 import { query, queryOne } from "@/lib/db";
-import { queryD1 } from "@/lib/d1";
+import { queryD1, queryD1One } from "@/lib/d1";
 import { uuidv7 } from "@/lib/uuidv7";
 import { openwa, openwaWebhookSecret, OPENWA_WEBHOOK_EVENTS } from "@/lib/openwa";
 import { seedTemplatesForSession } from "@/lib/templates";
@@ -36,6 +36,73 @@ export async function getDeviceForTenant(
     `SELECT ${DEVICE_COLUMNS} FROM "Device" WHERE id = $1 AND "tenantId" = $2`,
     [deviceId, tenantId],
   );
+}
+
+export interface ReadyDeviceRow {
+  id: string;
+  label: string;
+  openwaSessionId: string;
+  status: string;
+}
+
+/**
+ * Resolve ready device untuk tenant — baca D1 (edge path),
+ * jika D1 miss / stale → fallback ke Neon (source of truth) lalu auto-repair D1.
+ */
+export async function resolveReadyDeviceForTenant(
+  tenantId: string,
+  deviceId?: string,
+): Promise<ReadyDeviceRow | undefined> {
+  let row: ReadyDeviceRow | undefined;
+
+  try {
+    if (deviceId) {
+      row = await queryD1One<ReadyDeviceRow>(
+        "SELECT id, label, openwaSessionId, status FROM Device WHERE id = ? AND tenantId = ? AND status = 'ready'",
+        [deviceId, tenantId],
+      );
+    } else {
+      row = await queryD1One<ReadyDeviceRow>(
+        "SELECT id, label, openwaSessionId, status FROM Device WHERE tenantId = ? AND status = 'ready' ORDER BY updatedAt DESC LIMIT 1",
+        [tenantId],
+      );
+    }
+  } catch {
+    row = undefined;
+  }
+
+  // Fallback ke Neon jika D1 miss/stale
+  if (!row) {
+    let neonDevice: DeviceRow | undefined;
+    try {
+      neonDevice = deviceId
+        ? await queryOne<DeviceRow>(
+            `SELECT ${DEVICE_COLUMNS} FROM "Device" WHERE id = $1 AND "tenantId" = $2 AND status = 'ready'`,
+            [deviceId, tenantId],
+          )
+        : await queryOne<DeviceRow>(
+            `SELECT ${DEVICE_COLUMNS} FROM "Device" WHERE "tenantId" = $1 AND status = 'ready' ORDER BY "updatedAt" DESC LIMIT 1`,
+            [tenantId],
+          );
+    } catch {
+      neonDevice = undefined;
+    }
+    if (neonDevice) {
+      row = {
+        id: neonDevice.id,
+        label: neonDevice.label,
+        openwaSessionId: neonDevice.openwaSessionId,
+        status: neonDevice.status,
+      };
+
+      // Auto-repair D1 replika
+      cloneDeviceToD1(neonDevice).catch((e) =>
+        console.error("resolveReadyDeviceForTenant: auto-repair D1 gagal:", e),
+      );
+    }
+  }
+
+  return row;
 }
 
 // URL ingest webhook PintaSend — didaftarkan ke OpenWA per session.

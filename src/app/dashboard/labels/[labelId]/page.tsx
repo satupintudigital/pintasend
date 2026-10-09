@@ -41,8 +41,8 @@ export default function LabelDetailPage() {
   const loadLabel = useCallback(async () => {
     try {
       const res = await fetch(`/api/labels/${labelId}/chats`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Gagal memuat label");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? `Gagal memuat label (${res.status})`);
       setLabel(data.label);
       setChats(data.chats ?? []);
       setError("");
@@ -65,7 +65,7 @@ export default function LabelDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chatId: chatIdInput.trim() }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Gagal menambah chat");
       setAddOpen(false);
       setChatIdInput("");
@@ -83,8 +83,8 @@ export default function LabelDetailPage() {
       const res = await fetch(`/api/labels/${labelId}/chats/${encodeURIComponent(chatId)}`, {
         method: "DELETE",
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error ?? "Gagal menghapus");
       }
       loadLabel();

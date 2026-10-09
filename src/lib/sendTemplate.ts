@@ -4,7 +4,7 @@
 // OpenWA → catat log. Route hanya verifikasi API key lalu delegasi ke sini.
 
 import { normalizeChatId } from "./chat";
-import { queryD1One } from "./d1";
+import { resolveReadyDeviceForTenant } from "./devices";
 import { queryOne } from "./db";
 import { openwa, OpenwaError, publicOpenwaError, type OpenwaSendResult } from "./openwa";
 import { checkRateLimit } from "./rate-limit";
@@ -151,16 +151,8 @@ export async function executeSendTemplate(
     };
   }
 
-  // 5. Pilih device — D1 (0 Neon queries).
-  const device = input.deviceId
-    ? await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
-        'SELECT id, label, openwaSessionId, status FROM Device WHERE id = ? AND tenantId = ?',
-        [input.deviceId, ctx.tenantId],
-      )
-    : await queryD1One<{ id: string; label: string; openwaSessionId: string; status: string }>(
-        'SELECT id, label, openwaSessionId, status FROM Device WHERE tenantId = ? AND status = ? ORDER BY updatedAt DESC LIMIT 1',
-        [ctx.tenantId, "ready"],
-      );
+  // 5. Pilih device — D1 dengan fallback Neon + auto-repair.
+  const device = await resolveReadyDeviceForTenant(ctx.tenantId, input.deviceId);
 
   if (!device) {
     return {

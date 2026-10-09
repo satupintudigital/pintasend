@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { queryD1One } from "@/lib/d1";
+import { query, queryOne } from "@/lib/db";
 
 export async function DELETE(
   _req: Request,
@@ -12,13 +12,18 @@ export async function DELETE(
   const { labelId, chatId: rawChatId } = await params;
   const chatId = decodeURIComponent(rawChatId);
 
-  const label = await queryD1One<{ id: string }>(
-    "SELECT id FROM Label WHERE id = ? AND tenantId = ? AND isActive = 1",
-    [labelId, tenantId]
-  );
-  if (!label) return Response.json({ error: "Label tidak ditemukan" }, { status: 404 });
+  try {
+    const label = await queryOne<{ id: string }>(
+      'SELECT id FROM "Label" WHERE id = $1 AND "tenantId" = $2 AND "isActive" = true',
+      [labelId, tenantId]
+    );
+    if (!label) return Response.json({ error: "Label tidak ditemukan" }, { status: 404 });
 
-  await queryD1One("DELETE FROM LabelContact WHERE labelId = ? AND chatId = ?", [labelId, chatId]);
+    await query('DELETE FROM "LabelContact" WHERE "labelId" = $1 AND "chatId" = $2', [labelId, chatId]);
 
-  return Response.json({ ok: true, removed: true });
+    return Response.json({ ok: true, removed: true });
+  } catch (e) {
+    console.error("DELETE /api/labels/[labelId]/chats/[chatId] error:", e);
+    return Response.json({ error: "Gagal menghapus chat dari label" }, { status: 500 });
+  }
 }
